@@ -106,3 +106,20 @@ Eine Bild-KI ist jede Klasse mit `entwerfen(foto, maske, prompt, seeds)` (siehe 
 - Nur achsparallele Teile, keine Schrägen und Rundungen.
 - Sortiment nach deutschen Baumarkt-Angeboten (OBI, toom, Hornbach, Okt. 2026); im eigenen Markt prüfen.
 - Ohne A4-Blatt kommen die Maße aus deiner Eingabe.
+
+## Verbesserungsideen
+
+### Interner Prüf-Loop zwischen Claude und Bild-KI
+
+Die Bild-KI malt manchmal Möbel, die man so nicht bauen kann: Rundungen, schwebende Teile, Verbindungen ohne Auflager, zu dünne Hölzer, falsche Proportionen. Bisher fängt das erst die Engine ab. Sie repariert die Konstruktion, das Bild bleibt aber, wie es war. Besser wäre ein Loop vor dem Anzeigen:
+
+1. Die Bild-KI malt einen Entwurf in die Maske.
+2. Claude prüft den Ausschnitt auf Baubarkeit und nennt konkret, was unrealistisch ist, z. B. „Armlehne gebogen“, „Sitzfläche ohne Beine in der Mitte“ oder „Latten dünner als 2 cm“.
+3. Zusätzlich liest Claude den Bauteilgraph, und die Engine rechnet ihn durch. Jede Reparatur ist ein Hinweis, dass das Bild nicht stimmt, z. B. „Fußriegel ergänzt“, „Mittelsteg eingefügt“ oder „Latte zu lang, gestoßen“.
+4. Claude formuliert daraus einen Korrektur-Prompt: was bleiben soll (Stil, Farbe, Gesamtform) und was sich ändern muss.
+5. Die Bild-KI malt den Entwurf neu, mit gleichem Seed und gleicher Maske. Dadurch ändert sich nur das Nötige.
+6. Der Loop wiederholt sich, bis Claude nichts mehr findet und die Engine keine Reparatur mehr braucht, höchstens 2–3 Runden.
+
+Ergebnis: Die angezeigten Entwürfe sind schon baubar, und Bild und Bauplan passen zusammen. Kosten: je Runde ein Inpainting-Aufruf und ein bis zwei Claude-Aufrufe pro Entwurf. Den Loop eventuell nur für den gewählten Entwurf laufen lassen.
+
+Umsetzung: ein neuer Dienst `services/pruefer.py` (Claude: Bild → Mängelliste und Korrektur-Prompt). Dazu eine Funktion, die Bild-KI, Prüfer und Engine im Wechsel aufruft, angebunden an `controllers/entwuerfe.py`. Den Fortschritt je Runde an die Oberfläche melden, z. B. „Runde 2: Armlehne begradigt“.

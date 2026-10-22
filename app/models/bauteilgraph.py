@@ -38,25 +38,88 @@ class GraphFehler(ValueError):
     """Der Bauteilgraph ist unbrauchbar."""
 
 
+def _entschaerfen(text: str) -> str:
+    """Kommentare (// und /* */) außerhalb von Strings und Kommas vor ] oder } entfernen."""
+    aus: list[str] = []
+    i, n, im_string = 0, len(text), False
+    while i < n:
+        c = text[i]
+        if im_string:
+            aus.append(c)
+            if c == "\\" and i + 1 < n:
+                aus.append(text[i + 1])
+                i += 1
+            elif c == '"':
+                im_string = False
+        elif c == '"':
+            im_string = True
+            aus.append(c)
+        elif text.startswith("//", i):
+            while i < n and text[i] != "\n":
+                i += 1
+            continue
+        elif text.startswith("/*", i):
+            ende = text.find("*/", i + 2)
+            i = n if ende < 0 else ende + 2
+            continue
+        else:
+            aus.append(c)
+        i += 1
+    return re.sub(r",(\s*[\]}])", r"\1", "".join(aus))
+
+
 def json_aus_text(text: str) -> Any:
-    """JSON aus einer KI-Antwort holen, auch wenn es in einem Codeblock oder in Fließtext steckt."""
-    try:
-        return json.loads(text)
-    except ValueError:
-        pass
+    """JSON aus einer KI-Antwort holen, auch aus Codeblöcken, Fließtext oder mit Kommentaren."""
+    kandidaten = [text]
     fence = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
     if fence:
-        try:
-            return json.loads(fence.group(1))
-        except ValueError:
-            pass
+        kandidaten.append(fence.group(1))
     a, b = text.find("{"), text.rfind("}")
     if a >= 0 and b > a:
-        try:
-            return json.loads(text[a:b + 1])
-        except ValueError as e:
-            raise GraphFehler(f"Antwort ist kein gültiges JSON: {e}") from e
+        kandidaten.append(text[a:b + 1])
+    letzter: ValueError | None = None
+    for k in kandidaten:
+        for variante in (k, _entschaerfen(k)):
+            try:
+                return json.loads(variante)
+            except ValueError as e:
+                letzter = e
+    if a >= 0 and b > a:
+        raise GraphFehler(f"Antwort ist kein gültiges JSON: {letzter}")
     raise GraphFehler("Keine JSON-Antwort gefunden.")
+
+
+_ZAHL = {"type": "number"}
+_ZAHLEN = lambda n: {"type": "array", "items": _ZAHL, "minItems": n, "maxItems": n}  # noqa: E731
+
+# JSON-Schema für die strukturierte Antwort (Tool Use). Die Bedeutung der Felder erklärt GRAPH_SCHEMA.
+JSON_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "name": {"type": "string"},
+        "kategorie": {"type": "string", "enum": ["bett", "daybed", "sofa", "bank", "regal", "tisch", "sonstiges"]},
+        "masse": {"type": "object", "properties": {"breite": _ZAHL, "tiefe": _ZAHL, "hoehe": _ZAHL},
+                  "required": ["breite", "tiefe", "hoehe"]},
+        "funktion": {"type": "object", "properties": {"matratze": _ZAHLEN(2), "luft": _ZAHL, "sitzhoehe": _ZAHL, "polster": _ZAHL}},
+        "anker": {"type": "object", "properties": {"liegeflaeche": _ZAHLEN(4), "sitz_oben": _ZAHL}},
+        "teile": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "string"}, "name": {"type": "string"},
+                    "typ": {"type": "string", "enum": TYPEN},
+                    "rolle": {"type": "string", "enum": ROLLEN},
+                    "box": _ZAHLEN(6), "anzahl": {"type": "integer", "minimum": 1},
+                    "achse": {"type": "string", "enum": ["x", "y", "z"]},
+                    "querschnitt": _ZAHLEN(2),
+                },
+                "required": ["id", "name", "typ", "rolle", "box"],
+            },
+        },
+    },
+    "required": ["name", "kategorie", "masse", "funktion", "anker", "teile"],
+}
 
 
 def _zahl(v: Any) -> float | None:

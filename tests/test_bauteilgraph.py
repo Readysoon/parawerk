@@ -43,3 +43,12 @@ def test_funktion_nur_mit_anker():
     assert g["funktion"] == {} and g["anker"] == {}
     g = bereinigen({"funktion": {"sitzhoehe": 450}, "anker": {"sitz_oben": 0.6}, "teile": [TEIL]})
     assert g["funktion"] == {"sitzhoehe": 450, "polster": 0} and g["anker"] == {"sitz_oben": 0.6}
+
+
+def test_json_mit_kommentaren_und_kommas():
+    text = '''{"name": "Bank", // Kommentar
+ "teile": [{"id": "a", "box": [0, 1, 0, 1, 0, 1],}, ], /* Block */
+ "url": "http://x.de/a//b", "zitat": "sagt \\"hallo\\" // kein Kommentar"}'''
+    j = json_aus_text(text)
+    assert j["name"] == "Bank" and j["teile"][0]["id"] == "a"
+    assert j["url"] == "http://x.de/a//b" and j["zitat"] == 'sagt "hallo" // kein Kommentar'

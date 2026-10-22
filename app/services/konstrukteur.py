@@ -13,7 +13,7 @@ from typing import Protocol
 
 import httpx
 
-from ..models.bauteilgraph import bereinigen, json_aus_text
+from ..models.bauteilgraph import JSON_SCHEMA, bereinigen, json_aus_text
 from .fehler import DienstFehler, NichtVerfuegbar
 from .prompts import anpass_prompt, bildprompt_anweisung, inpaint_prompt, inpaint_prompt_aus, lese_prompt
 
@@ -38,7 +38,9 @@ class ClaudeKonstrukteur:
     def __init__(self, api_key: str, model: str, timeout: float = 120) -> None:
         self.api_key, self.model, self.timeout = api_key, model, timeout
 
-    async def _fragen(self, text: str, bild: str | list[str] | None = None, max_tokens: int = 4000) -> str:
+    WERKZEUG = {"name": "bauteilgraph", "description": "Gibt den Bauteilgraph des Möbels zurück.", "input_schema": JSON_SCHEMA}
+
+    async def _senden(self, text: str, bild: str | list[str] | None, max_tokens: int, werkzeug: dict | None = None) -> dict:
         content: list[dict] = []
         for b in ([bild] if isinstance(bild, str) else bild or []):
             m = DATA_URL.match(b)
@@ -46,24 +48,43 @@ class ClaudeKonstrukteur:
                 raise DienstFehler("Bild muss als data-URL kommen.")
             content.append({"type": "image", "source": {"type": "base64", "media_type": m.group(1), "data": m.group(2)}})
         content.append({"type": "text", "text": text})
+        body: dict = {"model": self.model, "max_tokens": max_tokens, "messages": [{"role": "user", "content": content}]}
+        if werkzeug:
+            body |= {"tools": [werkzeug], "tool_choice": {"type": "tool", "name": werkzeug["name"]}}
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 res = await client.post(
                     self.URL,
                     headers={"x-api-key": self.api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
-                    json={"model": self.model, "max_tokens": max_tokens, "messages": [{"role": "user", "content": content}]},
+                    json=body,
                 )
         except httpx.HTTPError as err:
             raise DienstFehler(f"Claude-API nicht erreichbar: {type(err).__name__}") from err
         if res.status_code >= 400:
             raise DienstFehler(f"Claude-API: {res.status_code} {res.text[:300]}")
-        return "\n".join(c["text"] for c in res.json().get("content", []) if c.get("type") == "text")
+        j = res.json()
+        if j.get("stop_reason") == "max_tokens":
+            raise DienstFehler("Die Antwort von Claude war zu lang und wurde abgeschnitten.")
+        return j
+
+    async def _fragen(self, text: str, bild: str | list[str] | None = None, max_tokens: int = 4000) -> str:
+        j = await self._senden(text, bild, max_tokens)
+        return "\n".join(c["text"] for c in j.get("content", []) if c.get("type") == "text")
+
+    async def _graph(self, text: str, bild: str | None = None) -> dict:
+        """Bauteilgraph als strukturierte Antwort (Tool Use): kommt immer als gültiges JSON-Objekt."""
+        j = await self._senden(text, bild, 8000, self.WERKZEUG)
+        for c in j.get("content", []):
+            if c.get("type") == "tool_use" and isinstance(c.get("input"), dict):
+                return bereinigen(c["input"])
+        texte = "\n".join(c.get("text", "") for c in j.get("content", []) if c.get("type") == "text")
+        return bereinigen(json_aus_text(texte))  # Rückfall, falls Claude doch als Text antwortet
 
     async def lesen(self, bild: str | None, bereich: list[float], demo_index: int | None = None) -> dict:
-        return bereinigen(json_aus_text(await self._fragen(lese_prompt(bereich), bild)))
+        return await self._graph(lese_prompt(bereich), bild)
 
     async def anpassen(self, graph: dict, wunsch: str) -> dict:
-        return bereinigen(json_aus_text(await self._fragen(anpass_prompt(graph, wunsch))))
+        return await self._graph(anpass_prompt(graph, wunsch))
 
     async def bild_prompt(self, wunsch: str, foto: str | None, maske: str | None) -> str:
         """Wunsch → präziser englischer Prompt für die Bild-KI, mit Blick auf Foto und Maske."""

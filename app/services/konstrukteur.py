@@ -15,7 +15,7 @@ import httpx
 
 from ..models.bauteilgraph import bereinigen, json_aus_text
 from .fehler import DienstFehler, NichtVerfuegbar
-from .prompts import anpass_prompt, lese_prompt
+from .prompts import anpass_prompt, bildprompt_anweisung, inpaint_prompt, inpaint_prompt_aus, lese_prompt
 
 
 class Konstrukteur(Protocol):
@@ -24,6 +24,8 @@ class Konstrukteur(Protocol):
     async def lesen(self, bild: str | None, bereich: list[float], demo_index: int | None = None) -> dict: ...
 
     async def anpassen(self, graph: dict, wunsch: str) -> dict: ...
+
+    async def bild_prompt(self, wunsch: str, foto: str | None, maske: str | None) -> str: ...
 
 
 DATA_URL = re.compile(r"^data:(image/[a-z]+);base64,(.*)$", re.S)
@@ -36,10 +38,10 @@ class ClaudeKonstrukteur:
     def __init__(self, api_key: str, model: str, timeout: float = 120) -> None:
         self.api_key, self.model, self.timeout = api_key, model, timeout
 
-    async def _fragen(self, text: str, bild: str | None = None, max_tokens: int = 4000) -> str:
+    async def _fragen(self, text: str, bild: str | list[str] | None = None, max_tokens: int = 4000) -> str:
         content: list[dict] = []
-        if bild:
-            m = DATA_URL.match(bild)
+        for b in ([bild] if isinstance(bild, str) else bild or []):
+            m = DATA_URL.match(b)
             if not m:
                 raise DienstFehler("Bild muss als data-URL kommen.")
             content.append({"type": "image", "source": {"type": "base64", "media_type": m.group(1), "data": m.group(2)}})
@@ -63,6 +65,14 @@ class ClaudeKonstrukteur:
     async def anpassen(self, graph: dict, wunsch: str) -> dict:
         return bereinigen(json_aus_text(await self._fragen(anpass_prompt(graph, wunsch))))
 
+    async def bild_prompt(self, wunsch: str, foto: str | None, maske: str | None) -> str:
+        """Wunsch → präziser englischer Prompt für die Bild-KI, mit Blick auf Foto und Maske."""
+        bilder = [b for b in (foto, maske) if b]
+        text = (await self._fragen(bildprompt_anweisung(wunsch), bilder, max_tokens=400)).strip().strip('"')
+        if not text:
+            raise DienstFehler("Claude hat keine Beschreibung geliefert.")
+        return inpaint_prompt_aus(text)
+
 
 @lru_cache
 def demo_graphen() -> list[dict]:
@@ -81,3 +91,6 @@ class DemoKonstrukteur:
 
     async def anpassen(self, graph: dict, wunsch: str) -> dict:
         raise NichtVerfuegbar("Anpassen per Text braucht einen ANTHROPIC_API_KEY (Demo-Modus).")
+
+    async def bild_prompt(self, wunsch: str, foto: str | None, maske: str | None) -> str:
+        return inpaint_prompt(wunsch)

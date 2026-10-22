@@ -70,6 +70,11 @@ class KonstrukteurAttrappe:
         graph["masse"]["breite"] += 200
         return graph
 
+    async def bild_prompt(self, wunsch, foto, maske):
+        if "offline" in wunsch:
+            raise DienstFehler("Claude nicht erreichbar")
+        return f"An L-shaped sofa ({wunsch}). Only this one piece of furniture."
+
 
 class BildKIAttrappe:
     demo = False
@@ -87,7 +92,9 @@ def test_mit_echten_diensten(client):
 
     assert client.post("/api/entwuerfe", json={"wunsch": "Bank"}).status_code == 400  # Foto und Maske fehlen
     r = client.post("/api/entwuerfe", json={"foto": FOTO, "maske": FOTO, "wunsch": "Bank"})
-    assert r.status_code == 200 and not r.json()["demo"] and "Bank" in r.json()["prompt"]
+    assert r.status_code == 200 and not r.json()["demo"] and r.json()["prompt"].startswith("An L-shaped sofa (Bank)")
+    r = client.post("/api/entwuerfe", json={"foto": FOTO, "maske": FOTO, "wunsch": "Bank offline"})
+    assert r.status_code == 200 and "this exact spot of the room: Bank offline" in r.json()["prompt"]  # ohne Claude: wörtlich
     r = client.post("/api/entwuerfe", json={"foto": FOTO, "maske": FOTO, "wunsch": "kaputt"})
     assert r.status_code == 502 and "Zeitüberschreitung" in r.json()["fehler"]
 

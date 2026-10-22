@@ -6,15 +6,37 @@ import json
 from ..models.bauteilgraph import GRAPH_SCHEMA
 
 
+BAUREGELN = (
+    "Built by a DIY woodworker from straight solid pine lumber: square battens, planed beams and glued pine boards, "
+    "visible screws allowed, simple butt joints, no curves, no metal frame, no upholstery other than loose cushions. "
+    "Only this one piece of furniture, nothing else is added: the rest of the area stays empty floor and wall as in the room. "
+    "Stands on the floor, realistic proportions, photorealistic, matches the lighting and perspective of the photo."
+)
+
+
 def inpaint_prompt(wunsch: str | None) -> str:
-    """FLUX versteht Englisch am besten. Der Wunsch wird mitgegeben, die Bauregeln stehen fest dabei."""
+    """Prompt ohne Claude: der Wunsch wörtlich, die Bauregeln stehen fest dabei."""
     w = (wunsch or "").strip() or "ein schönes, schlichtes Möbelstück, das in diese Ecke passt"
-    return (
-        f"A handmade piece of furniture in this exact spot of the room: {w}. "
-        "Built by a DIY woodworker from straight solid pine lumber: square battens, planed beams and glued pine boards, "
-        "visible screws allowed, simple butt joints, no curves, no metal frame, no upholstery other than loose cushions. "
-        "Stands on the floor, realistic proportions, photorealistic, matches the lighting and perspective of the photo."
-    )
+    return f"A handmade piece of furniture in this exact spot of the room: {w}. {BAUREGELN}"
+
+
+def inpaint_prompt_aus(beschreibung: str) -> str:
+    """Prompt aus Claudes englischer Beschreibung plus feste Bauregeln."""
+    return f"{beschreibung.strip()} {BAUREGELN}"
+
+
+def bildprompt_anweisung(wunsch: str | None) -> str:
+    """Claude übersetzt den Wunsch in eine präzise englische Beschreibung für die Bild-KI (Inpainting)."""
+    w = (wunsch or "").strip() or "ein schönes, schlichtes Möbelstück, das in diese Ecke passt"
+    return f"""Du schreibst die Beschreibung für eine Bild-KI (FLUX Fill, Inpainting), die ein selbstgebautes Holzmöbel in ein Wohnungsfoto malt.
+Bild 1 ist das Foto. Bild 2 ist die Maske: Nur im weißen Bereich wird neu gemalt.
+Wunsch der Person: "{w}"
+
+Schreibe auf Englisch, höchstens 70 Wörter, NUR die Beschreibung, ohne Einleitung:
+- genau EIN zusammenhängendes Möbelstück (darf L-förmig oder mehrteilig verbunden sein, z. B. Sofa mit angesetzter Liegefläche), keine weiteren Gegenstände wie Tische, Teppiche oder Deko
+- Lage und Ausrichtung mit sichtbaren Bezugspunkten aus dem Foto (z. B. "along the wall below the window, facing the room"), damit die Bild-KI sie versteht
+- Form, grobe Größe, Holzart/Farbe, Polster nur als lose Kissen
+Bauregeln (gerade Latten und Bretter, keine Rundungen) hängt die App selbst an."""
 
 
 def _mm(werte: list[float]) -> str:

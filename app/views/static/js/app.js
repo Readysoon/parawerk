@@ -158,6 +158,7 @@ async function entwerfen() {
     g.fillStyle = '#000'; g.fillRect(0, 0, mk.width, mk.height); g.filter = 'blur(2px)'; g.drawImage(maske, 0, 0);
     const j = await api('/api/entwuerfe', { foto: z.foto.url, maske: mk.toDataURL('image/png'), wunsch: $('wunsch').value });
     z.demo = j.demo;
+    $('bild-prompt').textContent = j.prompt;
     z.entwuerfe = [];
     for (const src of j.bilder) z.entwuerfe.push(await einsetzen(src));
     z.gewaehlt = -1; z.graph = null;

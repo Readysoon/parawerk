@@ -43,7 +43,7 @@
       </div>
       <div class="panel" data-ansicht="1">
         <h2>2 · Bereich</h2>
-        <p class="hint">Male mit dem Finger oder der Maus über die Stelle, an der das Möbel stehen soll, egal ob dort gerade etwas steht.</p>
+        <p class="hint">Male mit dem Finger oder der Maus über die Stelle, an der das Möbel stehen soll, egal ob dort gerade etwas steht. Möglichst nur diese Fläche: Was zusätzlich markiert ist, füllt die Bild-KI gern mit weiteren Möbeln.</p>
         <label class="f">Pinsel px<input type="number" min="5" max="150" value="40" id="pinsel"></label>
         <div class="btns"><button class="b" id="radierer" aria-pressed="false">Radierer</button><button class="b" id="maske-loeschen">Alles löschen</button></div>
         <h3>Maße des Bereichs</h3>
@@ -75,6 +75,7 @@
     <div class="side"><div class="panel">
       <p class="hint">Wähle den Entwurf, der dir gefällt. Claude liest daraus die Konstruktion; der Code macht sie baubar und stabil. Die Maße richten sich nach deinem Bereich, nicht exakt nach dem Bild.</p>
       <div class="btns"><button class="b primary" id="bauplan-erstellen" disabled>Bauplan erstellen</button><button class="b" id="neu-entwerfen">Neue Entwürfe</button></div>
+      <details><summary>Prompt an die Bild-KI</summary><p class="hint" id="bild-prompt"></p></details>
     </div></div>
   </section>
 

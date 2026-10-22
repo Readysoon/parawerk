@@ -395,7 +395,7 @@ def pruefen_und_reparieren(S: Sortiment, ms: list[Bauteil], groups: dict, g: dic
                 fixed = True
                 break
             if m.min[2] > 30:
-                name = f"Stütze {m.part}"
+                name = f"Stütze {m.id}"  # je Teil, nicht je Gruppe: zwei Holme brauchen zwei Stützen
                 if any(o.part == name for o in ms):
                     continue
                 prof = naechstes_kantholz(S, 44, 44)

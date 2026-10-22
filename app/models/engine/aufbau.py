@@ -27,6 +27,9 @@ def skalieren(g: dict, log: list[str]) -> list[int]:
     if gesetzt(f.get("sitzhoehe")) and a.get("sitz_oben") is not None:
         polster = oder(f.get("polster"), 0)
         H = (f["sitzhoehe"] - polster) / a["sitz_oben"]
+        if H < 0.6 * est[2] or H > 1.6 * est[2]:
+            log.append(f"Achtung: Sitzhöhe und Lage der Sitzfläche ergeben eine Gesamthöhe von {mm(H)} mm, die Bild-Schätzung "
+                       f"war {zahl(est[2])} mm. Die Bildlesung ist hier wohl ungenau; ggf. per Text anpassen.")
         log.append(
             f"Sitzhöhe {zahl(f['sitzhoehe'])} mm minus {zahl(polster)} mm Polster: Sitzfläche liegt bei "
             f"{zahl(f['sitzhoehe'] - polster)} mm. Im Entwurf ist das {mm(a['sitz_oben'] * 100)} % der Höhe, "

@@ -19,7 +19,7 @@ python3.12 -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt
 cp .env.example .env          # Schlüssel eintragen (optional)
 uvicorn app.main:app --reload # http://localhost:8000
-pytest                        # 102 Tests
+pytest
 ```
 
 | Variable | Wofür |
@@ -84,7 +84,16 @@ Wunsch in Worten        ── /api/bauplan/anpassen ──▶ Claude ändert de
 
 ## Engine-Tests
 
-Die Engine war zuerst in JavaScript geschrieben. `tests/referenz/js_engine_faelle.json.gz` enthält 84 Fälle mit dem Ergebnis der JS-Engine: die 4 Demo-Möbel, 10 Blindtests (Ana-White-Pläne) im US- und im DE-Sortiment und 60 zufällig variierte Fälle. Die Python-Engine liefert in allen Fällen dasselbe Ergebnis: Teile, Maße, Reparaturen, Prüftexte, Einkauf und Zuschnitt. Vor dem Umzug wurde das an 624 Fällen geprüft.
+Die Engine war zuerst in JavaScript geschrieben. Die Python-Version war bis Commit e27f2f2 in 624 Vergleichsfällen identisch mit ihr: die 4 Demo-Möbel, 10 Blindtests (Ana-White-Pläne) in US- und DE-Sortiment und 600 zufällig variierte Fälle. Teile, Maße, Reparaturen, Prüftexte, Einkauf und Zuschnitt stimmten überein.
+
+Danach wurde die Engine nach dem ersten echten Claude-Durchlauf gezielt verbessert:
+- Sitzhöhe auch über Latten messen, wenn Claude sie nicht „sitzflaeche“ nennt.
+- Nachführen der Sitzhöhe nur bei unter 25 % Abweichung.
+- Breite und Tiefe auf den Bereich zurückrechnen.
+- Eine Stütze je Teil statt je Gruppe.
+- Einen Nachführschritt nur übernehmen, wenn danach nicht mehr Prüfpunkte offen sind.
+
+In den 624 Fällen ergab das 79 Fälle mit weniger offenen Prüfpunkten, 47 passen jetzt in den Bereich, 1 Fall wurde schlechter. `tests/referenz/engine_faelle.json.gz` (84 Fälle) hält diesen Stand fest. `lounge_ecksofa_claude.json` ist die echte Claude-Lesung, an der die Fehler auffielen.
 
 ## Veröffentlichen auf fly.io
 

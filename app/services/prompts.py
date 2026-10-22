@@ -58,7 +58,8 @@ Leseregeln (aus Blindtests gegen echte Baupläne):
 6. Kästen sind oft je Seite ein Rahmen mit Latten dazwischen statt Pfosten mit Platte.
 7. Breite glatte Flächen sind oft Blenden vor einer Unterkonstruktion. Überstehende Kanten sind oft flach aufgelegte Bretter.
 8. Wirkt ein Bett schwebend, ist der Rahmen schmaler als die Matratze: Liegefläche-Anker dann unter 0 bzw. über 1.
-9. An der Wand befestigt: Rolle "wandleiste". Verbindende Leisten ohne Last: Rolle "leiste". Schräge Teile gibt es nicht, beschreibe sie achsparallel.
+9. Sofa und Bank: Die Latten oder Bretter, auf denen man sitzt, haben die Rolle "sitzflaeche" (nicht "lattenrost", der ist nur für Betten). "anker.sitz_oben" = Oberkante dieser Sitzlatten OHNE Polster geteilt durch die Gesamthöhe inkl. Lehne; es muss gelten sitz_oben ≈ (sitzhoehe − polster) / masse.hoehe.
+10. An der Wand befestigt: Rolle "wandleiste". Verbindende Leisten ohne Last: Rolle "leiste". Schräge Teile gibt es nicht, beschreibe sie achsparallel.
 Antworte mit dem Bauteilgraph als JSON. Bedeutung der Felder:
 {GRAPH_SCHEMA}"""
 

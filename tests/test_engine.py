@@ -1,4 +1,8 @@
-"""Engine: gleiche Ergebnisse wie die ursprüngliche JS-Engine, und die Demo-Möbel sind baubar und stabil."""
+"""Engine: Referenzfälle bleiben stabil, Demo-Möbel und echte Claude-Lesungen werden baubar und stabil.
+
+Die Referenzfälle stammen ursprünglich aus der JS-Engine (identisch bis Commit e27f2f2). Seitdem rechnet die Engine
+bewusst anders (Sitzteile, Nachführen auf den Bereich, Stütze je Teil); die Werte sind auf den neuen Stand gesetzt.
+"""
 from __future__ import annotations
 
 import gzip
@@ -12,7 +16,7 @@ from app.models.dxf import teile_als_dxf
 from app.models.engine import berechnen
 from app.services.konstrukteur import demo_graphen
 
-REFERENZ = Path(__file__).parent / "referenz" / "js_engine_faelle.json.gz"
+REFERENZ = Path(__file__).parent / "referenz" / "engine_faelle.json.gz"
 FAELLE = json.loads(gzip.open(REFERENZ, "rt", encoding="utf-8").read())
 
 
@@ -40,7 +44,7 @@ def _abweichung(a, b, pfad=""):
 
 
 @pytest.mark.parametrize("fall", FAELLE, ids=[f["name"] for f in FAELLE])
-def test_gleich_wie_js_engine(fall):
+def test_referenzfall_unveraendert(fall):
     r = berechnen(fall["graph"], fall["bereich"], fall["sortiment"]).als_dict()
     assert _abweichung(json.loads(json.dumps(r)), fall["erwartet"]) is None
 
@@ -76,3 +80,14 @@ def test_dxf():
     dxf = teile_als_dxf(e.members)
     assert dxf.startswith("0\nSECTION") and dxf.endswith("EOF")
     assert dxf.count("\nLINE\n") == 4 * len(e.members)
+
+
+def test_lounge_ecksofa_aus_echter_claude_lesung():
+    """Claude nannte die Sitzlatten "lattenrost": früher wurde das Sofa dadurch 2,6 m hoch."""
+    from app.models.bauteilgraph import bereinigen
+    fall = json.loads((Path(__file__).parent / "referenz" / "lounge_ecksofa_claude.json").read_text(encoding="utf-8"))
+    e = berechnen(bereinigen(fall["graph"]), fall["bereich"])
+    assert e.dims[2] < 600 and all(d <= b for d, b in zip(e.dims, fall["bereich"]))
+    assert e.offene_punkte == 0, [c["t"] for c in e.checks if c["ok"] is False]
+    sitz = next(c for c in e.checks if c["t"].startswith("Sitzhöhe"))
+    assert sitz["ok"] is True

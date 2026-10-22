@@ -1,0 +1,205 @@
+{
+ "graph": {
+  "name": "Lounge-Ecksofa aus Holzrahmen mit Latten",
+  "kategorie": "sofa",
+  "masse": {
+   "breite": 1800,
+   "tiefe": 900,
+   "hoehe": 700
+  },
+  "funktion": {
+   "sitzhoehe": 300,
+   "polster": 120
+  },
+  "anker": {
+   "sitz_oben": 0.43
+  },
+  "teile": [
+   {
+    "id": "pf_v",
+    "name": "Pfosten vorne",
+    "typ": "kantholz",
+    "rolle": "pfosten",
+    "box": [
+     0,
+     1,
+     0,
+     0.05,
+     0,
+     0.86
+    ],
+    "anzahl": 2,
+    "achse": "x",
+    "querschnitt": [
+     44,
+     74
+    ]
+   },
+   {
+    "id": "pf_h",
+    "name": "Pfosten hinten",
+    "typ": "kantholz",
+    "rolle": "pfosten",
+    "box": [
+     0,
+     1,
+     0.95,
+     1,
+     0,
+     1
+    ],
+    "anzahl": 2,
+    "achse": "x",
+    "querschnitt": [
+     44,
+     74
+    ]
+   },
+   {
+    "id": "zg_l",
+    "name": "Zarge längs vorne und hinten",
+    "typ": "kantholz",
+    "rolle": "zarge",
+    "box": [
+     0,
+     1,
+     0,
+     1,
+     0.28,
+     0.36
+    ],
+    "anzahl": 2,
+    "achse": "y",
+    "querschnitt": [
+     34,
+     54
+    ]
+   },
+   {
+    "id": "zg_q",
+    "name": "Zarge seitlich",
+    "typ": "kantholz",
+    "rolle": "zarge",
+    "box": [
+     0,
+     1,
+     0,
+     1,
+     0.28,
+     0.36
+    ],
+    "anzahl": 2,
+    "achse": "x",
+    "querschnitt": [
+     34,
+     54
+    ]
+   },
+   {
+    "id": "sitzlatten",
+    "name": "Sitzlatten",
+    "typ": "latte",
+    "rolle": "lattenrost",
+    "box": [
+     0.03,
+     0.97,
+     0.06,
+     0.94,
+     0.37,
+     0.43
+    ],
+    "anzahl": 9,
+    "achse": "y",
+    "querschnitt": [
+     24,
+     44
+    ]
+   },
+   {
+    "id": "arm_l",
+    "name": "Seitenlatten links",
+    "typ": "latte",
+    "rolle": "verkleidung",
+    "box": [
+     0,
+     0.025,
+     0.05,
+     0.95,
+     0.42,
+     0.82
+    ],
+    "anzahl": 5,
+    "achse": "z",
+    "querschnitt": [
+     24,
+     44
+    ]
+   },
+   {
+    "id": "arm_r",
+    "name": "Seitenlatten rechts",
+    "typ": "latte",
+    "rolle": "verkleidung",
+    "box": [
+     0.975,
+     1,
+     0.05,
+     0.95,
+     0.42,
+     0.82
+    ],
+    "anzahl": 5,
+    "achse": "z",
+    "querschnitt": [
+     24,
+     44
+    ]
+   },
+   {
+    "id": "lehne",
+    "name": "Rückenlatten",
+    "typ": "latte",
+    "rolle": "lehne",
+    "box": [
+     0.03,
+     0.97,
+     0.95,
+     1,
+     0.45,
+     0.98
+    ],
+    "anzahl": 6,
+    "achse": "z",
+    "querschnitt": [
+     24,
+     44
+    ]
+   },
+   {
+    "id": "arm_top",
+    "name": "Armlehnen-Holm",
+    "typ": "kantholz",
+    "rolle": "rahmen",
+    "box": [
+     0,
+     1,
+     0,
+     1,
+     0.82,
+     0.9
+    ],
+    "anzahl": 2,
+    "achse": "x",
+    "querschnitt": [
+     34,
+     54
+    ]
+   }
+  ]
+ },
+ "bereich": [
+  1800,
+  900,
+  900
+ ]
+}

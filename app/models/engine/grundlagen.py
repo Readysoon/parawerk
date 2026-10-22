@@ -29,6 +29,11 @@ GRAVITY = {"lattenrost", "sitzflaeche", "liegeflaeche", "regalboden"}  # fällt 
 LOADED = {"lattenrost", "sitzflaeche", "liegeflaeche", "regalboden", "auflage", "rahmen", "zarge", "mittelsteg", "querriegel"}
 SLATS = {"lattenrost", "sitzflaeche", "liegeflaeche", "regalboden"}
 ATTACH = {"auflage", "lehne", "verkleidung"}  # wird seitlich an einen Träger angelegt
+def sitzteile(ms: list["Bauteil"]) -> list["Bauteil"]:
+    """Teile, auf denen man sitzt: Sitzbretter, sonst Latten oder Bretter (die Bildlesung nennt Sitzlatten oft Lattenrost)."""
+    return [m for m in ms if m.rolle == "sitzflaeche"] or [m for m in ms if m.rolle in SLATS and m.long != 2]
+
+
 TOL = 60  # größte Korrektur aus der Bildlesung (mm)
 GAP = 12  # kleine Fugen, die geschlossen werden (mm)
 

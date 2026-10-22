@@ -110,13 +110,25 @@ def berechnen(graph: dict, bereich: list[float] | None = None, sortiment: str = 
                     d[ax] -= v - want
                     notes.append(f"{'Tiefe' if ax else 'Breite'}: Liegefläche war nach dem Einrasten {v} mm statt {zahl(want)} mm, "
                                  f"Gesamtmaß um {mm(v - want)} mm {'verringert' if v > want else 'vergrößert'}")
-        if gesetzt(f.get("sitzhoehe")) and out.fc.get("seat") is not None and abs(out.fc["seat"] - f["sitzhoehe"]) > 15:
-            d[2] = d[2] * (f["sitzhoehe"] / out.fc["seat"])
-            notes.append(f"Sitzhöhe war {out.fc['seat']} mm statt {zahl(f['sitzhoehe'])} mm, Höhe angepasst")
+        seat = out.fc.get("seat")
+        if gesetzt(f.get("sitzhoehe")) and seat is not None and abs(seat - f["sitzhoehe"]) > 15:
+            # nur kleine Korrekturen wie beim Bett (unter 25 %); große Abweichungen sind ein Lesefehler, kein Rundungsfehler
+            if abs(seat - f["sitzhoehe"]) < 0.25 * f["sitzhoehe"]:
+                d[2] = d[2] * (f["sitzhoehe"] / seat)
+                notes.append(f"Sitzhöhe war {seat} mm statt {zahl(f['sitzhoehe'])} mm, Höhe angepasst")
+        if bereich is not None and not gesetzt(f.get("matratze")):  # beim Bett bestimmt die Matratze Breite und Tiefe
+            for ax, wort in ((0, "Breite"), (1, "Tiefe")):
+                over = out.dims[ax] - bereich[ax]
+                if 0 < over < 0.25 * bereich[ax]:
+                    d[ax] -= over
+                    notes.append(f"{wort} war {out.dims[ax]} mm, der Bereich hat {zahl(bereich[ax])} mm: um {mm(over)} mm verkleinert")
         if not notes:
             break
-        dims = [mm(v) for v in d]
-        out = _durchlauf(S, g, bereich, dims, [*l1, f"Nachgeführt ({durchgang + 2}. Durchlauf): {'; '.join(notes)}."])
+        neue_dims = [mm(v) for v in d]
+        neu = _durchlauf(S, g, bereich, neue_dims, [*l1, f"Nachgeführt ({durchgang + 2}. Durchlauf): {'; '.join(notes)}."])
+        if neu.offene_punkte > out.offene_punkte:
+            break  # die Korrektur hätte mehr Probleme gemacht als gelöst: beim vorigen Stand bleiben
+        dims, out = neue_dims, neu
 
     out.plan = bauplan(S, out.members, out.joints)
     out.soft = polster(g, out.members, out.dims)

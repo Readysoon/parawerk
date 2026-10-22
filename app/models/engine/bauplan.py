@@ -4,7 +4,7 @@ from __future__ import annotations
 import math
 
 from ..sortiment import SCHNITT_PREIS, Sortiment
-from .grundlagen import SLATS, Bauteil, eintraege, ext, fest, gesetzt, mm, prio, zahl
+from .grundlagen import sitzteile, SLATS, Bauteil, eintraege, ext, fest, gesetzt, mm, prio, zahl
 
 SAEGESCHNITT = 3  # mm
 
@@ -154,7 +154,7 @@ def polster(g: dict, ms: list[Bauteil], dims: list[int]) -> list[dict]:
         w, d = (big, small) if x_long else (small, big)
         soft.append({"min": [c[0] - w / 2, c[1] - d / 2, top], "max": [c[0] + w / 2, c[1] + d / 2, top + 160]})
     if gesetzt(f.get("polster")):
-        seat = [m for m in ms if m.rolle == "sitzflaeche"]
+        seat = sitzteile(ms)
         if not seat:
             return soft
         mn = [min(m.min[a] for m in seat) for a in (0, 1)]

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import math
 
-from .grundlagen import LOADED, SLATS, Bauteil, cen, einmalig, ext, gesetzt, max_or, min_or, mm, oder, zahl
+from .grundlagen import sitzteile, LOADED, SLATS, Bauteil, cen, einmalig, ext, gesetzt, max_or, min_or, mm, oder, zahl
 from .reparatur import aussteifung, max_spannweite, spannweite
 
 
@@ -99,7 +99,7 @@ def endkontrolle(ms: list[Bauteil], g: dict, bereich: list[float] | None, J: lis
         out.append({"ok": ok, "t": f"Liegefläche innen {innen} mm für Matratze {' × '.join(zahl(v) for v in mat)} mm{luft}, "
                                    f"Oberkante Lattenrost {mm(top)} mm."})
     if gesetzt(f.get("sitzhoehe")):
-        seat = [m for m in ms if m.rolle == "sitzflaeche"]
+        seat = sitzteile(ms)
         top = max(m.max[2] for m in seat) if seat else 0
         polster = oder(f.get("polster"), 0)
         sh = mm(top + polster)

@@ -1,0 +1,13 @@
+[project]
+name = "nischenwerk"
+version = "0.2.0"
+description = "Vom Foto der Wohnung zum Bauplan für den Baumarkt"
+readme = "README.md"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 130

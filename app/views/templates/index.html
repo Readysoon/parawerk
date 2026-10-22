@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block inhalt %}
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Nischenwerk</h1>
+      <p class="sub">Foto deiner Wohnung, Bereich markieren, Wunsch eingeben: Du bekommst Entwürfe und für den gewählten einen Bauplan, mit dem du in den Baumarkt gehen kannst.</p>
+    </div>
+    {% if demo_bilder or demo_lesen %}
+    <span class="pill demo">Demo-Modus: {% if demo_bilder and demo_lesen %}Beispielentwürfe, keine API-Schlüssel hinterlegt{% elif demo_bilder %}Beispielentwürfe, kein Replicate-Schlüssel{% else %}Beispiel-Konstruktionen, kein Claude-Schlüssel{% endif %}</span>
+    {% endif %}
+  </header>
+
+  <nav class="steps" aria-label="Schritte">
+    {% for s in ["Foto", "Bereich", "Wunsch", "Entwürfe", "Bauplan"] %}
+    <button data-schritt="{{ loop.index0 }}"{% if loop.first %} aria-current="step"{% else %} disabled{% endif %}><b>{{ loop.index }}</b>{{ s }}</button>
+    {% endfor %}
+  </nav>
+
+  <div class="status" role="status" id="status" hidden><span class="spinner"></span><span id="status-text"></span></div>
+  <p class="err" role="alert" id="fehler" hidden></p>
+
+  <!-- 1 + 2: Foto und Bereich -->
+  <section class="grid" data-ansicht="0 1">
+    <div class="panel">
+      <canvas class="work" id="arbeitsflaeche" aria-label="Foto der Wohnung" hidden></canvas>
+      <div class="leer" id="kein-foto"><p class="hint">Noch kein Foto. Lade ein Foto deiner Wohnung hoch oder probiere das Beispielzimmer.</p></div>
+    </div>
+    <div class="side">
+      <div class="panel" data-ansicht="0">
+        <h2>1 · Foto</h2>
+        <p class="hint">Fotografiere die Ecke mit der normalen 1×-Kamera. Für echte Maße klebe ein A4-Blatt flach an die Wand im Bereich.</p>
+        <div class="btns">
+          <label class="b primary datei">Foto wählen<input type="file" accept="image/*" id="foto-datei" hidden></label>
+          <button class="b" id="beispielzimmer">Beispielzimmer</button>
+        </div>
+        <div id="foto-weiter" hidden>
+          <h3>Maßstab (optional)</h3>
+          <div class="btns"><button class="b" id="a4-start" aria-pressed="false">A4-Ecken markieren</button><button class="b" id="a4-reset" hidden>Zurücksetzen</button></div>
+          <p class="hint" id="a4-hinweis">Ohne A4-Blatt gibst du die Maße des Bereichs im nächsten Schritt selbst ein.</p>
+          <button class="b primary" data-gehe="1">Weiter: Bereich markieren</button>
+        </div>
+      </div>
+      <div class="panel" data-ansicht="1">
+        <h2>2 · Bereich</h2>
+        <p class="hint">Male mit dem Finger oder der Maus über die Stelle, an der das Möbel stehen soll, egal ob dort gerade etwas steht.</p>
+        <label class="f">Pinsel px<input type="number" min="5" max="150" value="40" id="pinsel"></label>
+        <div class="btns"><button class="b" id="radierer" aria-pressed="false">Radierer</button><button class="b" id="maske-loeschen">Alles löschen</button></div>
+        <h3>Maße des Bereichs</h3>
+        <p class="hint" id="mass-hinweis">Bitte mit dem Maßband messen und eintragen. Auf 5 cm genau reicht.</p>
+        {% include "teile/bereich.html" %}
+        <button class="b primary" id="zu-wunsch">Weiter: Wunsch</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3: Wunsch -->
+  <section class="grid" data-ansicht="2">
+    <div class="panel">
+      <h2>3 · Was soll dort entstehen?</h2>
+      <textarea id="wunsch" placeholder="z. B. ein gemütliches Daybed aus hellen Latten mit grauen Polstern" aria-label="Wunsch"></textarea>
+      <div class="chips">{% for w in wuensche %}<button class="chip" data-wunsch="{{ w }}">{{ w }}</button>{% endfor %}</div>
+      <p class="hint">Die Bild-KI malt nur in deinen markierten Bereich und bekommt die Vorgabe, Möbel aus geraden Latten und Brettern zu entwerfen, damit sie baubar bleiben.</p>
+      <div class="btns"><button class="b primary" id="entwerfen">{{ anzahl_entwuerfe }} Entwürfe erzeugen</button></div>
+    </div>
+    <div class="side"><div class="panel"><h3>Bereich</h3><dl class="kv"><dt>Breite × Tiefe × Höhe</dt><dd id="bereich-text"></dd></dl></div></div>
+  </section>
+
+  <!-- 4: Entwürfe -->
+  <section class="grid" data-ansicht="3">
+    <div class="panel">
+      <h2>4 · Entwürfe</h2>
+      <div class="designs" role="radiogroup" aria-label="Entwürfe" id="entwuerfe"></div>
+    </div>
+    <div class="side"><div class="panel">
+      <p class="hint">Wähle den Entwurf, der dir gefällt. Claude liest daraus die Konstruktion; der Code macht sie baubar und stabil. Die Maße richten sich nach deinem Bereich, nicht exakt nach dem Bild.</p>
+      <div class="btns"><button class="b primary" id="bauplan-erstellen" disabled>Bauplan erstellen</button><button class="b" id="neu-entwerfen">Neue Entwürfe</button></div>
+    </div></div>
+  </section>
+
+  <!-- 5: Bauplan -->
+  <section class="grid" data-ansicht="4">
+    <div class="panel">
+      <div class="zwei">
+        <img id="gewaehlt" alt="Gewählter Entwurf" style="width:100%;border-radius:2px">
+        <div>
+          <canvas class="viewer" id="viewer" aria-label="Berechnetes 3D-Modell, ziehen zum Drehen"></canvas>
+          <div class="legend"><span><i style="background:var(--board)"></i>aus dem Entwurf</span><span><i style="background:var(--mark)"></i>für Stabilität ergänzt</span><span><i style="background:var(--soft)"></i>Matratze / Polster</span></div>
+        </div>
+      </div>
+      <div id="bauplan" class="spalte" aria-live="polite"></div>
+    </div>
+    <div class="side">
+      <div class="panel" id="ergebnis"></div>
+      <div class="panel noprint">
+        <h3>Anpassen</h3>
+        <textarea id="anpassen-text" placeholder="z. B. Lehne 10 cm höher, ohne Kufen, Bett 160 breit" aria-label="Änderungswunsch"></textarea>
+        <div class="btns"><button class="b primary" id="anpassen">Anpassen</button><button class="b" id="rueckgaengig" disabled>Rückgängig</button></div>
+        <ul class="log" id="verlauf"></ul>
+      </div>
+      <div class="panel noprint">
+        <h3>Bereich ändern</h3>
+        {% with suffix="-2" %}{% include "teile/bereich.html" %}{% endwith %}
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}
+{% block skripte %}
+<script type="module" src="/static/js/app.js"></script>
+{% endblock %}

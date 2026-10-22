@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% block titel %}Nischenwerk{% endblock %}</title>
+  <meta name="description" content="Vom Foto deiner Wohnung zum Bauplan für den Baumarkt">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="/static/css/app.css">
+  <script type="importmap">{"imports": {"three": "/static/vendor/three-0.160.0.module.js"}}</script>
+</head>
+<body>
+  {% block inhalt %}{% endblock %}
+  {% block skripte %}{% endblock %}
+</body>
+</html>

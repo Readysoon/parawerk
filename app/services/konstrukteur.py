@@ -1,0 +1,83 @@
+"""Konstrukteur: liest aus einem Entwurfsbild den Bauteilgraph und ändert ihn auf Wunsch.
+
+``ClaudeKonstrukteur`` nutzt die Claude-API, ``DemoKonstrukteur`` liefert ohne Schlüssel die Graphen der
+vier Beispielentwürfe.
+"""
+from __future__ import annotations
+
+import json
+import re
+from functools import lru_cache
+from pathlib import Path
+from typing import Protocol
+
+import httpx
+
+from ..models.bauteilgraph import bereinigen, json_aus_text
+from .fehler import DienstFehler, NichtVerfuegbar
+from .prompts import anpass_prompt, lese_prompt
+
+
+class Konstrukteur(Protocol):
+    demo: bool
+
+    async def lesen(self, bild: str | None, bereich: list[float], demo_index: int | None = None) -> dict: ...
+
+    async def anpassen(self, graph: dict, wunsch: str) -> dict: ...
+
+
+DATA_URL = re.compile(r"^data:(image/[a-z]+);base64,(.*)$", re.S)
+
+
+class ClaudeKonstrukteur:
+    demo = False
+    URL = "https://api.anthropic.com/v1/messages"
+
+    def __init__(self, api_key: str, model: str, timeout: float = 120) -> None:
+        self.api_key, self.model, self.timeout = api_key, model, timeout
+
+    async def _fragen(self, text: str, bild: str | None = None, max_tokens: int = 4000) -> str:
+        content: list[dict] = []
+        if bild:
+            m = DATA_URL.match(bild)
+            if not m:
+                raise DienstFehler("Bild muss als data-URL kommen.")
+            content.append({"type": "image", "source": {"type": "base64", "media_type": m.group(1), "data": m.group(2)}})
+        content.append({"type": "text", "text": text})
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                res = await client.post(
+                    self.URL,
+                    headers={"x-api-key": self.api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+                    json={"model": self.model, "max_tokens": max_tokens, "messages": [{"role": "user", "content": content}]},
+                )
+        except httpx.HTTPError as err:
+            raise DienstFehler(f"Claude-API nicht erreichbar: {type(err).__name__}") from err
+        if res.status_code >= 400:
+            raise DienstFehler(f"Claude-API: {res.status_code} {res.text[:300]}")
+        return "\n".join(c["text"] for c in res.json().get("content", []) if c.get("type") == "text")
+
+    async def lesen(self, bild: str | None, bereich: list[float], demo_index: int | None = None) -> dict:
+        return bereinigen(json_aus_text(await self._fragen(lese_prompt(bereich), bild)))
+
+    async def anpassen(self, graph: dict, wunsch: str) -> dict:
+        return bereinigen(json_aus_text(await self._fragen(anpass_prompt(graph, wunsch))))
+
+
+@lru_cache
+def demo_graphen() -> list[dict]:
+    return json.loads((Path(__file__).parent / "demo_graphen.json").read_text(encoding="utf-8"))
+
+
+class DemoKonstrukteur:
+    """Ohne API-Schlüssel: Graphen der vier Beispielentwürfe (vorab von Claude aus den Bildern gelesen)."""
+
+    demo = True
+
+    async def lesen(self, bild: str | None, bereich: list[float], demo_index: int | None = None) -> dict:
+        graphen = demo_graphen()
+        i = demo_index if isinstance(demo_index, int) and 0 <= demo_index < len(graphen) else 0
+        return json.loads(json.dumps(graphen[i]))
+
+    async def anpassen(self, graph: dict, wunsch: str) -> dict:
+        raise NichtVerfuegbar("Anpassen per Text braucht einen ANTHROPIC_API_KEY (Demo-Modus).")

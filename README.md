@@ -12,8 +12,10 @@ Die Maße richten sich nach deinem Bereich. Ziel ist **baubar und stabil**, nich
 
 ## Starten
 
+Braucht Python 3.11 oder neuer. Das `python3` aus den Apple Command Line Tools ist 3.9 und zu alt, auf dem Mac also z. B. `brew install python@3.12`.
+
 ```bash
-python3 -m venv .venv && source .venv/bin/activate
+python3.12 -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt
 cp .env.example .env          # Schlüssel eintragen (optional)
 uvicorn app.main:app --reload # http://localhost:8000

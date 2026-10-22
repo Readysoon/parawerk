@@ -38,9 +38,7 @@ class ClaudeKonstrukteur:
     def __init__(self, api_key: str, model: str, timeout: float = 120) -> None:
         self.api_key, self.model, self.timeout = api_key, model, timeout
 
-    WERKZEUG = {"name": "bauteilgraph", "description": "Gibt den Bauteilgraph des Möbels zurück.", "input_schema": JSON_SCHEMA}
-
-    async def _senden(self, text: str, bild: str | list[str] | None, max_tokens: int, werkzeug: dict | None = None) -> dict:
+    async def _senden(self, text: str, bild: str | list[str] | None, max_tokens: int, schema: dict | None = None) -> dict:
         content: list[dict] = []
         for b in ([bild] if isinstance(bild, str) else bild or []):
             m = DATA_URL.match(b)
@@ -49,8 +47,8 @@ class ClaudeKonstrukteur:
             content.append({"type": "image", "source": {"type": "base64", "media_type": m.group(1), "data": m.group(2)}})
         content.append({"type": "text", "text": text})
         body: dict = {"model": self.model, "max_tokens": max_tokens, "messages": [{"role": "user", "content": content}]}
-        if werkzeug:
-            body |= {"tools": [werkzeug], "tool_choice": {"type": "tool", "name": werkzeug["name"]}}
+        if schema:  # Structured Outputs: Antwort ist JSON nach diesem Schema
+            body["output_config"] = {"format": {"type": "json_schema", "schema": schema}}
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 res = await client.post(
@@ -65,6 +63,8 @@ class ClaudeKonstrukteur:
         j = res.json()
         if j.get("stop_reason") == "max_tokens":
             raise DienstFehler("Die Antwort von Claude war zu lang und wurde abgeschnitten.")
+        if j.get("stop_reason") == "refusal":
+            raise DienstFehler("Claude hat die Anfrage abgelehnt.")
         return j
 
     async def _fragen(self, text: str, bild: str | list[str] | None = None, max_tokens: int = 4000) -> str:
@@ -72,13 +72,10 @@ class ClaudeKonstrukteur:
         return "\n".join(c["text"] for c in j.get("content", []) if c.get("type") == "text")
 
     async def _graph(self, text: str, bild: str | None = None) -> dict:
-        """Bauteilgraph als strukturierte Antwort (Tool Use): kommt immer als gültiges JSON-Objekt."""
-        j = await self._senden(text, bild, 8000, self.WERKZEUG)
-        for c in j.get("content", []):
-            if c.get("type") == "tool_use" and isinstance(c.get("input"), dict):
-                return bereinigen(c["input"])
+        """Bauteilgraph als Structured Output: Claude antwortet mit JSON nach ``JSON_SCHEMA``."""
+        j = await self._senden(text, bild, 8000, JSON_SCHEMA)
         texte = "\n".join(c.get("text", "") for c in j.get("content", []) if c.get("type") == "text")
-        return bereinigen(json_aus_text(texte))  # Rückfall, falls Claude doch als Text antwortet
+        return bereinigen(json_aus_text(texte))  # verträgt zur Sicherheit auch Codeblöcke und Kommentare
 
     async def lesen(self, bild: str | None, bereich: list[float], demo_index: int | None = None) -> dict:
         return await self._graph(lese_prompt(bereich), bild)

@@ -90,36 +90,33 @@ def json_aus_text(text: str) -> Any:
 
 
 _ZAHL = {"type": "number"}
-_ZAHLEN = lambda n: {"type": "array", "items": _ZAHL, "minItems": n, "maxItems": n}  # noqa: E731
+_LISTE = {"type": "array", "items": _ZAHL}
 
-# JSON-Schema für die strukturierte Antwort (Tool Use). Die Bedeutung der Felder erklärt GRAPH_SCHEMA.
-JSON_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "name": {"type": "string"},
-        "kategorie": {"type": "string", "enum": ["bett", "daybed", "sofa", "bank", "regal", "tisch", "sonstiges"]},
-        "masse": {"type": "object", "properties": {"breite": _ZAHL, "tiefe": _ZAHL, "hoehe": _ZAHL},
-                  "required": ["breite", "tiefe", "hoehe"]},
-        "funktion": {"type": "object", "properties": {"matratze": _ZAHLEN(2), "luft": _ZAHL, "sitzhoehe": _ZAHL, "polster": _ZAHL}},
-        "anker": {"type": "object", "properties": {"liegeflaeche": _ZAHLEN(4), "sitz_oben": _ZAHL}},
-        "teile": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "id": {"type": "string"}, "name": {"type": "string"},
-                    "typ": {"type": "string", "enum": TYPEN},
-                    "rolle": {"type": "string", "enum": ROLLEN},
-                    "box": _ZAHLEN(6), "anzahl": {"type": "integer", "minimum": 1},
-                    "achse": {"type": "string", "enum": ["x", "y", "z"]},
-                    "querschnitt": _ZAHLEN(2),
-                },
-                "required": ["id", "name", "typ", "rolle", "box"],
-            },
-        },
-    },
-    "required": ["name", "kategorie", "masse", "funktion", "anker", "teile"],
-}
+
+def _objekt(eigenschaften: dict, pflicht: list[str] | None = None) -> dict:
+    o = {"type": "object", "properties": eigenschaften, "additionalProperties": False}
+    if pflicht:
+        o["required"] = pflicht
+    return o
+
+
+# JSON-Schema für Structured Outputs (output_config.format). Längen und Mindestwerte unterstützt die API dort nicht;
+# die prüft danach ``bereinigen``. Die Bedeutung der Felder erklärt GRAPH_SCHEMA.
+JSON_SCHEMA = _objekt({
+    "name": {"type": "string"},
+    "kategorie": {"type": "string", "enum": ["bett", "daybed", "sofa", "bank", "regal", "tisch", "sonstiges"]},
+    "masse": _objekt({"breite": _ZAHL, "tiefe": _ZAHL, "hoehe": _ZAHL}, ["breite", "tiefe", "hoehe"]),
+    "funktion": _objekt({"matratze": _LISTE, "luft": _ZAHL, "sitzhoehe": _ZAHL, "polster": _ZAHL}),
+    "anker": _objekt({"liegeflaeche": _LISTE, "sitz_oben": _ZAHL}),
+    "teile": {"type": "array", "items": _objekt({
+        "id": {"type": "string"}, "name": {"type": "string"},
+        "typ": {"type": "string", "enum": TYPEN},
+        "rolle": {"type": "string", "enum": ROLLEN},
+        "box": _LISTE, "anzahl": {"type": "integer"},
+        "achse": {"type": "string", "enum": ["x", "y", "z"]},
+        "querschnitt": _LISTE,
+    }, ["id", "name", "typ", "rolle", "box"])},
+}, ["name", "kategorie", "masse", "funktion", "anker", "teile"])
 
 
 def _zahl(v: Any) -> float | None:
@@ -164,14 +161,15 @@ def bereinigen(j: Any) -> dict:
         anzahl = _zahl(t.get("anzahl")) or 1
         qs = t.get("querschnitt")
         querschnitt = [_zahl(v) for v in qs] if isinstance(qs, list) and len(qs) == 2 else None
+        typ, rolle, achse = (str(t.get(k) or "").lower() for k in ("typ", "rolle", "achse"))
         teil = {
             "id": str(t.get("id") or f"t{i + 1}")[:30],
             "name": str(t.get("name") or t.get("id") or f"Teil {i + 1}")[:40],
-            "typ": t.get("typ") if t.get("typ") in TYPEN else "latte",
-            "rolle": t.get("rolle") if t.get("rolle") in ROLLEN else "rahmen",
+            "typ": typ if typ in TYPEN else "latte",
+            "rolle": rolle if rolle in ROLLEN else "rahmen",
             "box": box,
             "anzahl": max(1, min(40, mm(anzahl))),
-            "achse": t.get("achse") if t.get("achse") in ("x", "y", "z") else "x",
+            "achse": achse if achse in ("x", "y", "z") else "x",
         }
         if querschnitt and all(v is not None for v in querschnitt):
             teil["querschnitt"] = [_int_wenn_ganz(v) for v in querschnitt]

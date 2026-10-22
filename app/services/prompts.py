@@ -59,7 +59,7 @@ Leseregeln (aus Blindtests gegen echte Baupläne):
 7. Breite glatte Flächen sind oft Blenden vor einer Unterkonstruktion. Überstehende Kanten sind oft flach aufgelegte Bretter.
 8. Wirkt ein Bett schwebend, ist der Rahmen schmaler als die Matratze: Liegefläche-Anker dann unter 0 bzw. über 1.
 9. An der Wand befestigt: Rolle "wandleiste". Verbindende Leisten ohne Last: Rolle "leiste". Schräge Teile gibt es nicht, beschreibe sie achsparallel.
-Gib das Ergebnis über das Werkzeug "bauteilgraph" zurück. Bedeutung der Felder:
+Antworte mit dem Bauteilgraph als JSON. Bedeutung der Felder:
 {GRAPH_SCHEMA}"""
 
 
@@ -69,5 +69,5 @@ def anpass_prompt(graph: dict, wunsch: str) -> str:
 
 Ändere ihn nach diesem Wunsch: "{wunsch}".
 Behalte alles andere bei. Das Möbel muss baubar und stabil bleiben; Maße, Verbindungen und Statik rechnet danach Code.
-Gib den vollständigen geänderten Graph über das Werkzeug "bauteilgraph" zurück. Bedeutung der Felder:
+Antworte mit dem vollständigen geänderten Bauteilgraph als JSON. Bedeutung der Felder:
 {GRAPH_SCHEMA}"""

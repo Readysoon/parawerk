@@ -24,7 +24,7 @@ def client():
 def test_startseite(client):
     r = client.get("/")
     assert r.status_code == 200
-    assert "Nischenwerk" in r.text and "Demo-Modus" in r.text
+    assert "Parawerk" in r.text and "Demo-Modus" in r.text
     assert client.get("/static/js/app.js").status_code == 200
     assert client.get("/gesund").json() == {"ok": True}
 

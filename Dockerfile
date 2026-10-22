@@ -4,7 +4,7 @@ WORKDIR /srv
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 COPY app ./app
-RUN useradd --create-home nischenwerk
-USER nischenwerk
+RUN useradd --create-home parawerk
+USER parawerk
 EXPOSE 8080
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080", "--proxy-headers", "--forwarded-allow-ips", "*"]

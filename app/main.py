@@ -1,4 +1,4 @@
-"""Nischenwerk: vom Foto der Wohnung zum Bauplan für den Baumarkt.
+"""Parawerk: vom Foto der Wohnung zum Bauplan für den Baumarkt.
 
 Aufbau nach MVC:
 - models/       Domäne: Bauteilgraph, Sortiment, Bauteil-Engine, DXF
@@ -19,7 +19,7 @@ from .views import STATIC
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="Nischenwerk", version="0.2.0",
+    app = FastAPI(title="Parawerk", version="0.2.0",
                   description="Foto → Entwürfe → baubarer, stabiler Bauplan aus Baumarkt-Holz.")
     app.mount("/static", StaticFiles(directory=STATIC), name="static")
     app.include_router(seiten.router)

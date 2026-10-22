@@ -1,5 +1,5 @@
 [project]
-name = "nischenwerk"
+name = "parawerk"
 version = "0.2.0"
 description = "Vom Foto der Wohnung zum Bauplan für den Baumarkt"
 readme = "README.md"

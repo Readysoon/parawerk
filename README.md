@@ -1,4 +1,4 @@
-# Nischenwerk
+# Parawerk
 
 Vom Foto deiner Wohnung zum Bauplan für den Baumarkt.
 

@@ -1,5 +1,5 @@
 # fly.io: "fly launch --copy-config --no-deploy" übernimmt diese Datei (App-Namen bei Bedarf ändern)
-app = "nischenwerk"
+app = "parawerk"
 primary_region = "fra"
 
 [build]

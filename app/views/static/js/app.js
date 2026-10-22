@@ -254,11 +254,11 @@ $('ergebnis').addEventListener('click', async e => {
   const aktion = e.target.closest('[data-aktion]')?.dataset.aktion;
   if (aktion === 'drucken') window.print();
   if (aktion === 'dxf') {
-    try { herunterladen('nischenwerk.dxf', await (await api('/api/bauplan/dxf', { graph: z.graph, bereich: z.bereich }, { roh: true })).blob()); }
+    try { herunterladen('parawerk.dxf', await (await api('/api/bauplan/dxf', { graph: z.graph, bereich: z.bereich }, { roh: true })).blob()); }
     catch (err) { fehler(err.message); }
   }
   if (aktion === 'json') {
-    herunterladen('nischenwerk.json', new Blob([JSON.stringify({ graph: z.graph, bereich: z.bereich, plan: z.ergebnis?.plan }, null, 1)], { type: 'application/json' }));
+    herunterladen('parawerk.json', new Blob([JSON.stringify({ graph: z.graph, bereich: z.bereich, plan: z.ergebnis?.plan }, null, 1)], { type: 'application/json' }));
   }
 });
 

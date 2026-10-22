@@ -62,7 +62,7 @@ def dxf(anfrage: BerechnenAnfrage, e: Einstellungen = Depends(einstellungen)) ->
     """Alle Zuschnitte als DXF-Zeichnung."""
     ergebnis = _rechnen(_graph(anfrage.graph), anfrage.bereich, anfrage.sortiment or e.sortiment)
     return Response(teile_als_dxf(ergebnis.members), media_type="application/dxf",
-                    headers={"Content-Disposition": 'attachment; filename="nischenwerk.dxf"'})
+                    headers={"Content-Disposition": 'attachment; filename="parawerk.dxf"'})
 
 
 def _graph(roh: dict) -> dict:

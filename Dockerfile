@@ -4,6 +4,8 @@ WORKDIR /srv
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 COPY app ./app
+# Lesbar für den App-Benutzer, egal mit welchen Rechten die Dateien ausgecheckt wurden
+RUN chmod -R a+rX /srv/app
 RUN useradd --create-home parawerk
 USER parawerk
 EXPOSE 8080

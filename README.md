@@ -144,3 +144,5 @@ Die Bild-KI malt manchmal Möbel, die man so nicht bauen kann: Rundungen, schweb
 Ergebnis: Die angezeigten Entwürfe sind schon baubar, und Bild und Bauplan passen zusammen. Kosten: je Runde ein Inpainting-Aufruf und ein bis zwei Claude-Aufrufe pro Entwurf. Den Loop eventuell nur für den gewählten Entwurf laufen lassen.
 
 Umsetzung: ein neuer Dienst `services/pruefer.py` (Claude: Bild → Mängelliste und Korrektur-Prompt). Dazu eine Funktion, die Bild-KI, Prüfer und Engine im Wechsel aufruft, angebunden an `controllers/entwuerfe.py`. Den Fortschritt je Runde an die Oberfläche melden, z. B. „Runde 2: Armlehne begradigt“.
+
+test

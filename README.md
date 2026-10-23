@@ -95,6 +95,16 @@ Danach wurde die Engine nach dem ersten echten Claude-Durchlauf gezielt verbesse
 
 In den 624 Fällen ergab das 79 Fälle mit weniger offenen Prüfpunkten, 47 passen jetzt in den Bereich, 1 Fall wurde schlechter. `tests/referenz/engine_faelle.json.gz` (84 Fälle) hält diesen Stand fest. `lounge_ecksofa_claude.json` ist die echte Claude-Lesung, an der die Fehler auffielen.
 
+## Tests und Deploy (GitHub Actions)
+
+`.github/workflows/ci.yml`: Bei jedem Push und Pull Request laufen die Tests. Nach einem Push auf `main` wird bei grünen Tests automatisch auf fly.io deployt.
+
+Einmalig einrichten:
+```bash
+fly tokens create deploy -x 999999h            # Deploy-Token nur für diese App
+gh secret set FLY_API_TOKEN                    # Token einfügen (oder GitHub → Settings → Secrets → Actions)
+```
+
 ## Veröffentlichen auf fly.io
 
 `Dockerfile` und `fly.toml` (Frankfurt, schläft bei Nichtnutzung, Health-Check `/gesund`) liegen bei.

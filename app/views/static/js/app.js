@@ -6,7 +6,7 @@ const MAXPX = 1024;
 const $ = id => document.getElementById(id);
 
 const z = {
-  schritt: 0, foto: null, a4: [], a4Modus: false, radierer: false, bereich: [1800, 900, 900],
+  schritt: 0, foto: null, a4: [], a4Modus: false, radierer: false, cursor: null, bereich: [1800, 900, 900],
   entwuerfe: [], demo: false, gewaehlt: -1, graph: null, verlauf: [], beschaeftigt: false, ergebnis: null,
 };
 const maske = document.createElement('canvas');
@@ -46,7 +46,7 @@ async function fotoSetzen(src, istDemo) {
   c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
   const url = c.toDataURL('image/jpeg', 0.88);
   bild = await bildLaden(url);
-  maske.width = c.width; maske.height = c.height;
+  maske.width = c.width; maske.height = c.height; toenung = null;
   Object.assign(z, { foto: { url, w: c.width, h: c.height, demo: istDemo }, a4: [], entwuerfe: [], graph: null, gewaehlt: -1 });
   $('arbeitsflaeche').hidden = false; $('kein-foto').hidden = true;
   fehler(''); a4Anzeigen(); zeigeSchritt(1);  // direkt markieren
@@ -78,9 +78,8 @@ function zeichnen() {
   cv.width = bild.width; cv.height = bild.height;
   const g = cv.getContext('2d');
   g.drawImage(bild, 0, 0);
-  const t = document.createElement('canvas'); t.width = cv.width; t.height = cv.height; const tg = t.getContext('2d');
-  tg.drawImage(maske, 0, 0); tg.globalCompositeOperation = 'source-in'; tg.fillStyle = 'rgba(232,180,0,.45)'; tg.fillRect(0, 0, t.width, t.height);
-  g.drawImage(t, 0, 0);
+  if (!toenung || toenung.width !== cv.width) toenungNeu();
+  g.drawImage(toenung, 0, 0);
   if (z.a4.length) {
     g.strokeStyle = '#e8b400'; g.lineWidth = 3; g.beginPath();
     z.a4.forEach((p, i) => (i ? g.lineTo(...p) : g.moveTo(...p))); if (z.a4.length === 4) g.closePath(); g.stroke();
@@ -89,14 +88,30 @@ function zeichnen() {
       g.fillStyle = '#2a2100'; g.font = '600 12px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(i + 1, p[0], p[1]);
     });
   }
+  if (z.cursor && z.schritt === 1 && !z.a4Modus) {  // Pinsel-Vorschau: Kreis in Pinselgröße, gestrichelt beim Radieren
+    const [x, y] = z.cursor, r = pinselRadius();
+    g.setLineDash(z.radierer ? [6, 4] : []);
+    g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.55)'; g.beginPath(); g.arc(x, y, r, 0, 7); g.stroke();
+    g.lineWidth = 1.5; g.strokeStyle = '#fff'; g.beginPath(); g.arc(x, y, r, 0, 7); g.stroke();
+    g.setLineDash([]);
+  }
 }
+// gelbe Tönung der Maske nur neu rechnen, wenn sich die Maske ändert (nicht bei jeder Mausbewegung)
+let toenung = null;
+function toenungNeu() {
+  toenung = document.createElement('canvas'); toenung.width = maske.width; toenung.height = maske.height;
+  const tg = toenung.getContext('2d');
+  tg.drawImage(maske, 0, 0); tg.globalCompositeOperation = 'source-in'; tg.fillStyle = 'rgba(232,180,0,.45)'; tg.fillRect(0, 0, toenung.width, toenung.height);
+}
+const pinselRadius = () => (+$('pinsel').value || 18) * maske.width / $('arbeitsflaeche').getBoundingClientRect().width;
+let bildAngefragt = false;
+const spaeterZeichnen = () => { if (!bildAngefragt) { bildAngefragt = true; requestAnimationFrame(() => { bildAngefragt = false; zeichnen(); }); } };
 const pos = e => { const cv = $('arbeitsflaeche'), r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * cv.width / r.width, (e.clientY - r.top) * cv.height / r.height]; };
 function malen(e) {
   const [x, y] = pos(e), g = maske.getContext('2d');
-  const pinsel = +$('pinsel').value || 40;
   g.globalCompositeOperation = z.radierer ? 'destination-out' : 'source-over'; g.fillStyle = '#fff';
-  g.beginPath(); g.arc(x, y, pinsel * maske.width / $('arbeitsflaeche').getBoundingClientRect().width, 0, 7); g.fill();
-  zeichnen();
+  g.beginPath(); g.arc(x, y, pinselRadius(), 0, 7); g.fill();
+  toenungNeu(); spaeterZeichnen();
 }
 const cv = $('arbeitsflaeche');
 cv.addEventListener('pointerdown', e => {
@@ -108,7 +123,12 @@ cv.addEventListener('pointerdown', e => {
   }
   if (z.schritt === 1) { malt = true; cv.setPointerCapture(e.pointerId); malen(e); }
 });
-cv.addEventListener('pointermove', e => { if (malt) malen(e); });
+cv.addEventListener('pointermove', e => {
+  z.cursor = pos(e);
+  cv.style.cursor = z.schritt === 1 && !z.a4Modus ? 'none' : z.a4Modus ? 'crosshair' : 'default';
+  if (malt) malen(e); else spaeterZeichnen();
+});
+cv.addEventListener('pointerleave', () => { z.cursor = null; spaeterZeichnen(); });
 cv.addEventListener('pointerup', () => { if (malt) { malt = false; messen(); } });
 
 function maskenRahmen() {
@@ -129,8 +149,11 @@ function messen() {
   $('mass-hinweis').textContent = `Aus dem Foto gemessen (Ebene des A4-Blatts): ${w} × ${h} mm. Tiefe bitte selbst eintragen.`;
   bereichSetzen([w, z.bereich[1], h]);
 }
-$('radierer').addEventListener('click', () => { z.radierer = !z.radierer; $('radierer').setAttribute('aria-pressed', z.radierer); });
-$('maske-loeschen').addEventListener('click', () => { maske.getContext('2d').clearRect(0, 0, maske.width, maske.height); zeichnen(); messen(); });
+$('radierer').addEventListener('click', () => {
+  z.radierer = !z.radierer;
+  $('radierer').setAttribute('aria-pressed', z.radierer); $('radierer').textContent = z.radierer ? 'Radierer an' : 'Radierer';
+});
+$('maske-loeschen').addEventListener('click', () => { maske.getContext('2d').clearRect(0, 0, maske.width, maske.height); toenungNeu(); zeichnen(); messen(); });
 
 function bereichSetzen(b) {
   z.bereich = b;

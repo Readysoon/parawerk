@@ -38,7 +38,8 @@ API-Dokumentation: `/docs`.
 
 ```
 app/
-  main.py                  App-Factory, Router, Fehlerformat {"fehler": "..."}
+  main.py                  App-Factory, Router, Sprach-Middleware, Fehlerformat {"fehler": "..."}
+  i18n/                    Deutsch und Englisch: t("schlüssel"), Texte für Engine (de/en.py) und Oberfläche (de_ui/en_ui.py)
   config.py                Einstellungen aus Umgebung bzw. .env
   models/                  ── Model: Domäne, ohne Web und ohne KI
     bauteilgraph.py        Schema der Möbelbeschreibung, Bereinigen von KI-Antworten
@@ -66,6 +67,8 @@ app/
     static/                CSS, JS (Foto, Maske, Zusammensetzen, 3D), three.js, Demo-Bilder
 tests/                     Engine (Referenzfälle), Bauteilgraph, API
 ```
+
+**Sprachen:** Deutsch und Englisch. Die Sprache kommt aus `?sprache=de|en` (Umschalter oben rechts, wird als Cookie gemerkt), sonst aus dem Cookie, dem Header `X-Sprache` oder der Browsersprache. Alles läuft über `app/i18n`: Oberfläche, Fehlermeldungen, Rechenweg, Prüfung, Einkaufsliste und Montage. Claude schreibt die Bauteilnamen in der gewählten Sprache. Intern bleiben die Schlüssel deutsch (Sortiment, Rollen), übersetzt wird erst bei der Anzeige. Neue Texte kommen in beide Kataloge; `tests/test_i18n.py` prüft, dass keiner fehlt.
 
 Im Browser passiert nur, was Foto und Maske brauchen: Maske malen, A4-Maßstab, Entwurf zurück ins Foto setzen, 3D drehen. Gerechnet und gerendert wird auf dem Server.
 

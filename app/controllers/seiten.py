@@ -5,17 +5,18 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
 from ..config import Einstellungen, einstellungen
+from ..i18n import t
 from ..views import templates
 
 router = APIRouter()
 
-WUENSCHE = ["Daybed aus Latten mit Polstern", "Regal bis unter die Decke", "Sitzbank mit Stauraum", "niedriges Sideboard"]
+WUENSCHE = ["ui.wunsch.1", "ui.wunsch.2", "ui.wunsch.3", "ui.wunsch.4"]
 
 
 @router.get("/", response_class=HTMLResponse)
 def startseite(request: Request, e: Einstellungen = Depends(einstellungen)) -> HTMLResponse:
     return templates.TemplateResponse(request, "index.html", {
-        "wuensche": WUENSCHE,
+        "wuensche": [t(k) for k in WUENSCHE],
         "demo_bilder": not e.bild_ki_aktiv,
         "demo_lesen": not e.claude_aktiv,
         "anzahl_entwuerfe": e.anzahl_entwuerfe,

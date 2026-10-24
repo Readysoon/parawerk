@@ -75,7 +75,8 @@ def prio(m: Bauteil) -> int:
 
 
 def rollenname(rolle: str | None) -> str:
-    return ROLLENNAME.get(rolle, str(rolle))
+    from ...i18n import t  # spät importiert: grundlagen wird auch ohne Sprachkontext genutzt
+    return t(f"rolle.{rolle}") if rolle in ROLLENNAME else str(rolle)
 
 
 def ext(m: Bauteil, a: int) -> float:

@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import math
 
+from ...i18n import dez, holz
+from ...i18n import t as tr
 from ..sortiment import SCHNITT_PREIS, Sortiment
 from .grundlagen import sitzteile, SLATS, Bauteil, eintraege, ext, fest, gesetzt, mm, prio, zahl
 
@@ -55,14 +57,13 @@ def streifen_packen(items: list[dict], L: int, Wd: int, kerf: int) -> list[dict]
     return sheets
 
 
-MONTAGE = [
-    (("bein", "pfosten", "kufe", "stuetze"), "Beine, Pfosten und Kufen zuschneiden und aufstellen"),
-    (("rahmen", "zarge"), "Rahmen bzw. Zargen an die Beine schrauben (je Verbindung 2 Schrauben 6×100, vorbohren)"),
-    (("auflage", "mittelsteg", "querriegel"), "Auflageleisten, Mittelsteg und Querriegel montieren"),
-    (("lattenrost", "sitzflaeche", "liegeflaeche", "regalboden"),
-     "Latten bzw. Bretter auflegen, Abstände mit einem Abstandsklotz einhalten, verschrauben"),
-    (("lehne",), "Lehne anbringen"),
-    (("verkleidung",), "Verkleidung von unten nach oben anschrauben, Stöße mittig auf Pfosten"),
+MONTAGE = [  # Rollen je Montageschritt, Text unter montage.<n> im Sprachkatalog
+    (("bein", "pfosten", "kufe", "stuetze"), "montage.1"),
+    (("rahmen", "zarge"), "montage.2"),
+    (("auflage", "mittelsteg", "querriegel"), "montage.3"),
+    (("lattenrost", "sitzflaeche", "liegeflaeche", "regalboden"), "montage.4"),
+    (("lehne",), "montage.5"),
+    (("verkleidung",), "montage.6"),
 ]
 
 
@@ -85,10 +86,10 @@ def bauplan(S: Sortiment, ms: list[Bauteil], J: list[dict]) -> dict:
         for b in bins:
             by_l[b["L"]] = by_l.get(b["L"], 0) + 1
         for L, n in eintraege(by_l):
-            lines.append({"n": n, "text": f"{label}, {fest(L / 1000, 1).replace('.', ',')} m"})
+            lines.append({"n": n, "text": tr("plan.stab", holz=holz(label), laenge=dez(fest(L / 1000, 1)))})
         for b in bins:
             cuts += len(b["items"]) - (1 if b["used"] == b["L"] else 0)
-        cut_groups.append({"label": label, "kind": "stab", "bins": bins})
+        cut_groups.append({"label": holz(label), "kind": "stab", "bins": bins})
 
     # Leimholz
     by_t: dict = {}
@@ -109,12 +110,12 @@ def bauplan(S: Sortiment, ms: list[Bauteil], J: list[dict]) -> dict:
             if best is None or area < best["area"] or (area == best["area"] and len(sheets) < len(best["sheets"])):
                 best = {"Wd": Wd, "sheets": sheets, "area": area}
         if best is None:
-            lines.append({"n": 0, "text": f"Leimholz {zahl(t)} mm: Teil breiter als 600 mm, muss verleimt werden"})
+            lines.append({"n": 0, "text": tr("plan.verleimen", t=zahl(t))})
             continue
-        lines.append({"n": len(best["sheets"]), "text": f"Leimholz Fichte {zahl(t)} mm, {zahl(opt['L'] / 10)} × {zahl(best['Wd'] / 10)} cm"})
+        lines.append({"n": len(best["sheets"]), "text": tr("plan.leimholz", t=zahl(t), l=zahl(opt["L"] / 10), w=zahl(best["Wd"] / 10))})
         for s in best["sheets"]:
             cuts += len(s["strips"]) + sum(len(st["items"]) for st in s["strips"]) - 1
-        cut_groups.append({"label": f"Leimholz {zahl(t)} mm, {zahl(opt['L'])} × {zahl(best['Wd'])} mm", "kind": "platte",
+        cut_groups.append({"label": tr("plan.leimholz_gruppe", t=zahl(t), l=zahl(opt["L"]), w=zahl(best["Wd"])), "kind": "platte",
                            "L": opt["L"], "W": best["Wd"], "sheets": best["sheets"]})
 
     # Schrauben
@@ -130,9 +131,9 @@ def bauplan(S: Sortiment, ms: list[Bauteil], J: list[dict]) -> dict:
         else:
             k = "Holzschraube 4×50"
         scr[k] = scr.get(k, 0) + 2
-    hardware = [{"n": math.ceil(v * 1.1), "text": k} for k, v in eintraege(scr)]
+    hardware = [{"n": math.ceil(v * 1.1), "text": tr(f"schraube.{k}")} for k, v in eintraege(scr)]
 
-    steps = [{"t": t, "n": sum(1 for m in ms if m.rolle in rollen)} for rollen, t in MONTAGE]
+    steps = [{"t": tr(key), "n": sum(1 for m in ms if m.rolle in rollen)} for rollen, key in MONTAGE]
     steps = [s for s in steps if s["n"]]
     return {"lines": lines, "cut_groups": cut_groups, "cuts": cuts, "cost": cuts * SCHNITT_PREIS,
             "hardware": hardware, "steps": steps}

@@ -4,6 +4,7 @@ from __future__ import annotations
 import math
 
 from .grundlagen import sitzteile, LOADED, SLATS, Bauteil, cen, einmalig, ext, gesetzt, max_or, min_or, mm, oder, zahl
+from ...i18n import t, und
 from .reparatur import aussteifung, max_spannweite, spannweite
 
 
@@ -16,9 +17,9 @@ def endkontrolle(ms: list[Bauteil], g: dict, bereich: list[float] | None, J: lis
     # Halt
     loose = [m for m in ms if not any(j["a"] is m or j["b"] is m for j in J)]
     if loose:
-        out.append({"ok": False, "t": f"{len(loose)} Teil(e) ohne Verbindung: {', '.join(einmalig(m.name for m in loose))}"})
+        out.append({"ok": False, "t": t("chk.lose", n=len(loose), namen=", ".join(einmalig(m.name for m in loose)))})
     else:
-        out.append({"ok": True, "t": "Alle Teile sind mit mindestens einem anderen verbunden."})
+        out.append({"ok": True, "t": t("chk.verbunden")})
 
     # Spannweiten
     worst_ratio, worst_m = 0, None
@@ -33,11 +34,11 @@ def endkontrolle(ms: list[Bauteil], g: dict, bereich: list[float] | None, J: lis
         if r > worst_ratio:
             worst_ratio, worst_m = r, m
     if worst_ratio <= 1:
-        out.append({"ok": True, "t": f"Spannweiten im grünen Bereich (größte Auslastung {mm(worst_ratio * 100)} % der Faustregel)."})
+        out.append({"ok": True, "t": t("chk.spann_ok", p=mm(worst_ratio * 100))})
     elif worst_ratio == 9:
-        out.append({"ok": False, "t": f"{worst_m.name} liegt nirgends auf."})
+        out.append({"ok": False, "t": t("chk.liegt_nicht", name=worst_m.name)})
     else:
-        out.append({"ok": False, "t": f"{worst_m.name}: Spannweite {mm(worst_ratio * 100)} % der Faustregel."})
+        out.append({"ok": False, "t": t("chk.spann", name=worst_m.name, p=mm(worst_ratio * 100))})
 
     # Stand
     floor = [m for m in ms if m.min[2] <= 0.5]
@@ -59,21 +60,21 @@ def endkontrolle(ms: list[Bauteil], g: dict, bereich: list[float] | None, J: lis
     inside = len(floor) >= 3 and all(fp_min[a] < c < fp_max[a] for a, c in enumerate(cg))
     wall = any(m.rolle == "wandleiste" for m in ms)
     if wall and len(floor) >= 1:
-        out.append({"ok": True, "t": f"Steht auf {len(floor)} Bodenteilen und ist mit einer Wandleiste an der Wand befestigt."})
+        out.append({"ok": True, "t": t("chk.wand", n=len(floor))})
     elif inside:
-        out.append({"ok": True, "t": f"Steht auf {len(floor)} Bodenteilen, Schwerpunkt liegt innerhalb der Standfläche."})
+        out.append({"ok": True, "t": t("chk.stand", n=len(floor))})
     else:
-        out.append({"ok": False, "t": "Standsicherheit fraglich: Schwerpunkt außerhalb der Standfläche oder zu wenige Bodenteile."})
+        out.append({"ok": False, "t": t("chk.stand_nein")})
     if dims[2] > 1.5 * min(dims[0], dims[1]):
-        out.append({"ok": None, "t": "Hoch und schmal: an der Wand befestigen."})
+        out.append({"ok": None, "t": t("chk.hoch")})
 
     # Wackeln
     br = aussteifung(ms, J)
     if all(b["ok"] for b in br):
-        out.append({"ok": True, "t": f"Wackelt nicht: von vorne {br[0]['why']}, von der Seite {br[1]['why']}."})
+        out.append({"ok": True, "t": t("chk.wackelt_nicht", x=br[0]["why"], y=br[1]["why"])})
     else:
-        wo = " und ".join("seitlich" if b["ax"] == 0 else "nach vorne/hinten" for b in br if not b["ok"])
-        out.append({"ok": False, "t": f"Kann wackeln {wo}: Diagonalstrebe oder zweiter Riegel nötig."})
+        wo = und([t("wort.seitlich") if b["ax"] == 0 else t("wort.vorne_hinten") for b in br if not b["ok"]])
+        out.append({"ok": False, "t": t("chk.wackelt", wo=wo)})
 
     # Funktion
     f = g.get("funktion") or {}
@@ -94,10 +95,10 @@ def endkontrolle(ms: list[Bauteil], g: dict, bereich: list[float] | None, J: lis
             clear.append(mm(right - left) if math.isfinite(left) and math.isfinite(right) else None)
         ok = all(v is None or (v >= mat[i] and v - mat[i] <= 40) for i, v in enumerate(clear))
         extra["clear"], extra["mat"] = clear, mat
-        innen = " × ".join("offen" if v is None else str(v) for v in clear)
-        luft = f" (Luft {' / '.join('offen' if v is None else zahl(v - mat[i]) for i, v in enumerate(clear))} mm)" if ok else ""
-        out.append({"ok": ok, "t": f"Liegefläche innen {innen} mm für Matratze {' × '.join(zahl(v) for v in mat)} mm{luft}, "
-                                   f"Oberkante Lattenrost {mm(top)} mm."})
+        offen = t("wort.offen")
+        innen = " × ".join(offen if v is None else str(v) for v in clear)
+        luft = t("chk.luft", werte=" / ".join(offen if v is None else zahl(v - mat[i]) for i, v in enumerate(clear))) if ok else ""
+        out.append({"ok": ok, "t": t("chk.liegeflaeche", innen=innen, mat=" × ".join(zahl(v) for v in mat), luft=luft, top=mm(top))})
     if gesetzt(f.get("sitzhoehe")):
         seat = sitzteile(ms)
         top = max(m.max[2] for m in seat) if seat else 0
@@ -106,10 +107,10 @@ def endkontrolle(ms: list[Bauteil], g: dict, bereich: list[float] | None, J: lis
         extra["seat"] = sh
         lounge = f["sitzhoehe"] < 360
         ok = 260 <= sh <= 360 if lounge else 400 <= sh <= 480
-        out.append({"ok": ok, "t": f"Sitzhöhe mit {zahl(polster)} mm Polster: {sh} mm (Ziel {zahl(f['sitzhoehe'])} mm, "
-                                   f"{'Lounge 260–360' if lounge else 'Stuhlhöhe 400–480'} mm)."})
+        out.append({"ok": ok, "t": t("chk.sitz", polster=zahl(polster), sh=sh, ziel=zahl(f["sitzhoehe"]),
+                                     bereich=t("wort.lounge") if lounge else t("wort.stuhl"))})
     if bereich is not None:
         fits = dims[0] <= bereich[0] and dims[1] <= bereich[1] and dims[2] <= bereich[2]
-        out.append({"ok": fits, "t": f"Außenmaß {' × '.join(map(str, dims))} mm, Bereich {' × '.join(zahl(v) for v in bereich)} mm: "
-                                     f"{'passt' if fits else 'passt nicht'}."})
+        out.append({"ok": fits, "t": t("chk.bereich", dims=" × ".join(map(str, dims)), bereich=" × ".join(zahl(v) for v in bereich),
+                                       ergebnis=t("wort.passt") if fits else t("wort.passt_nicht"))})
     return {"checks": out, "dims": dims, "bb": bb, **extra}

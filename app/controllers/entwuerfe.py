@@ -6,6 +6,7 @@ import secrets
 from fastapi import APIRouter, Depends, HTTPException
 
 from ..config import Einstellungen, einstellungen
+from ..i18n import t
 from ..services.bild_ki import BildKI
 from ..services.fehler import DienstFehler, NichtVerfuegbar
 from ..services.konstrukteur import Konstrukteur
@@ -24,7 +25,7 @@ async def entwuerfe(
     e: Einstellungen = Depends(einstellungen),
 ) -> EntwuerfeAntwort:
     if not ki.demo and not (anfrage.foto and anfrage.maske):
-        raise HTTPException(400, "Foto und Maske fehlen.")
+        raise HTTPException(400, t("fehler.foto_maske"))
     prompt = inpaint_prompt(anfrage.wunsch)
     if not ki.demo:  # nur wenn wirklich gemalt wird: Claude schreibt den Prompt mit Blick auf Foto und Maske
         try:
@@ -35,7 +36,7 @@ async def entwuerfe(
     try:
         bilder = await ki.entwerfen(anfrage.foto or "", anfrage.maske or "", prompt, seeds)
     except DienstFehler as err:
-        raise HTTPException(502, f"Die Entwürfe konnten nicht erzeugt werden: {err}") from err
+        raise HTTPException(502, t("fehler.entwuerfe", err=err)) from err
     return EntwuerfeAntwort(demo=ki.demo, prompt=prompt, bilder=bilder)
 
 
@@ -55,5 +56,5 @@ async def nachjustieren(
     except NichtVerfuegbar as err:
         raise HTTPException(501, str(err)) from err
     except DienstFehler as err:
-        raise HTTPException(502, f"Der Entwurf konnte nicht angepasst werden: {err}") from err
+        raise HTTPException(502, t("fehler.nachjustieren", err=err)) from err
     return NachjustierenAntwort(prompt=prompt, bild=bild)

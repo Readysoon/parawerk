@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 
 from ..config import Einstellungen, einstellungen
+from ..i18n import t
 from ..models.bauteilgraph import GraphFehler, bereinigen
 from ..models.dxf import teile_als_dxf
 from ..models.engine import Ergebnis, berechnen
@@ -22,11 +23,11 @@ router = APIRouter(prefix="/api/bauplan", tags=["Bauplan"])
 async def lesen(anfrage: LesenAnfrage, k: Konstrukteur = Depends(konstrukteur)) -> GraphAntwort:
     """Konstruktion (Bauteilgraph) aus dem Ausschnitt des gewählten Entwurfs lesen."""
     if not k.demo and not anfrage.bild:
-        raise HTTPException(400, "Der Entwurfsausschnitt fehlt.")
+        raise HTTPException(400, t("fehler.ausschnitt"))
     try:
         graph = await k.lesen(anfrage.bild, anfrage.bereich, anfrage.demo_index)
     except (DienstFehler, GraphFehler) as err:
-        raise HTTPException(502, f"Die Konstruktion konnte nicht gelesen werden: {err}") from err
+        raise HTTPException(502, t("fehler.lesen", err=err)) from err
     return GraphAntwort(demo=k.demo, graph=graph)
 
 
@@ -38,7 +39,7 @@ async def anpassen(anfrage: AnpassenAnfrage, k: Konstrukteur = Depends(konstrukt
     except NichtVerfuegbar as err:
         raise HTTPException(501, str(err)) from err
     except (DienstFehler, GraphFehler) as err:
-        raise HTTPException(502, f"Die Änderung hat nicht geklappt: {err}") from err
+        raise HTTPException(502, t("fehler.aenderung", err=err)) from err
     return GraphAntwort(demo=k.demo, graph=graph)
 
 
@@ -76,4 +77,4 @@ def _rechnen(graph: dict, bereich: list[float], sortiment: str) -> Ergebnis:
     try:
         return berechnen(graph, bereich, sortiment)
     except (ValueError, KeyError, IndexError, ZeroDivisionError) as err:
-        raise HTTPException(422, f"Aus diesem Entwurf ließ sich kein Modell berechnen ({type(err).__name__}).") from err
+        raise HTTPException(422, t("fehler.modell", art=type(err).__name__)) from err

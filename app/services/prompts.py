@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 
+from ..i18n import t
 from ..models.bauteilgraph import GRAPH_SCHEMA
 
 
@@ -16,7 +17,7 @@ BAUREGELN = (
 
 def inpaint_prompt(wunsch: str | None) -> str:
     """Prompt ohne Claude: der Wunsch wörtlich, die Bauregeln stehen fest dabei."""
-    w = (wunsch or "").strip() or "ein schönes, schlichtes Möbelstück, das in diese Ecke passt"
+    w = (wunsch or "").strip() or "a beautiful, simple piece of furniture that fits this corner"
     return f"A handmade piece of furniture in this exact spot of the room: {w}. {BAUREGELN}"
 
 
@@ -43,6 +44,12 @@ def _mm(werte: list[float]) -> str:
     return " × ".join(str(int(v)) if float(v).is_integer() else str(v) for v in werte)
 
 
+def _namen() -> str:
+    """Zusatz für die Sprache der Bauteilnamen (leer auf Deutsch, dem Standard)."""
+    zusatz = t("prompt.namen")
+    return f"\n{zusatz}" if zusatz else ""
+
+
 def lese_prompt(bereich: list[float]) -> str:
     return f"""Du bist Schreiner und liest aus einem Entwurfsbild die Konstruktion eines Möbels für einen Bauplan-Generator.
 Das Bild zeigt das neue Möbel in einer Wohnung. Beschreibe nur dieses Möbel. Zerlege es in Holzteile aus dem Sortiment und fasse gleiche Teile als Gruppe zusammen (anzahl + achse).
@@ -61,7 +68,7 @@ Leseregeln (aus Blindtests gegen echte Baupläne):
 9. Sofa und Bank: Die Latten oder Bretter, auf denen man sitzt, haben die Rolle "sitzflaeche" (nicht "lattenrost", der ist nur für Betten). "anker.sitz_oben" = Oberkante dieser Sitzlatten OHNE Polster geteilt durch die Gesamthöhe inkl. Lehne; es muss gelten sitz_oben ≈ (sitzhoehe − polster) / masse.hoehe.
 10. An der Wand befestigt: Rolle "wandleiste". Verbindende Leisten ohne Last: Rolle "leiste". Schräge Teile gibt es nicht, beschreibe sie achsparallel.
 Antworte mit dem Bauteilgraph als JSON. Bedeutung der Felder:
-{GRAPH_SCHEMA}"""
+{GRAPH_SCHEMA}{_namen()}"""
 
 
 def anpass_prompt(graph: dict, wunsch: str) -> str:
@@ -71,7 +78,7 @@ def anpass_prompt(graph: dict, wunsch: str) -> str:
 Ändere ihn nach diesem Wunsch: "{wunsch}".
 Behalte alles andere bei. Das Möbel muss baubar und stabil bleiben; Maße, Verbindungen und Statik rechnet danach Code.
 Antworte mit dem vollständigen geänderten Bauteilgraph als JSON. Bedeutung der Felder:
-{GRAPH_SCHEMA}"""
+{GRAPH_SCHEMA}{_namen()}"""
 
 
 KONTEXT_REGELN = ("Keep it built from straight pine battens and boards, no curves. "

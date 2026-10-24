@@ -4,6 +4,9 @@ import { a4Homography, messeMm } from './geometrie.js';
 
 const MAXPX = 1024;
 const $ = id => document.getElementById(id);
+// Texte in der Sprache der Seite (vom Server eingebettet); {name} wird ersetzt
+const TEXTE = JSON.parse(document.getElementById('texte')?.textContent || '{}');
+const tx = (k, w = {}) => (TEXTE[`ui.${k}`] ?? k).replace(/\{(\w+)\}/g, (_, n) => w[n] ?? '');
 
 const z = {
   schritt: 0, foto: null, a4: [], a4Modus: false, radierer: false, cursor: null, bereich: [1800, 900, 900],
@@ -33,8 +36,8 @@ function fehler(text) { $('fehler').hidden = !text; $('fehler').textContent = te
 async function api(pfad, daten, { roh = false } = {}) {
   const res = await fetch(pfad, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(daten) });
   if (roh && res.ok) return res;
-  const j = await res.json().catch(() => ({ fehler: `Serverfehler ${res.status}` }));
-  if (!res.ok) throw new Error(j.fehler || `Serverfehler ${res.status}`);
+  const j = await res.json().catch(() => ({ fehler: tx('serverfehler', { n: res.status }) }));
+  if (!res.ok) throw new Error(j.fehler || tx('serverfehler', { n: res.status }));
   return j;
 }
 
@@ -54,7 +57,7 @@ async function fotoSetzen(src, istDemo) {
 $('foto-datei').addEventListener('change', e => {
   const f = e.target.files?.[0]; if (!f) return;
   const r = new FileReader();
-  r.onload = () => fotoSetzen(r.result, false).catch(() => fehler('Das Bild konnte nicht geladen werden. Bitte ein JPG oder PNG wählen.'));
+  r.onload = () => fotoSetzen(r.result, false).catch(() => fehler(tx('bild_fehler')));
   r.readAsDataURL(f);
   e.target.value = '';  // dasselbe Foto noch einmal wählen können
 });
@@ -64,9 +67,8 @@ $('anderes-foto').addEventListener('click', () => $('foto-datei').click());
 function a4Anzeigen() {
   $('a4-start').setAttribute('aria-pressed', z.a4Modus);
   $('a4-reset').hidden = !z.a4.length;
-  $('a4-hinweis').textContent = z.a4Modus ? `Klicke Ecke ${z.a4.length + 1} von 4: oben links, oben rechts, unten rechts, unten links.`
-    : z.a4.length === 4 ? 'A4-Blatt erkannt. Die Maße des Bereichs werden aus dem Foto gemessen.'
-    : 'Liegt ein A4-Blatt flach an der Wand im Bereich? Dann tippe seine 4 Ecken an, und Breite und Höhe werden aus dem Foto gemessen.';
+  $('a4-hinweis').textContent = z.a4Modus ? tx('a4_ecke', { n: z.a4.length + 1 })
+    : z.a4.length === 4 ? tx('a4_ok') : tx('a4_hinweis');
   zeichnen();
 }
 $('a4-start').addEventListener('click', () => { z.a4 = []; z.a4Modus = true; a4Anzeigen(); });
@@ -143,15 +145,15 @@ function maskenRahmen() {
 function messen() {
   const b = maskenRahmen();
   const H = b && z.a4.length === 4 ? a4Homography(z.a4) : null;
-  if (!H) { $('mass-hinweis').textContent = 'Bitte mit dem Maßband messen und eintragen. Auf 5 cm genau reicht.'; return; }
+  if (!H) { $('mass-hinweis').textContent = tx('mass_hinweis'); return; }
   const w = Math.round(messeMm(H, [b.x0, b.y1], [b.x1, b.y1]));
   const h = Math.round(messeMm(H, [(b.x0 + b.x1) / 2, b.y0], [(b.x0 + b.x1) / 2, b.y1]));
-  $('mass-hinweis').textContent = `Aus dem Foto gemessen (Ebene des A4-Blatts): ${w} × ${h} mm. Tiefe bitte selbst eintragen.`;
+  $('mass-hinweis').textContent = tx('gemessen', { w, h });
   bereichSetzen([w, z.bereich[1], h]);
 }
 $('radierer').addEventListener('click', () => {
   z.radierer = !z.radierer;
-  $('radierer').setAttribute('aria-pressed', z.radierer); $('radierer').textContent = z.radierer ? 'Radierer an' : 'Radierer';
+  $('radierer').setAttribute('aria-pressed', z.radierer); $('radierer').textContent = tx(z.radierer ? 'radierer_an' : 'radierer');
 });
 $('maske-loeschen').addEventListener('click', () => { maske.getContext('2d').clearRect(0, 0, maske.width, maske.height); toenungNeu(); zeichnen(); messen(); });
 
@@ -167,7 +169,7 @@ document.querySelectorAll('[data-bereich]').forEach(i => i.addEventListener('inp
   if (z.graph && b.every(v => v > 0)) { clearTimeout(neuRechnen); neuRechnen = setTimeout(berechnen, 400); }
 }));
 $('zu-wunsch').addEventListener('click', () => {
-  if (!maskenRahmen()) { fehler('Bitte zuerst den Bereich markieren.'); return; }
+  if (!maskenRahmen()) { fehler(tx('erst_markieren')); return; }
   fehler(''); zeigeSchritt(2);
 });
 
@@ -176,8 +178,8 @@ document.querySelectorAll('[data-wunsch]').forEach(b => b.addEventListener('clic
 
 async function entwerfen() {
   const b = maskenRahmen();
-  if (!b) { fehler('Bitte zuerst den Bereich markieren.'); zeigeSchritt(1); return; }
-  status('Die Bild-KI malt Entwürfe in deinen Bereich. Das dauert meist 30–90 Sekunden …'); fehler('');
+  if (!b) { fehler(tx('erst_markieren')); zeigeSchritt(1); return; }
+  status(tx('st_entwerfen')); fehler('');
   try {
     const mk = document.createElement('canvas'); mk.width = z.foto.w; mk.height = z.foto.h; const g = mk.getContext('2d');
     g.fillStyle = '#000'; g.fillRect(0, 0, mk.width, mk.height); g.filter = 'blur(2px)'; g.drawImage(maske, 0, 0);
@@ -208,8 +210,8 @@ function entwuerfeAnzeigen() {
   z.entwuerfe.forEach((src, i) => {
     const b = document.createElement('button');
     b.className = 'design'; b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', z.gewaehlt === i);
-    const img = document.createElement('img'); img.src = src; img.alt = `Entwurf ${i + 1}`;
-    const s = document.createElement('span'); s.textContent = `Entwurf ${i + 1}`;
+    const img = document.createElement('img'); img.src = src; img.alt = tx('entwurf', { n: i + 1 });
+    const s = document.createElement('span'); s.textContent = tx('entwurf', { n: i + 1 });
     b.append(img, s);
     b.addEventListener('click', () => { z.gewaehlt = i; entwuerfeAnzeigen(); $('nj-text').focus(); });
     box.append(b);
@@ -223,7 +225,7 @@ function entwuerfeAnzeigen() {
 async function nachjustieren() {
   const i = z.gewaehlt, text = $('nj-text').value.trim();
   if (i < 0 || !text || z.beschaeftigt) return;
-  status('Die Bild-KI passt den Entwurf an. Das dauert meist 20–40 Sekunden …'); fehler('');
+  status(tx('st_nachjustieren')); fehler('');
   try {
     const j = await api('/api/entwuerfe/nachjustieren', { bild: z.entwuerfe[i], wunsch: $('wunsch').value, anpassung: text });
     (z.njVerlauf[i] ||= []).push(z.entwuerfe[i]);
@@ -244,7 +246,7 @@ $('neu-entwerfen').addEventListener('click', entwerfen);
 // ---------- 5. Bauplan ----------
 async function bauplanErstellen() {
   if (z.gewaehlt < 0) return;
-  status('Claude liest die Konstruktion aus dem Entwurf. Das dauert meist 20–60 Sekunden …'); fehler('');
+  status(tx('st_lesen')); fehler('');
   try {
     const b = maskenRahmen(), img = await bildLaden(z.entwuerfe[z.gewaehlt]);
     const mx = (b.x1 - b.x0) * 0.2, my = (b.y1 - b.y0) * 0.2;
@@ -278,12 +280,12 @@ function verlauf(cls, text) {
 }
 async function anpassen() {
   const text = $('anpassen-text').value.trim(); if (!text || !z.graph || z.beschaeftigt) return;
-  verlauf('me', text); $('anpassen-text').value = ''; status('Claude ändert die Konstruktion …');
+  verlauf('me', text); $('anpassen-text').value = ''; status(tx('st_anpassen'));
   try {
     const j = await api('/api/bauplan/anpassen', { graph: z.graph, wunsch: text });
     z.verlauf.push(z.graph); z.graph = j.graph; $('rueckgaengig').disabled = false;
     await berechnen();
-    verlauf('ai', 'Konstruktion geändert, alles neu berechnet und geprüft.');
+    verlauf('ai', tx('geaendert'));
   } catch (e) { verlauf('err', e.message); } finally { status(''); }
 }
 $('anpassen').addEventListener('click', anpassen);
@@ -291,7 +293,7 @@ $('anpassen-text').addEventListener('keydown', e => { if (e.key === 'Enter' && !
 $('rueckgaengig').addEventListener('click', async () => {
   const g = z.verlauf.pop(); if (!g) return;
   z.graph = g; $('rueckgaengig').disabled = !z.verlauf.length;
-  await berechnen(); verlauf('ai', 'Letzte Änderung rückgängig gemacht.');
+  await berechnen(); verlauf('ai', tx('zurueckgenommen'));
 });
 
 function herunterladen(name, blob) {

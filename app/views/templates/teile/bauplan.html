@@ -1,25 +1,25 @@
 {# Bauplan als HTML-Ausschnitt; der Controller liefert ihn nach jeder Berechnung neu. #}
 <div class="kopf">
-  <h2>5 · Bauplan: {{ name }}</h2>
+  <h2>{{ t("bp.titel", name=name) }}</h2>
   {% if offene_punkte %}
-  <span class="badge no">{{ offene_punkte }} Punkt{{ "e" if offene_punkte > 1 }} prüfen</span>
+  <span class="badge no">{{ t("bp.punkte", n=offene_punkte) if offene_punkte > 1 else t("bp.punkt") }}</span>
   {% else %}
-  <span class="badge ok">baubar und stabil</span>
+  <span class="badge ok">{{ t("bp.ok") }}</span>
   {% endif %}
 </div>
 
-<h3>Prüfung</h3>
+<h3>{{ t("bp.pruefung") }}</h3>
 <ul class="chk">
   {% for p in pruefungen %}<li><span class="badge {{ p.klasse }}">{{ p.status }}</span><span>{{ p.text }}</span></li>{% endfor %}
 </ul>
 
 <details>
-  <summary>Rechenweg ansehen</summary>
+  <summary>{{ t("bp.rechenweg") }}</summary>
   <ol class="steps2">
-    <li><b>Konstruktion aus dem Bild gelesen</b> (Claude): {{ anzahl_gruppen }} Teilgruppen.
-      <details><summary>Bauteilgraph</summary><pre class="graph">{{ graph_json }}</pre></details></li>
+    <li><b>{{ t("bp.gelesen") }}</b> {{ t("bp.gruppen", n=anzahl_gruppen) }}
+      <details><summary>{{ t("bp.graph") }}</summary><pre class="graph">{{ graph_json }}</pre></details></li>
     {% for s in rechenweg %}
-    <li><b>{{ s.titel }}</b> (Code)
+    <li><b>{{ s.titel }}</b> {{ t("bp.code") }}
       <ul>{% for z in s.zeilen %}<li{% if z.reparatur %} class="rep"{% endif %}>{{ z.text }}</li>{% endfor %}</ul></li>
     {% endfor %}
   </ol>
@@ -27,56 +27,56 @@
 
 <div class="planbox">
   <section class="spalte">
-    <h3>Einkaufsliste</h3>
+    <h3>{{ t("bp.einkauf") }}</h3>
     <div class="tablewrap"><table>
-      <thead><tr><th style="text-align:right">Menge</th><th>Artikel</th></tr></thead>
+      <thead><tr><th style="text-align:right">{{ t("bp.menge") }}</th><th>{{ t("bp.artikel") }}</th></tr></thead>
       <tbody>
         {% for l in einkauf %}<tr><td class="n">{{ l.n }}×</td><td>{{ l.text }}</td></tr>{% endfor %}
-        {% for l in beschlaege %}<tr><td class="n">{{ l.n }}</td><td>{{ l.text }} (inkl. 10 % Reserve)</td></tr>{% endfor %}
+        {% for l in beschlaege %}<tr><td class="n">{{ l.n }}</td><td>{{ l.text }} {{ t("bp.reserve") }}</td></tr>{% endfor %}
       </tbody>
     </table></div>
-    <p class="hint">Zuschnitt im Markt: ca. {{ schnitte }} gerade Schnitte × 0,99 € ≈ {{ schnittkosten | eur }}. Latten kann man auch selbst ablängen.</p>
-    <h3>Montage</h3>
+    <p class="hint">{{ t("bp.zuschnitt_markt", n=schnitte, preis=0.99 | eur, kosten=schnittkosten | eur) }}</p>
+    <h3>{{ t("bp.montage") }}</h3>
     <ol class="montage">
-      {% for s in montage %}<li>{{ s.t }} <span class="hint">({{ s.n }} Teile)</span></li>{% endfor %}
+      {% for s in montage %}<li>{{ s.t }} <span class="hint">{{ t("bp.teile", n=s.n) }}</span></li>{% endfor %}
     </ol>
   </section>
 
   <section class="spalte">
-    <h3>Zuschnittplan</h3>
+    <h3>{{ t("bp.zuschnittplan") }}</h3>
     {% for g in zuschnitt %}
     <div class="gruppe">
       <div class="titel">{{ g.label }}</div>
       {% if g.art == "stab" %}
         {% for s in g.stangen %}
         <div class="bar">
-          <div class="lbl"><span>{{ s.anzahl }}× Stange {{ s.laenge | meter }} m{% if s.zu_lang %} (länger als Handelsware!){% endif %}</span><span>Rest {{ s.rest }} mm</span></div>
+          <div class="lbl"><span>{{ t("bp.stange", n=s.anzahl, m=s.laenge | meter) }}{% if s.zu_lang %}{{ t("bp.zu_lang") }}{% endif %}</span><span>{{ t("bp.rest", n=s.rest) }}</span></div>
           <div class="stock">{% for p in s.stuecke %}<div class="pc{% if p.ergaenzt %} rep{% endif %}" style="flex:0 0 {{ p.breite }}" title="{{ p.name }} {{ p.len }} mm">{{ p.len }}</div>{% endfor %}</div>
         </div>
         {% endfor %}
       {% else %}
         {% for platte in g.platten %}
         <div class="sheetv" style="aspect-ratio:{{ g.seitenverhaeltnis }}">
-          {% for t in platte %}<div style="left:{{ t.links }};top:{{ t.oben }};width:{{ t.breite }};height:{{ t.hoehe }}" title="{{ t.name }}">{{ t.l }}×{{ t.w }}</div>{% endfor %}
+          {% for st in platte %}<div style="left:{{ st.links }};top:{{ st.oben }};width:{{ st.breite }};height:{{ st.hoehe }}" title="{{ st.name }}">{{ st.l }}×{{ st.w }}</div>{% endfor %}
         </div>
         {% endfor %}
       {% endif %}
     </div>
     {% endfor %}
-    <p class="hint">Orange: Teile, die der Code zur Stabilität ergänzt hat. Sägeschnitt mit 3 mm eingerechnet.</p>
+    <p class="hint">{{ t("bp.orange") }}</p>
   </section>
 </div>
 
 <template id="ergebnis-vorlage">
-  <h3>Ergebnis</h3>
+  <h3>{{ t("bp.ergebnis") }}</h3>
   <dl class="kv">
-    <dt>Außenmaß B × T × H</dt><dd>{{ aussenmass }} mm</dd>
-    <dt>Bereich</dt><dd>{{ bereich }} mm</dd>
-    <dt>Einzelteile</dt><dd>{{ anzahl_teile }}</dd>
-    <dt>Für Stabilität ergänzt</dt><dd>{{ anzahl_ergaenzt }}</dd>
+    <dt>{{ t("bp.aussenmass") }}</dt><dd>{{ aussenmass }} mm</dd>
+    <dt>{{ t("bp.bereich") }}</dt><dd>{{ bereich }} mm</dd>
+    <dt>{{ t("bp.einzelteile") }}</dt><dd>{{ anzahl_teile }}</dd>
+    <dt>{{ t("bp.ergaenzt") }}</dt><dd>{{ anzahl_ergaenzt }}</dd>
   </dl>
   <div class="btns noprint">
-    <button class="b" data-aktion="drucken">Bauplan drucken</button>
+    <button class="b" data-aktion="drucken">{{ t("bp.drucken") }}</button>
     <button class="b" data-aktion="dxf">DXF</button>
     <button class="b" data-aktion="json">JSON</button>
   </div>

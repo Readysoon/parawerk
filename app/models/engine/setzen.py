@@ -5,6 +5,7 @@ Auflager verlängert, Leisten angelegt und Flächen auf ihr Auflager abgesenkt.
 """
 from __future__ import annotations
 
+from ...i18n import t
 from .grundlagen import (
     ATTACH, GAP, GRAVITY, TOL, Bauteil, cen, depth, mm, others, ov, pen_sum, prio, quader, seite, touches,
 )
@@ -206,7 +207,7 @@ def ueberschneidungen_loesen(ms: list[Bauteil], log: list[str]) -> None:
                     k = f"{lo.part}|{hi.part}"
                     if k not in gemeldet:
                         gemeldet.add(k)
-                        log.append(f"Konflikt: {lo.name} und {hi.name} überschneiden sich stark. Im Entwurf unklar, bitte prüfen.")
+                        log.append(t("log.konflikt", a=lo.name, b=hi.name))
                     continue
                 _anwenden(best, best["mv"])
                 changed = True

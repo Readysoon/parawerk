@@ -10,6 +10,7 @@ import math
 import re
 from typing import Any
 
+from ..i18n import t as tr
 from .engine.grundlagen import mm
 
 TYPEN = ["latte", "kantholz", "brett", "platte"]
@@ -85,8 +86,8 @@ def json_aus_text(text: str) -> Any:
             except ValueError as e:
                 letzter = e
     if a >= 0 and b > a:
-        raise GraphFehler(f"Antwort ist kein gültiges JSON: {letzter}")
-    raise GraphFehler("Keine JSON-Antwort gefunden.")
+        raise GraphFehler(tr("fehler.kein_json", err=letzter))
+    raise GraphFehler(tr("fehler.keine_antwort"))
 
 
 _ZAHL = {"type": "number"}
@@ -141,18 +142,18 @@ def _positiv(v: Any, ersatz: float) -> int | float:
 def bereinigen(j: Any) -> dict:
     """Graph prüfen und auf gültige Werte bringen. Wirft ``GraphFehler``, wenn er nicht zu retten ist."""
     if not isinstance(j, dict) or not isinstance(j.get("teile"), list) or not j["teile"]:
-        raise GraphFehler("Der Bauteilgraph enthält keine Teile.")
+        raise GraphFehler(tr("fehler.keine_teile"))
     m = j.get("masse") if isinstance(j.get("masse"), dict) else {}
     masse = {"breite": _positiv(m.get("breite"), 1500), "tiefe": _positiv(m.get("tiefe"), 600), "hoehe": _positiv(m.get("hoehe"), 800)}
 
     teile = []
     for i, t in enumerate(j["teile"][:MAX_TEILE]):
         if not isinstance(t, dict):
-            raise GraphFehler(f"Teil {i + 1}: kein Objekt.")
+            raise GraphFehler(tr("fehler.kein_objekt", n=i + 1))
         roh = t.get("box") if isinstance(t.get("box"), list) else []
         b = [_zahl(v) for v in roh]
         if len(b) != 6 or any(v is None for v in b):
-            raise GraphFehler(f"Teil {i + 1}: Lage (box) fehlt.")
+            raise GraphFehler(tr("fehler.keine_box", n=i + 1))
         box: list[float] = []
         for k in (0, 2, 4):
             lo = max(0.0, min(1.0, min(b[k], b[k + 1])))
@@ -175,10 +176,10 @@ def bereinigen(j: Any) -> dict:
             teil["querschnitt"] = [_int_wenn_ganz(v) for v in querschnitt]
         teile.append(teil)
     ids: set[str] = set()
-    for t in teile:
-        while t["id"] in ids:
-            t["id"] += "x"
-        ids.add(t["id"])
+    for teil in teile:
+        while teil["id"] in ids:
+            teil["id"] += "x"
+        ids.add(teil["id"])
 
     f = j.get("funktion") if isinstance(j.get("funktion"), dict) else {}
     a = j.get("anker") if isinstance(j.get("anker"), dict) else {}

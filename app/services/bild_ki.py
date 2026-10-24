@@ -12,6 +12,7 @@ from typing import Protocol
 
 import httpx
 
+from ..i18n import t
 from .fehler import DienstFehler, NichtVerfuegbar
 
 DATA_URL = re.compile(r"^data:([^;]+);base64,(.*)$", re.S)
@@ -56,7 +57,7 @@ class ReplicateFluxFill:
             return data_url
         m = DATA_URL.match(data_url)
         if not m:
-            raise DienstFehler("Bild muss als data-URL kommen.")
+            raise DienstFehler(t("fehler.data_url"))
         res = await client.post(f"{self.API}/files", headers=self._auth,
                                 files={"content": (name, base64.b64decode(m.group(2)), m.group(1))})
         if res.status_code >= 400:
@@ -85,7 +86,7 @@ class ReplicateFluxFill:
             if res.status_code >= 400:
                 raise DienstFehler(f"Replicate: {res.status_code} {res.text[:300]}")
             return res.json()
-        raise DienstFehler("Replicate bremst gerade zu stark (zu viele Anfragen). Bitte in einer Minute noch einmal versuchen.")
+        raise DienstFehler(t("fehler.bremst"))
 
     async def _warten(self, client: httpx.AsyncClient, pred: dict) -> str:
         for _ in range(90):
@@ -106,7 +107,7 @@ class ReplicateFluxFill:
         url = await self._warten(client, pred)
         bild = await client.get(url)
         if bild.status_code >= 400:
-            raise DienstFehler(f"Replicate: Bild nicht abrufbar ({bild.status_code})")
+            raise DienstFehler(t("fehler.nicht_abrufbar", code=bild.status_code))
         typ = bild.headers.get("content-type", "").split(";")[0]
         typ = typ if typ.startswith("image/") else "image/png" if url.lower().endswith(".png") else "image/jpeg"
         return f"data:{typ};base64," + base64.b64encode(bild.content).decode()
@@ -121,7 +122,7 @@ class ReplicateFluxFill:
                     auftraege.append(await self._starten(client, eingabe))
                 return list(await asyncio.gather(*(self._fertigstellen(client, p) for p in auftraege)))  # … parallel rechnen
         except httpx.HTTPError as err:
-            raise DienstFehler(f"Replicate nicht erreichbar: {type(err).__name__}") from err
+            raise DienstFehler(t("fehler.replicate_weg", art=type(err).__name__)) from err
 
     async def bearbeiten(self, bild: str, anweisung: str, seed: int) -> str:
         """FLUX Kontext: ändert das Bild nach Anweisung, statt neu zu malen."""
@@ -132,7 +133,7 @@ class ReplicateFluxFill:
                                                     "aspect_ratio": "match_input_image", "seed": seed}, self.edit_model)
                 return await self._fertigstellen(client, pred)
         except httpx.HTTPError as err:
-            raise DienstFehler(f"Replicate nicht erreichbar: {type(err).__name__}") from err
+            raise DienstFehler(t("fehler.replicate_weg", art=type(err).__name__)) from err
 
 
 class DemoBildKI:
@@ -144,4 +145,4 @@ class DemoBildKI:
         return [f"/static/demo/entwurf{i + 1}.jpg" for i in range(min(4, len(seeds)))]
 
     async def bearbeiten(self, bild: str, anweisung: str, seed: int) -> str:
-        raise NichtVerfuegbar("Nachjustieren braucht einen REPLICATE_API_TOKEN (Demo-Modus).")
+        raise NichtVerfuegbar(t("fehler.nj_demo"))

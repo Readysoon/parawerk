@@ -13,6 +13,7 @@ from typing import Protocol
 
 import httpx
 
+from ..i18n import name, t
 from ..models.bauteilgraph import JSON_SCHEMA, bereinigen, json_aus_text
 from .fehler import DienstFehler, NichtVerfuegbar
 from .prompts import (KONTEXT_REGELN, anpass_prompt, bearbeitung_anweisung, bearbeitung_prompt, bildprompt_anweisung,
@@ -46,7 +47,7 @@ class ClaudeKonstrukteur:
         for b in ([bild] if isinstance(bild, str) else bild or []):
             m = DATA_URL.match(b)
             if not m:
-                raise DienstFehler("Bild muss als data-URL kommen.")
+                raise DienstFehler(t("fehler.data_url"))
             content.append({"type": "image", "source": {"type": "base64", "media_type": m.group(1), "data": m.group(2)}})
         content.append({"type": "text", "text": text})
         body: dict = {"model": self.model, "max_tokens": max_tokens, "messages": [{"role": "user", "content": content}]}
@@ -60,14 +61,14 @@ class ClaudeKonstrukteur:
                     json=body,
                 )
         except httpx.HTTPError as err:
-            raise DienstFehler(f"Claude-API nicht erreichbar: {type(err).__name__}") from err
+            raise DienstFehler(t("fehler.claude_weg", art=type(err).__name__)) from err
         if res.status_code >= 400:
             raise DienstFehler(f"Claude-API: {res.status_code} {res.text[:300]}")
         j = res.json()
         if j.get("stop_reason") == "max_tokens":
-            raise DienstFehler("Die Antwort von Claude war zu lang und wurde abgeschnitten.")
+            raise DienstFehler(t("fehler.zu_lang"))
         if j.get("stop_reason") == "refusal":
-            raise DienstFehler("Claude hat die Anfrage abgelehnt.")
+            raise DienstFehler(t("fehler.abgelehnt"))
         return j
 
     async def _fragen(self, text: str, bild: str | list[str] | None = None, max_tokens: int = 4000) -> str:
@@ -91,14 +92,14 @@ class ClaudeKonstrukteur:
         bilder = [b for b in (foto, maske) if b]
         text = (await self._fragen(bildprompt_anweisung(wunsch), bilder, max_tokens=400)).strip().strip('"')
         if not text:
-            raise DienstFehler("Claude hat keine Beschreibung geliefert.")
+            raise DienstFehler(t("fehler.keine_beschreibung"))
         return inpaint_prompt_aus(text)
 
     async def bearbeitungs_prompt(self, wunsch: str, anpassung: str, bild: str) -> str:
         """Nachjustieren: Wunsch → englische Bearbeitungsanweisung, mit Blick auf den Entwurf."""
         text = (await self._fragen(bearbeitung_anweisung(wunsch, anpassung), [bild], max_tokens=300)).strip().strip('"')
         if not text:
-            raise DienstFehler("Claude hat keine Anweisung geliefert.")
+            raise DienstFehler(t("fehler.keine_anweisung"))
         return f"{text} {KONTEXT_REGELN}"
 
 
@@ -115,10 +116,14 @@ class DemoKonstrukteur:
     async def lesen(self, bild: str | None, bereich: list[float], demo_index: int | None = None) -> dict:
         graphen = demo_graphen()
         i = demo_index if isinstance(demo_index, int) and 0 <= demo_index < len(graphen) else 0
-        return json.loads(json.dumps(graphen[i]))
+        graph = json.loads(json.dumps(graphen[i]))
+        graph["name"] = name(graph["name"])
+        for teil in graph["teile"]:
+            teil["name"] = name(teil["name"])
+        return graph
 
     async def anpassen(self, graph: dict, wunsch: str) -> dict:
-        raise NichtVerfuegbar("Anpassen per Text braucht einen ANTHROPIC_API_KEY (Demo-Modus).")
+        raise NichtVerfuegbar(t("fehler.anpassen_demo"))
 
     async def bild_prompt(self, wunsch: str, foto: str | None, maske: str | None) -> str:
         return inpaint_prompt(wunsch)

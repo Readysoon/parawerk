@@ -3,18 +3,19 @@ from __future__ import annotations
 
 import json
 
+from ..i18n import dez, sprache, t
 from ..models.engine import Ergebnis
 from ..models.engine.grundlagen import fest, zahl
 
-STATUS = {True: ("ok", "OK"), False: ("no", "PRÜFEN"), None: ("info", "HINWEIS")}
+STATUS = {True: ("ok", "bp.st_ok"), False: ("no", "bp.st_no"), None: ("info", "bp.st_info")}
 
 
 def eur(v: float) -> str:
-    return fest(v, 2).replace(".", ",") + " €"
+    return f"{dez(fest(v, 2))} €" if sprache() == "de" else f"€{fest(v, 2)}"
 
 
 def meter(v: float) -> str:
-    return fest(v / 1000, 2).replace(".", ",")
+    return dez(fest(v / 1000, 2))
 
 
 def _prozent(teil: float, ganzes: float) -> str:
@@ -55,9 +56,9 @@ def bauplan_ansicht(e: Ergebnis, graph: dict, bereich: list[float]) -> dict:
     return {
         "name": graph["name"],
         "offene_punkte": e.offene_punkte,
-        "pruefungen": [{"klasse": STATUS[c["ok"]][0], "status": STATUS[c["ok"]][1], "text": c["t"]} for c in e.checks],
-        "rechenweg": [{"titel": s["title"], "zeilen": [{"text": l, "reparatur": s["key"] == "reparieren" and not l.startswith("Keine")}
-                                                       for l in s["log"]]}
+        "pruefungen": [{"klasse": STATUS[c["ok"]][0], "status": t(STATUS[c["ok"]][1]), "text": c["t"]} for c in e.checks],
+        "rechenweg": [{"titel": s["title"], "zeilen": [{"text": l, "reparatur": i < s.get("reparaturen", 0)}
+                                                       for i, l in enumerate(s["log"])]}
                       for s in e.steps if "log" in s],
         "anzahl_gruppen": len(graph["teile"]),
         "graph_json": json.dumps(graph, ensure_ascii=False, indent=1),

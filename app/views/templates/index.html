@@ -4,16 +4,19 @@
   <header class="top">
     <div>
       <h1>Parawerk</h1>
-      <p class="sub">Foto deiner Wohnung, Bereich markieren, Wunsch eingeben: Du bekommst Entwürfe und für den gewählten einen Bauplan, mit dem du in den Baumarkt gehen kannst.</p>
+      <p class="sub">{{ t("ui.untertitel") }}</p>
     </div>
-    {% if demo_bilder or demo_lesen %}
-    <span class="pill demo">Demo-Modus: {% if demo_bilder and demo_lesen %}Beispielentwürfe, keine API-Schlüssel hinterlegt{% elif demo_bilder %}Beispielentwürfe, kein Replicate-Schlüssel{% else %}Beispiel-Konstruktionen, kein Claude-Schlüssel{% endif %}</span>
-    {% endif %}
+    <div class="kopfrechts">
+      {% if demo_bilder or demo_lesen %}
+      <span class="pill demo">{{ t("ui.demo") }}: {% if demo_bilder and demo_lesen %}{{ t("ui.demo_beide") }}{% elif demo_bilder %}{{ t("ui.demo_bilder") }}{% else %}{{ t("ui.demo_lesen") }}{% endif %}</span>
+      {% endif %}
+      <nav class="sprachen" aria-label="{{ t('ui.sprache') }}">{% for s in SPRACHEN %}<a href="?sprache={{ s }}" lang="{{ s }}" title="{{ SPRACH_NAMEN[s] }}"{% if s == sprache() %} aria-current="true"{% endif %}>{{ s | upper }}</a>{% endfor %}</nav>
+    </div>
   </header>
 
-  <nav class="steps" aria-label="Schritte">
-    {% for s in ["Foto", "Bereich", "Wunsch", "Entwürfe", "Bauplan"] %}
-    <button data-schritt="{{ loop.index0 }}"{% if loop.first %} aria-current="step"{% else %} disabled{% endif %}><b>{{ loop.index }}</b>{{ s }}</button>
+  <nav class="steps" aria-label="{{ t('ui.schritte') }}">
+    {% for s in ["ui.s0", "ui.s1", "ui.s2", "ui.s3", "ui.s4"] %}
+    <button data-schritt="{{ loop.index0 }}"{% if loop.first %} aria-current="step"{% else %} disabled{% endif %}><b>{{ loop.index }}</b>{{ t(s) }}</button>
     {% endfor %}
   </nav>
 
@@ -23,30 +26,30 @@
   <!-- 1 + 2: Foto und Bereich -->
   <section class="grid" data-ansicht="0 1">
     <div class="panel">
-      <canvas class="work" id="arbeitsflaeche" aria-label="Foto der Wohnung" hidden></canvas>
-      <div class="leer" id="kein-foto"><p class="hint">Noch kein Foto. Lade ein Foto deiner Wohnung hoch oder probiere das Beispielzimmer.</p></div>
+      <canvas class="work" id="arbeitsflaeche" aria-label="{{ t('ui.foto_alt') }}" hidden></canvas>
+      <div class="leer" id="kein-foto"><p class="hint">{{ t("ui.kein_foto") }}</p></div>
     </div>
     <div class="side">
       <div class="panel" data-ansicht="0">
-        <h2>1 · Foto</h2>
-        <p class="hint">Fotografiere die Ecke mit der normalen 1×-Kamera. Für echte Maße klebe ein A4-Blatt flach an die Wand im Bereich.</p>
+        <h2>1 · {{ t("ui.s0") }}</h2>
+        <p class="hint">{{ t("ui.foto_hinweis") }}</p>
         <div class="btns">
-          <label class="b primary datei">Foto wählen<input type="file" accept="image/*" id="foto-datei" hidden></label>
-          <button class="b" id="beispielzimmer">Beispielzimmer</button>
+          <label class="b primary datei">{{ t("ui.foto_waehlen") }}<input type="file" accept="image/*" id="foto-datei" hidden></label>
+          <button class="b" id="beispielzimmer">{{ t("ui.beispielzimmer") }}</button>
         </div>
       </div>
       <div class="panel" data-ansicht="1">
-        <h2>2 · Bereich</h2>
-        <p class="hint">Male mit dem Finger oder der Maus über die Stelle, an der das Möbel stehen soll, egal ob dort gerade etwas steht. Möglichst nur diese Fläche: Was zusätzlich markiert ist, füllt die Bild-KI gern mit weiteren Möbeln.</p>
-        <label class="f">Pinsel px<input type="number" min="3" max="120" value="18" id="pinsel"></label>
-        <div class="btns"><button class="b" id="radierer" aria-pressed="false">Radierer</button><button class="b" id="maske-loeschen">Alles löschen</button><button class="b" id="anderes-foto">Anderes Foto</button></div>
-        <h3>Maßstab (optional)</h3>
-        <div class="btns"><button class="b" id="a4-start" aria-pressed="false">A4-Ecken markieren</button><button class="b" id="a4-reset" hidden>Zurücksetzen</button></div>
-        <p class="hint" id="a4-hinweis">Liegt ein A4-Blatt flach an der Wand im Bereich? Dann tippe seine 4 Ecken an, und Breite und Höhe werden aus dem Foto gemessen.</p>
-        <h3>Maße des Bereichs</h3>
-        <p class="hint" id="mass-hinweis">Bitte mit dem Maßband messen und eintragen. Auf 5 cm genau reicht.</p>
+        <h2>2 · {{ t("ui.s1") }}</h2>
+        <p class="hint">{{ t("ui.bereich_hinweis") }}</p>
+        <label class="f">{{ t("ui.pinsel") }}<input type="number" min="3" max="120" value="18" id="pinsel"></label>
+        <div class="btns"><button class="b" id="radierer" aria-pressed="false">{{ t("ui.radierer") }}</button><button class="b" id="maske-loeschen">{{ t("ui.alles_loeschen") }}</button><button class="b" id="anderes-foto">{{ t("ui.anderes_foto") }}</button></div>
+        <h3>{{ t("ui.massstab") }}</h3>
+        <div class="btns"><button class="b" id="a4-start" aria-pressed="false">{{ t("ui.a4_start") }}</button><button class="b" id="a4-reset" hidden>{{ t("ui.zuruecksetzen") }}</button></div>
+        <p class="hint" id="a4-hinweis">{{ t("ui.a4_hinweis") }}</p>
+        <h3>{{ t("ui.masse") }}</h3>
+        <p class="hint" id="mass-hinweis">{{ t("ui.mass_hinweis") }}</p>
         {% include "teile/bereich.html" %}
-        <button class="b primary" id="zu-wunsch">Weiter: Wunsch</button>
+        <button class="b primary" id="zu-wunsch">{{ t("ui.weiter_wunsch") }}</button>
       </div>
     </div>
   </section>
@@ -54,31 +57,31 @@
   <!-- 3: Wunsch -->
   <section class="grid" data-ansicht="2">
     <div class="panel">
-      <h2>3 · Was soll dort entstehen?</h2>
-      <textarea id="wunsch" placeholder="z. B. ein gemütliches Daybed aus hellen Latten mit grauen Polstern" aria-label="Wunsch"></textarea>
+      <h2>3 · {{ t("ui.wunsch_frage") }}</h2>
+      <textarea id="wunsch" placeholder="{{ t('ui.wunsch_platzhalter') }}" aria-label="{{ t('ui.s2') }}"></textarea>
       <div class="chips">{% for w in wuensche %}<button class="chip" data-wunsch="{{ w }}">{{ w }}</button>{% endfor %}</div>
-      <p class="hint">Die Bild-KI malt nur in deinen markierten Bereich und bekommt die Vorgabe, Möbel aus geraden Latten und Brettern zu entwerfen, damit sie baubar bleiben.</p>
-      <div class="btns"><button class="b primary" id="entwerfen">{{ anzahl_entwuerfe }} Entwürfe erzeugen</button></div>
+      <p class="hint">{{ t("ui.wunsch_hinweis") }}</p>
+      <div class="btns"><button class="b primary" id="entwerfen">{{ t("ui.entwuerfe_erzeugen", n=anzahl_entwuerfe) }}</button></div>
     </div>
-    <div class="side"><div class="panel"><h3>Bereich</h3><dl class="kv"><dt>Breite × Tiefe × Höhe</dt><dd id="bereich-text"></dd></dl></div></div>
+    <div class="side"><div class="panel"><h3>{{ t("ui.s1") }}</h3><dl class="kv"><dt>{{ t("ui.btH") }}</dt><dd id="bereich-text"></dd></dl></div></div>
   </section>
 
   <!-- 4: Entwürfe -->
   <section class="grid" data-ansicht="3">
     <div class="panel">
-      <h2>4 · Entwürfe</h2>
-      <div class="designs" role="radiogroup" aria-label="Entwürfe" id="entwuerfe"></div>
+      <h2>4 · {{ t("ui.s3") }}</h2>
+      <div class="designs" role="radiogroup" aria-label="{{ t('ui.s3') }}" id="entwuerfe"></div>
     </div>
     <div class="side"><div class="panel">
-      <p class="hint">Wähle den Entwurf, der dir gefällt. Claude liest daraus die Konstruktion; der Code macht sie baubar und stabil. Die Maße richten sich nach deinem Bereich, nicht exakt nach dem Bild.</p>
-      <div class="btns"><button class="b primary" id="bauplan-erstellen" disabled>Bauplan erstellen</button><button class="b" id="neu-entwerfen">Neue Entwürfe</button></div>
-      <details><summary>Prompt an die Bild-KI</summary><p class="hint" id="bild-prompt"></p></details>
+      <p class="hint">{{ t("ui.entwurf_hinweis") }}</p>
+      <div class="btns"><button class="b primary" id="bauplan-erstellen" disabled>{{ t("ui.bauplan_erstellen") }}</button><button class="b" id="neu-entwerfen">{{ t("ui.neue_entwuerfe") }}</button></div>
+      <details><summary>{{ t("ui.prompt_bildki") }}</summary><p class="hint" id="bild-prompt"></p></details>
     </div>
     <div class="panel" id="nachjustieren" hidden>
-      <h3>Entwurf nachjustieren</h3>
-      <p class="hint">Beschreibe, was sich an diesem Entwurf ändern soll. Der Rest bleibt, wie er ist.</p>
-      <textarea id="nj-text" placeholder="z. B. Lehne 10 cm höher, dunkleres Holz, ohne Kissen" aria-label="Änderung am Entwurf"></textarea>
-      <div class="btns"><button class="b primary" id="nj-los">Ändern</button><button class="b" id="nj-zurueck" disabled>Rückgängig</button></div>
+      <h3>{{ t("ui.nachjustieren") }}</h3>
+      <p class="hint">{{ t("ui.nj_hinweis") }}</p>
+      <textarea id="nj-text" placeholder="{{ t('ui.nj_platzhalter') }}" aria-label="{{ t('ui.nj_aria') }}"></textarea>
+      <div class="btns"><button class="b primary" id="nj-los">{{ t("ui.aendern") }}</button><button class="b" id="nj-zurueck" disabled>{{ t("ui.rueckgaengig") }}</button></div>
     </div></div>
   </section>
 
@@ -86,10 +89,10 @@
   <section class="grid" data-ansicht="4">
     <div class="panel">
       <div class="zwei">
-        <img id="gewaehlt" alt="Gewählter Entwurf" style="width:100%;border-radius:2px">
+        <img id="gewaehlt" alt="{{ t('ui.gewaehlt_alt') }}" style="width:100%;border-radius:2px">
         <div>
-          <canvas class="viewer" id="viewer" aria-label="Berechnetes 3D-Modell, ziehen zum Drehen"></canvas>
-          <div class="legend"><span><i style="background:var(--board)"></i>aus dem Entwurf</span><span><i style="background:var(--mark)"></i>für Stabilität ergänzt</span><span><i style="background:var(--soft)"></i>Matratze / Polster</span></div>
+          <canvas class="viewer" id="viewer" aria-label="{{ t('ui.viewer_aria') }}"></canvas>
+          <div class="legend"><span><i style="background:var(--board)"></i>{{ t("ui.leg_entwurf") }}</span><span><i style="background:var(--mark)"></i>{{ t("ui.leg_ergaenzt") }}</span><span><i style="background:var(--soft)"></i>{{ t("ui.leg_polster") }}</span></div>
         </div>
       </div>
       <div id="bauplan" class="spalte" aria-live="polite"></div>
@@ -97,13 +100,13 @@
     <div class="side">
       <div class="panel" id="ergebnis"></div>
       <div class="panel noprint">
-        <h3>Anpassen</h3>
-        <textarea id="anpassen-text" placeholder="z. B. Lehne 10 cm höher, ohne Kufen, Bett 160 breit" aria-label="Änderungswunsch"></textarea>
-        <div class="btns"><button class="b primary" id="anpassen">Anpassen</button><button class="b" id="rueckgaengig" disabled>Rückgängig</button></div>
+        <h3>{{ t("ui.anpassen") }}</h3>
+        <textarea id="anpassen-text" placeholder="{{ t('ui.anpassen_platzhalter') }}" aria-label="{{ t('ui.anpassen_aria') }}"></textarea>
+        <div class="btns"><button class="b primary" id="anpassen">{{ t("ui.anpassen") }}</button><button class="b" id="rueckgaengig" disabled>{{ t("ui.rueckgaengig") }}</button></div>
         <ul class="log" id="verlauf"></ul>
       </div>
       <div class="panel noprint">
-        <h3>Bereich ändern</h3>
+        <h3>{{ t("ui.bereich_aendern") }}</h3>
         {% with suffix="-2" %}{% include "teile/bereich.html" %}{% endwith %}
       </div>
     </div>
@@ -111,5 +114,6 @@
 </div>
 {% endblock %}
 {% block skripte %}
+<script type="application/json" id="texte">{{ texte("ui.") | tojson }}</script>
 <script type="module" src="/static/js/app.js"></script>
 {% endblock %}

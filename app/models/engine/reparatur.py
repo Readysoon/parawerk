@@ -12,6 +12,7 @@ from .grundlagen import (
     ATTACH, AXN, LOADED, SLATS, Bauteil, cen, depth, einmalig, eintraege, ext, gesetzt, mm, others, ov, prio,
     quader, rollenname, zahl,
 )
+from ...i18n import holz, t, und, zitat
 from .setzen import kontakte, setzen
 
 
@@ -66,7 +67,7 @@ def max_spannweite(m: Bauteil) -> float:
     return min(800, k * h) if m.typ == "brett" and m.rolle == "regalboden" else k * h
 
 
-def senkrecht_einsetzen(ms: list[Bauteil], tpl: Bauteil, at: float, along: int, label: str) -> int:
+def senkrecht_einsetzen(ms: list[Bauteil], tpl: Bauteil, at: float, along: int, label: str, name: str | None = None) -> int:
     """Pfosten oder Stütze vom Boden nach oben; wo tragende Teile im Weg sind, wird er unterbrochen."""
     L = along
     other = next(a for a in others(2) if a != L)
@@ -87,7 +88,7 @@ def senkrecht_einsetzen(ms: list[Bauteil], tpl: Bauteil, at: float, along: int, 
             segs.append([z, min(b0, base.max[2])])
         z = max(z, b1)
     for k, (z0, z1) in enumerate(segs, start=1):
-        m = tpl.kopie(id=f"{label}-{k}" if len(segs) > 1 else label, part=label, name=label, origin="reparatur",
+        m = tpl.kopie(id=f"{label}-{k}" if len(segs) > 1 else label, part=label, name=name or label, origin="reparatur",
                       long=2, dax=-1)
         m.min, m.max = list(base.min), list(base.max)
         m.min[2], m.max[2] = z0, z1
@@ -98,7 +99,7 @@ def senkrecht_einsetzen(ms: list[Bauteil], tpl: Bauteil, at: float, along: int, 
 def aussteifung(ms: list[Bauteil], J: list[dict]) -> list[dict]:
     """Je Richtung (x = von vorne gesehen, y = von der Seite) prüfen, ob das Gestell gegen Verschieben gesichert ist."""
     if any(m.rolle == "wandleiste" for m in ms):
-        return [{"ax": 0, "ok": True, "why": "Wandbefestigung"}, {"ax": 1, "ok": True, "why": "Wandbefestigung"}]
+        return [{"ax": 0, "ok": True, "why": t("why.wand")}, {"ax": 1, "ok": True, "why": t("why.wand")}]
     bb = [[min(m.min[a] for m in ms), max(m.max[a] for m in ms)] for a in (0, 1)]
 
     def am_rand(v: Bauteil, a: int) -> bool:
@@ -109,24 +110,24 @@ def aussteifung(ms: list[Bauteil], J: list[dict]) -> list[dict]:
     res = []
     for ax in (0, 1):
         if len(verts) < 2:
-            res.append({"ax": ax, "ok": True, "why": "keine hohen Beine (liegt flächig auf)"})
+            res.append({"ax": ax, "ok": True, "why": t("why.flach")})
             continue
         o = 1 - ax
         # Platte oder Verkleidung in dieser Ebene, die mindestens zwei Beine verbindet
         sheet = next((m for m in ms if m.typ == "brett" and ext(m, ax) >= 300 and ext(m, 2) >= 200 and ext(m, o) <= 30
                       and sum(1 for v in verts if _beruehrt(J, m, v)) >= 2), None)
         if sheet is not None:
-            res.append({"ax": ax, "ok": True, "why": f"{sheet.name} steift aus"})
+            res.append({"ax": ax, "ok": True, "why": t("why.platte", name=sheet.name)})
             continue
         clad = [m for m in ms if m.rolle in ("verkleidung", "lehne") and m.long == ax
                 and sum(1 for v in verts if _beruehrt(J, m, v)) >= 2]
         if len(clad) >= 3:
-            res.append({"ax": ax, "ok": True, "why": f"{len(clad)} verschraubte {rollenname(clad[0].rolle)}-Latten steifen aus"})
+            res.append({"ax": ax, "ok": True, "why": t("why.verkleidung", n=len(clad), rolle=rollenname(clad[0].rolle))})
             continue
         vclad = [m for m in ms if m.rolle in ("verkleidung", "lehne") and m.long == 2 and ext(m, o) <= 30
                  and sum(1 for h in ms if h is not m and h.long != 2 and prio(h) >= 3 and _beruehrt(J, h, m)) >= 2]
         if len(vclad) >= 3:
-            res.append({"ax": ax, "ok": True, "why": f"{len(vclad)} senkrechte, oben und unten verschraubte Latten steifen aus"})
+            res.append({"ax": ax, "ok": True, "why": t("why.senkrecht", n=len(vclad))})
             continue
         # je Bein: Riegel in Richtung ax, ihre Höhen und die freie Beinlänge
         bad = []
@@ -134,7 +135,7 @@ def aussteifung(ms: list[Bauteil], J: list[dict]) -> list[dict]:
             rails = [m for m in ms if m is not v and m.long != 2 and prio(m) >= 3 and _beruehrt(J, m, v)
                      and (m.long == ax or ext(m, 2) >= 70)]
             if not rails:
-                bad.append({"v": v, "why": "kein Riegel"})
+                bad.append({"v": v, "why": t("why.kein_riegel")})
                 continue
             zs = sorted(([r.min[2], r.max[2]] for r in rails), key=lambda p: p[0])
             spread = zs[-1][0] - zs[0][1]
@@ -144,9 +145,9 @@ def aussteifung(ms: list[Bauteil], J: list[dict]) -> list[dict]:
                 continue  # zwei Riegelebenen
             if free <= 450 and tiefe >= 70:
                 continue  # kurze Beine an breiter Zarge
-            bad.append({"v": v, "why": f"freie Beinlänge {mm(free)} mm"})
+            bad.append({"v": v, "why": t("why.beinlaenge", laenge=mm(free))})
         res.append({"ax": ax, "ok": False, "bad": bad} if bad
-                   else {"ax": ax, "ok": True, "why": "Riegel auf zwei Höhen oder kurze Beine an breiter Zarge"})
+                   else {"ax": ax, "ok": True, "why": t("why.riegel")})
     return res
 
 
@@ -170,7 +171,7 @@ def fussriegel_einsetzen(S: Sortiment, ms: list[Bauteil], ax: int, bad: list[dic
         row.sort(key=lambda m: cen(m, ax))
         for i in range(len(row) - 1):
             a, b = row[i], row[i + 1]
-            r = Bauteil(id=f"Fußriegel {AXN[ax]} {len(added) + 1}", part=f"Fußriegel {AXN[ax]}", name="Fußriegel",
+            r = Bauteil(id=f"Fußriegel {AXN[ax]} {len(added) + 1}", part=f"Fußriegel {AXN[ax]}", name=t("teil.fussriegel"),
                         typ="kantholz", rolle="riegel", prof={"label": prof["label"], "a": prof["a"], "b": prof["b"]},
                         long=ax, dax=-1, origin="reparatur", min=[0, 0, 0], max=[0, 0, 0])
             r.min[ax], r.max[ax] = a.max[ax], b.min[ax]
@@ -191,6 +192,7 @@ def fussriegel_einsetzen(S: Sortiment, ms: list[Bauteil], ax: int, bad: list[dic
 
 
 def pruefen_und_reparieren(S: Sortiment, ms: list[Bauteil], groups: dict, g: dict, log: list[str], repairs: list[str]) -> None:
+    ausgesteift: set[int] = set()  # Richtungen, in denen schon Fußriegel eingesetzt wurden (je Richtung höchstens einmal)
     for _ in range(8):
         J = kontakte(ms)
         fixed = False
@@ -200,8 +202,7 @@ def pruefen_und_reparieren(S: Sortiment, ms: list[Bauteil], groups: dict, g: dic
         for m in too_long:
             if m.rolle not in ("verkleidung", "lehne") or m.long == 2:
                 if f"lang|{m.part}" not in repairs and not any(l.startswith(m.name + ":") for l in log):
-                    log.append(f"{m.name}: {mm(ext(m, m.long))} mm ist länger als die längste Handelslänge "
-                               f"({zahl(max(handelslaengen(S, m)))} mm). Stoß über einer Auflage nötig.")
+                    log.append(t("log.zu_lang", name=m.name, laenge=mm(ext(m, m.long)), max=zahl(max(handelslaengen(S, m)))))
         cuttable = [m for m in too_long if m.rolle in ("verkleidung", "lehne") and m.long != 2]
 
         def stoss(m: Bauteil):
@@ -233,7 +234,7 @@ def pruefen_und_reparieren(S: Sortiment, ms: list[Bauteil], groups: dict, g: dic
             backs = [(j["b"] if j["a"] in grp else j["a"]) for j in J
                      if (j["a"] in grp or j["b"] in grp) and j["ax"] == side]
             if not backs:
-                log.append(f"{m.name}: zu lang und nichts dahinter, woran ein Mittelpfosten befestigt werden könnte.")
+                log.append(t("log.kein_traeger", name=m.name))
                 continue
             behind_max = backs[0].min[side] >= m.max[side] - 1  # Träger liegen auf der max-Seite
             prof = naechstes_kantholz(S, 44, 44)
@@ -244,10 +245,10 @@ def pruefen_und_reparieren(S: Sortiment, ms: list[Bauteil], groups: dict, g: dic
             tpl.max[side] = tpl.min[side] + prof["b"]
             tpl.min[2], tpl.max[2] = 0, max(o.max[2] for o in grp)
             tpl.min[L], tpl.max[L] = 0, q
-            n = senkrecht_einsetzen(ms, tpl, cen(m, L), L, name)
-            stuecke = f" (in {n} Stücken, weil er an anderen Teilen vorbeiläuft)" if n > 1 else ""
-            repairs.append(f"{rollenname(m.rolle)} „{m.name}“ ist {mm(ext(m, L))} mm lang, Latten gibt es nur bis "
-                           f"{zahl(max(handelslaengen(S, m)))} mm: Mittelpfosten eingefügt{stuecke}.")
+            n = senkrecht_einsetzen(ms, tpl, cen(m, L), L, name, t("teil.mittelpfosten", part=part))
+            stuecke = t("rep.stuecke", n=n) if n > 1 else ""
+            repairs.append(t("rep.mittelpfosten", rolle=rollenname(m.rolle), name=zitat(m.name), laenge=mm(ext(m, L)),
+                             max=zahl(max(handelslaengen(S, m))), stuecke=stuecke))
             fixed = True
         if fixed:
             setzen(ms, log)
@@ -266,8 +267,8 @@ def pruefen_und_reparieren(S: Sortiment, ms: list[Bauteil], groups: dict, g: dic
             ms[i:i + 1] = [a, b]
             if m.part not in done:
                 done.add(m.part)
-                repairs.append(f"{rollenname(m.rolle)} „{m.name}“: Latten werden {mm(cut - m.min[L])} + "
-                               f"{mm(m.max[L] - cut)} mm lang und auf einem Pfosten gestoßen.")
+                repairs.append(t("rep.stoss", rolle=rollenname(m.rolle), name=zitat(m.name), a=mm(cut - m.min[L]),
+                                 b=mm(m.max[L] - cut)))
             fixed = True
         if fixed:
             setzen(ms, log)
@@ -291,9 +292,7 @@ def pruefen_und_reparieren(S: Sortiment, ms: list[Bauteil], groups: dict, g: dic
                     over = max(m.max[2] - top for m in hit)
                     for m in hit:
                         m.max[2] = top
-                    teile = " und ".join(einmalig(m.name for m in hit))
-                    repairs.append(f"{teile} ragen {mm(over)} mm über den Lattenrost in die Matratzenfläche: "
-                                   f"auf Höhe Lattenrost ({mm(top)} mm) gekürzt.")
+                    repairs.append(t("rep.liegeflaeche", teile=und(einmalig(m.name for m in hit)), over=mm(over), top=mm(top)))
                     fixed = True
         if fixed:
             setzen(ms, log)
@@ -306,25 +305,24 @@ def pruefen_und_reparieren(S: Sortiment, ms: list[Bauteil], groups: dict, g: dic
                 continue
             ax = gr["dax"]
             ps.sort(key=lambda p: p.min[ax])
-            t = ext(ps[0], ax)
+            dicke = ext(ps[0], ax)
             span = ps[-1].max[ax] - ps[0].min[ax]
-            gap = (span - len(ps) * t) / (len(ps) - 1)
+            gap = (span - len(ps) * dicke) / (len(ps) - 1)
             if gap <= 60:
                 continue
-            n = math.ceil((span + 60) / (t + 60))
+            n = math.ceil((span + 60) / (dicke + 60))
             start = ps[0].min[ax]
             fresh = []
             for i in range(n):
                 m = ps[0].kopie(id=f"{pid}-{i + 1}")
-                m.min[ax] = start + i * (span - t) / (n - 1)
-                m.max[ax] = m.min[ax] + t
+                m.min[ax] = start + i * (span - dicke) / (n - 1)
+                m.max[ax] = m.min[ax] + dicke
                 fresh.append(m)
             for p in ps:
                 ms.remove(p)
             ms.extend(fresh)
             gr["n"] = n
-            repairs.append(f"Lattenrost: Abstand {mm(gap)} mm ist zu groß für eine Matratze (Richtwert max. 60 mm). "
-                           f"{n} statt {len(ps)} Latten, Abstand jetzt {mm((span - n * t) / (n - 1))} mm.")
+            repairs.append(t("rep.lattenabstand", gap=mm(gap), n=n, alt=len(ps), neu=mm((span - n * dicke) / (n - 1))))
             fixed = True
         if fixed:
             setzen(ms, log)
@@ -348,7 +346,7 @@ def pruefen_und_reparieren(S: Sortiment, ms: list[Bauteil], groups: dict, g: dic
                     if carrier is None:
                         continue
                     c = Bauteil(id=f"Auflageleiste {m.part} {AXN[ax]}{side}", part=f"Auflageleiste {m.part}",
-                                name="Auflageleiste", typ="latte", rolle="auflage",
+                                name=t("teil.auflageleiste"), typ="latte", rolle="auflage",
                                 prof={"label": lat["label"], "a": lat["a"], "b": lat["b"]}, long=o2, dax=-1,
                                 origin="reparatur", min=[0, 0, 0], max=[0, 0, 0])
                     c.min[o2], c.max[o2] = max(m.min[o2], carrier.min[o2]), min(m.max[o2], carrier.max[o2])
@@ -359,7 +357,7 @@ def pruefen_und_reparieren(S: Sortiment, ms: list[Bauteil], groups: dict, g: dic
                         ms.append(c)
                         added.append(c)
             if added:
-                repairs.append(f"{m.name} liegt nirgends auf: {len(added)} Auflageleisten ({lat['label']}) an den Rahmenteilen ergänzt.")
+                repairs.append(t("rep.auflage", name=m.name, n=len(added), holz=holz(lat["label"])))
                 fixed = True
         if fixed:
             setzen(ms, log)
@@ -382,7 +380,7 @@ def pruefen_und_reparieren(S: Sortiment, ms: list[Bauteil], groups: dict, g: dic
                 dax = groups[m.part]["dax"]
                 prof = naechstes_kantholz(S, 44, 74)
                 rost = m.rolle == "lattenrost"
-                s = Bauteil(id=name, part=name, name="Mittelsteg" if rost else "Querriegel", typ="kantholz",
+                s = Bauteil(id=name, part=name, name=t("teil.mittelsteg") if rost else t("teil.querriegel"), typ="kantholz",
                             rolle="mittelsteg" if rost else "querriegel",
                             prof={"label": prof["label"], "a": prof["a"], "b": prof["b"]}, long=dax, dax=-1,
                             origin="reparatur", min=[0, 0, 0], max=[0, 0, 0])
@@ -390,8 +388,8 @@ def pruefen_und_reparieren(S: Sortiment, ms: list[Bauteil], groups: dict, g: dic
                 s.min[L], s.max[L] = si["worst"]["at"] - prof["a"] / 2, si["worst"]["at"] + prof["a"] / 2
                 s.max[2], s.min[2] = m.min[2], m.min[2] - prof["b"]
                 ms.append(s)
-                repairs.append(f"{rollenname(m.rolle)}: freie Spannweite {mm(si['worst']['len'])} mm, erlaubt ca. {mm(lm)} mm "
-                               f"bei {mm(ext(m, 2))} mm Stärke. {s.name} ({prof['label']}) in der Mitte darunter eingefügt.")
+                repairs.append(t("rep.mittelsteg", rolle=rollenname(m.rolle), len=mm(si["worst"]["len"]), lm=mm(lm),
+                                 h=mm(ext(m, 2)), steg=s.name, holz=holz(prof["label"])))
                 fixed = True
                 break
             if m.min[2] > 30:
@@ -405,9 +403,8 @@ def pruefen_und_reparieren(S: Sortiment, ms: list[Bauteil], groups: dict, g: dic
                 tpl.min[L], tpl.max[L] = 0, prof["a"]
                 tpl.min[o], tpl.max[o] = cen(m, o) - prof["b"] / 2, cen(m, o) + prof["b"] / 2
                 tpl.min[2], tpl.max[2] = 0, m.min[2]
-                senkrecht_einsetzen(ms, tpl, si["worst"]["at"], L, name)
-                repairs.append(f"{m.name}: freie Spannweite {mm(si['worst']['len'])} mm, erlaubt ca. {mm(lm)} mm bei "
-                               f"{mm(ext(m, 2))} mm Höhe. Stütze bis zum Boden eingefügt.")
+                senkrecht_einsetzen(ms, tpl, si["worst"]["at"], L, name, t("teil.stuetze", id=m.id))
+                repairs.append(t("rep.stuetze", name=m.name, len=mm(si["worst"]["len"]), lm=mm(lm), h=mm(ext(m, 2))))
                 fixed = True
                 break
         if fixed:
@@ -417,13 +414,14 @@ def pruefen_und_reparieren(S: Sortiment, ms: list[Bauteil], groups: dict, g: dic
         # d) Aussteifung (je Richtung höchstens einmal)
         J = kontakte(ms)
         for b in aussteifung(ms, J):
-            richtung = "seitlich" if b["ax"] == 0 else "nach vorne"
-            if b["ok"] or any(r.startswith(f"Gestell wackelt {richtung}") for r in repairs):
+            if b["ok"] or b["ax"] in ausgesteift:
                 continue
             added = fussriegel_einsetzen(S, ms, b["ax"], b["bad"])
             if added:
-                lang = "seitlich (von vorne gesehen)" if b["ax"] == 0 else "nach vorne/hinten (von der Seite gesehen)"
-                repairs.append(f"Gestell wackelt {lang}: {b['bad'][0]['why']}. {len(added)} Fußriegel ({added[0].prof['label']}) eingefügt.")
+                ausgesteift.add(b["ax"])
+                richtung = t("rep.wackelt_x") if b["ax"] == 0 else t("rep.wackelt_y")
+                repairs.append(t("rep.wackelt", richtung=richtung, why=b["bad"][0]["why"], n=len(added),
+                                 holz=holz(added[0].prof["label"])))
                 fixed = True
         if fixed:
             setzen(ms, log)

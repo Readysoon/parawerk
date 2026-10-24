@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from ..sortiment import Sortiment
+from ...i18n import holz, t
 from .grundlagen import AXI, AXN, Bauteil, gesetzt, mm, oder, others, zahl
 
 
@@ -19,24 +20,18 @@ def skalieren(g: dict, log: list[str]) -> list[int]:
         W = (big if x_long else small) + luft
         W = W / (x1 - x0)
         D = ((small if x_long else big) + luft) / (y1 - y0)
-        log.append(
-            f"Liegefläche ist im Entwurf {mm((x1 - x0) * 100)} % der Breite und {mm((y1 - y0) * 100)} % der Tiefe. "
-            f"Matratze {' × '.join(zahl(v) for v in f['matratze'])} mm + {zahl(luft)} mm Luft ergibt Breite {mm(W)} mm "
-            f"(Bild-Schätzung {zahl(est[0])}) und Tiefe {mm(D)} mm (Schätzung {zahl(est[1])})."
-        )
+        log.append(t("log.matratze", px=mm((x1 - x0) * 100), py=mm((y1 - y0) * 100),
+                     mat=" × ".join(zahl(v) for v in f["matratze"]), luft=zahl(luft), W=mm(W), ew=zahl(est[0]),
+                     D=mm(D), ed=zahl(est[1])))
     if gesetzt(f.get("sitzhoehe")) and a.get("sitz_oben") is not None:
         polster = oder(f.get("polster"), 0)
         H = (f["sitzhoehe"] - polster) / a["sitz_oben"]
         if H < 0.6 * est[2] or H > 1.6 * est[2]:
-            log.append(f"Achtung: Sitzhöhe und Lage der Sitzfläche ergeben eine Gesamthöhe von {mm(H)} mm, die Bild-Schätzung "
-                       f"war {zahl(est[2])} mm. Die Bildlesung ist hier wohl ungenau; ggf. per Text anpassen.")
-        log.append(
-            f"Sitzhöhe {zahl(f['sitzhoehe'])} mm minus {zahl(polster)} mm Polster: Sitzfläche liegt bei "
-            f"{zahl(f['sitzhoehe'] - polster)} mm. Im Entwurf ist das {mm(a['sitz_oben'] * 100)} % der Höhe, "
-            f"also Gesamthöhe {mm(H)} mm (Schätzung {zahl(est[2])})."
-        )
+            log.append(t("log.sitz_warnung", H=mm(H), est=zahl(est[2])))
+        log.append(t("log.sitz", sh=zahl(f["sitzhoehe"]), polster=zahl(polster), flaeche=zahl(f["sitzhoehe"] - polster),
+                     p=mm(a["sitz_oben"] * 100), H=mm(H), est=zahl(est[2])))
     if not log:
-        log.append(f"Keine Funktionsmaße: Bild-Schätzung {zahl(W)} × {zahl(D)} × {zahl(H)} mm wird übernommen.")
+        log.append(t("log.keine_funktion", W=zahl(W), D=zahl(D), H=zahl(H)))
     return [mm(W), mm(D), mm(H)]
 
 
@@ -63,13 +58,13 @@ def querschnitt_einrasten(S: Sortiment, typ: str, tgt: dict, cross: list[int], h
     w_ax = c2 if t_ax == c1 else c1
     want = tgt.get(t_ax)
     staerken = [p["t"] for p in S["leimholz"]]
-    t = staerken[0]
+    staerke = staerken[0]
     if want is not None:
         for b in staerken[1:]:
-            if abs(b - want) < abs(t - want):
-                t = b
+            if abs(b - want) < abs(staerke - want):
+                staerke = b
     w = mm(tgt[w_ax])
-    return {"sz": {t_ax: t, w_ax: w}, "prof": {"t": t, "w": w}, "t_ax": t_ax, "w_ax": w_ax}
+    return {"sz": {t_ax: staerke, w_ax: w}, "prof": {"t": staerke, "w": w}, "t_ax": t_ax, "w_ax": w_ax}
 
 
 def aufbauen(S: Sortiment, g: dict, dims: list[int], log: list[str]) -> tuple[list[Bauteil], dict]:
@@ -103,9 +98,9 @@ def aufbauen(S: Sortiment, g: dict, dims: list[int], log: list[str]) -> tuple[li
         name = oder(p.get("name"), p["id"])
         gelesen = "×".join(str(mm(tgt[c])) for c in cross)
         bekommen = "×".join(zahl(sn["sz"][c]) for c in cross)
-        profil = f"Leimholz {zahl(sn['prof']['t'])} mm, {zahl(sn['prof']['w'])} mm breit" if typ == "brett" else sn["prof"]["label"]
-        stueck = f", {n} Stück entlang {AXN[dax]}" if n > 1 else ""
-        log.append(f"{name}: gelesen ca. {gelesen} mm → {profil} ({bekommen}){stueck}")
+        profil = t("plan.brett", t=zahl(sn["prof"]["t"]), w=zahl(sn["prof"]["w"])) if typ == "brett" else holz(sn["prof"]["label"])
+        stueck = t("log.stueck", n=n, achse=AXN[dax]) if n > 1 else ""
+        log.append(t("log.gelesen", name=name, gelesen=gelesen, profil=profil, bekommen=bekommen, stueck=stueck))
         for i in range(n):
             mn, mx = [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]
             for a in (0, 1, 2):

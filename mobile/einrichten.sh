@@ -10,7 +10,6 @@ flutter create . --platforms=ios,android --org at.parawerk --project-name parawe
 PLIST=ios/Runner/Info.plist
 plutil -replace NSCameraUsageDescription -string "Parawerk braucht die Kamera, um die Ecke zu fotografieren, in die das Möbel soll." "$PLIST"
 plutil -replace NSPhotoLibraryUsageDescription -string "Parawerk braucht Zugriff auf deine Fotos, um ein Foto der Ecke auszuwählen." "$PLIST"
-plutil -replace io.flutter.embedded_views_preview -bool true "$PLIST"
 
 # Android: Internet (für den Server) und lokale Verbindung für die 3D-Anzeige
 MANIFEST=android/app/src/main/AndroidManifest.xml

@@ -70,6 +70,7 @@ app/
     templates/             Jinja: Seite, Bauplan-Ausschnitt
     static/                CSS, JS (Foto, Maske, Anzeige, 3D), three.js, Demo-Bilder
 tests/                     Engine (Referenzfälle), Bauteilgraph, API
+mobile/                    Flutter-App (iPhone, Android), spricht /api/v1; siehe mobile/README.md
 ```
 
 **Sprachen:** Deutsch und Englisch. Die Sprache kommt aus `?sprache=de|en` (Umschalter oben rechts, wird als Cookie gemerkt), sonst aus dem Cookie, dem Header `X-Sprache` oder der Browsersprache. Alles läuft über `app/i18n`: Oberfläche, Fehlermeldungen, Rechenweg, Prüfung, Einkaufsliste und Montage. Claude schreibt die Bauteilnamen in der gewählten Sprache. Intern bleiben die Schlüssel deutsch (Sortiment, Rollen), übersetzt wird erst bei der Anzeige. Neue Texte kommen in beide Kataloge; `tests/test_i18n.py` prüft, dass keiner fehlt.

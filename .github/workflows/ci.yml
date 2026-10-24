@@ -23,6 +23,22 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - run: pytest -q
 
+  app:
+    name: Flutter-App prüfen
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze --no-fatal-infos
+      - run: flutter test
+
   deploy:
     name: Deploy auf fly.io
     needs: test

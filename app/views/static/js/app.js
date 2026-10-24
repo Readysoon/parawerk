@@ -41,6 +41,18 @@ async function api(pfad, daten, { roh = false } = {}) {
   return j;
 }
 
+// ---------- Gratis-Kontingent ----------
+async function kontingentLaden() {
+  try {
+    const k = await (await fetch('/api/kontingent')).json();
+    const zeige = (id, n, art) => {
+      $(id).hidden = n == null;
+      if (n != null) $(id).textContent = tx(n === 0 ? `${art}_0` : n === 1 ? `${art}_1` : art, { n });
+    };
+    zeige('frei-runden', k.runden, 'frei_runden'); zeige('frei-nj', k.nachjustieren, 'frei_nj');
+  } catch { /* Anzeige ist nur ein Hinweis */ }
+}
+
 // ---------- 1. Foto ----------
 async function fotoSetzen(src, istDemo) {
   const img = await bildLaden(src);
@@ -190,7 +202,7 @@ async function entwerfen() {
     for (const src of j.bilder) z.entwuerfe.push(await einsetzen(src));
     z.gewaehlt = -1; z.graph = null; z.njVerlauf = [];
     entwuerfeAnzeigen(); zeigeSchritt(3);
-  } catch (e) { fehler(e.message); } finally { status(''); }
+  } catch (e) { fehler(e.message); } finally { status(''); kontingentLaden(); }
 }
 // nur den markierten Bereich (weich ausgeblendet) aus dem Entwurf ins Originalfoto übernehmen
 async function einsetzen(src) {
@@ -232,7 +244,7 @@ async function nachjustieren() {
     z.entwuerfe[i] = await einsetzen(j.bild);
     $('bild-prompt').textContent = j.prompt; $('nj-text').value = '';
     entwuerfeAnzeigen();
-  } catch (e) { fehler(e.message); } finally { status(''); }
+  } catch (e) { fehler(e.message); } finally { status(''); kontingentLaden(); }
 }
 $('nj-los').addEventListener('click', nachjustieren);
 $('nj-text').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); nachjustieren(); } });
@@ -316,3 +328,4 @@ $('ergebnis').addEventListener('click', async e => {
 document.querySelectorAll('nav.steps button').forEach(b => b.addEventListener('click', () => zeigeSchritt(+b.dataset.schritt)));
 document.querySelectorAll('[data-gehe]').forEach(b => b.addEventListener('click', () => zeigeSchritt(+b.dataset.gehe)));
 zeigeSchritt(0);
+kontingentLaden();

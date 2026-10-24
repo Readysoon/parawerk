@@ -4,6 +4,16 @@ primary_region = "fra"
 
 [build]
 
+# Verbrauchs-Datenbank (Kostendeckel) als SQLite auf einem Volume. Vorher einmal anlegen:
+#   fly volumes create parawerk_daten --size 1 --region fra
+# Ein Volume gehört zu genau einer Maschine, deshalb: fly scale count 1
+[env]
+  DATABASE_URL = "sqlite:////data/parawerk.db"
+
+[mounts]
+  source = "parawerk_daten"
+  destination = "/data"
+
 [http_service]
   internal_port = 8080
   force_https = true

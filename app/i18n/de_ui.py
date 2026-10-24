@@ -135,6 +135,18 @@ TEXTE = {
     "fehler.keine_teile": "Der Bauteilgraph enthält keine Teile.",
     "fehler.kein_objekt": "Teil {n}: kein Objekt.",
     "fehler.keine_box": "Teil {n}: Lage (box) fehlt.",
+    # ---------- Kostendeckel ----------
+    "fehler.budget": "Parawerk hat sein KI-Budget für heute aufgebraucht. Bitte morgen wieder versuchen.",
+    "fehler.gratis_runde": "Deine Gratis-Runde ist verbraucht. Weitere Entwürfe gibt es bald mit einem Konto.",
+    "fehler.gratis_nj": "Deine {n} Gratis-Änderungen sind verbraucht. Weitere gibt es bald mit einem Konto.",
+    "fehler.ip_limit": "Aus diesem Netzwerk kamen heute schon viele Entwürfe. Bitte morgen wieder versuchen.",
+    "fehler.tageslimit": "Für heute ist das Limit erreicht. Bitte morgen wieder versuchen.",
+    "ui.frei_runden_0": "Gratis-Runde verbraucht",
+    "ui.frei_runden_1": "Noch 1 Gratis-Runde",
+    "ui.frei_runden": "Noch {n} Gratis-Runden",
+    "ui.frei_nj_0": "Gratis-Änderungen verbraucht",
+    "ui.frei_nj_1": "Noch 1 Gratis-Änderung",
+    "ui.frei_nj": "Noch {n} Gratis-Änderungen",
     # ---------- Claude: Sprache der Namen ----------
     "prompt.namen": "",  # deutsche Namen sind ohnehin Standard
 }

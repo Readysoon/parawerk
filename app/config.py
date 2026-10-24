@@ -19,6 +19,15 @@ class Einstellungen(BaseSettings):
     # Holz-Sortiment: DE (Baumarkt) oder US (Bauholz)
     sortiment: str = "DE"
     anzahl_entwuerfe: int = 4
+    # Kostendeckel (siehe services/kostendeckel.py); Datenbank: leer = SQLite im Temp-Ordner, auf fly.io Postgres
+    database_url: str = ""
+    gratis_runden: int = 1  # je Gerät insgesamt, eine Runde = 4 Entwürfe
+    gratis_nachjustieren: int = 2  # je Gerät insgesamt
+    ip_runden_pro_tag: int = 3
+    lesen_pro_tag: int = 5  # je Gerät
+    anpassen_pro_tag: int = 10  # je Gerät
+    tagesbudget_usd: float = 5.0  # alle zusammen, Notbremse
+    admin_schluessel: str = ""  # ?schluessel=… auf der Startseite hebt die Kontingente für diesen Browser auf
 
     @property
     def bild_ki_aktiv(self) -> bool:

@@ -11,34 +11,43 @@ from ..models.dxf import teile_als_dxf
 from ..models.engine import Ergebnis, berechnen
 from ..services.fehler import DienstFehler, NichtVerfuegbar
 from ..services.konstrukteur import Konstrukteur
+from ..services.kostendeckel import Kostendeckel, Kunde
 from ..views import templates
 from ..views.praesentation import bauplan_ansicht, modell_3d
-from .abhaengigkeiten import konstrukteur
+from .abhaengigkeiten import konstrukteur, kostendeckel, kunde
+from .kontingent import erstatten, reservieren
 from .schemas import AnpassenAnfrage, BerechnenAnfrage, GraphAntwort, LesenAnfrage
 
 router = APIRouter(prefix="/api/bauplan", tags=["Bauplan"])
 
 
 @router.post("/lesen", response_model=GraphAntwort)
-async def lesen(anfrage: LesenAnfrage, k: Konstrukteur = Depends(konstrukteur)) -> GraphAntwort:
+async def lesen(anfrage: LesenAnfrage, k: Konstrukteur = Depends(konstrukteur),
+                deckel: Kostendeckel = Depends(kostendeckel), kd: Kunde = Depends(kunde)) -> GraphAntwort:
     """Konstruktion (Bauteilgraph) aus dem Ausschnitt des gewählten Entwurfs lesen."""
     if not k.demo and not anfrage.bild:
         raise HTTPException(400, t("fehler.ausschnitt"))
+    eintrag = None if k.demo else await reservieren(deckel, "lesen", kd)
     try:
         graph = await k.lesen(anfrage.bild, anfrage.bereich, anfrage.demo_index)
     except (DienstFehler, GraphFehler) as err:
+        await erstatten(deckel, eintrag)
         raise HTTPException(502, t("fehler.lesen", err=err)) from err
     return GraphAntwort(demo=k.demo, graph=graph)
 
 
 @router.post("/anpassen", response_model=GraphAntwort)
-async def anpassen(anfrage: AnpassenAnfrage, k: Konstrukteur = Depends(konstrukteur)) -> GraphAntwort:
+async def anpassen(anfrage: AnpassenAnfrage, k: Konstrukteur = Depends(konstrukteur),
+                   deckel: Kostendeckel = Depends(kostendeckel), kd: Kunde = Depends(kunde)) -> GraphAntwort:
     """Bauteilgraph nach einem Wunsch in Worten ändern."""
+    graph = _graph(anfrage.graph)
+    eintrag = None if k.demo else await reservieren(deckel, "anpassen", kd)
     try:
-        graph = await k.anpassen(_graph(anfrage.graph), anfrage.wunsch)
+        graph = await k.anpassen(graph, anfrage.wunsch)
     except NichtVerfuegbar as err:
         raise HTTPException(501, str(err)) from err
     except (DienstFehler, GraphFehler) as err:
+        await erstatten(deckel, eintrag)
         raise HTTPException(502, t("fehler.aenderung", err=err)) from err
     return GraphAntwort(demo=k.demo, graph=graph)
 

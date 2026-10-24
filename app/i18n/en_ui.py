@@ -136,6 +136,18 @@ TEXTE = {
     "fehler.keine_teile": "The part graph has no parts.",
     "fehler.kein_objekt": "Part {n}: not an object.",
     "fehler.keine_box": "Part {n}: position (box) missing.",
+    # ---------- Cost cap ----------
+    "fehler.budget": "Parawerk has used up its AI budget for today. Please try again tomorrow.",
+    "fehler.gratis_runde": "Your free round is used up. More designs will soon be available with an account.",
+    "fehler.gratis_nj": "Your {n} free changes are used up. More will soon be available with an account.",
+    "fehler.ip_limit": "Many designs already came from this network today. Please try again tomorrow.",
+    "fehler.tageslimit": "Today's limit has been reached. Please try again tomorrow.",
+    "ui.frei_runden_0": "Free round used up",
+    "ui.frei_runden_1": "1 free round left",
+    "ui.frei_runden": "{n} free rounds left",
+    "ui.frei_nj_0": "Free changes used up",
+    "ui.frei_nj_1": "1 free change left",
+    "ui.frei_nj": "{n} free changes left",
     # ---------- Claude: language of names ----------
     "prompt.namen": "Write the furniture \"name\" and every part \"name\" in English (e.g. \"Front legs\", \"Slats\", "
                     "\"Backrest battens\"). All other field values stay exactly as specified.",

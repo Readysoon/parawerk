@@ -16,7 +16,9 @@ FOTO = "data:image/jpeg;base64,AAAA"
 
 @pytest.fixture
 def client():
-    app.dependency_overrides[einstellungen] = lambda: Einstellungen(_env_file=None)  # immer ohne Schlüssel
+    # immer ohne Schlüssel; Kontingente großzügig, die prüft test_kostendeckel.py
+    app.dependency_overrides[einstellungen] = lambda: Einstellungen(_env_file=None, gratis_runden=100, ip_runden_pro_tag=100,
+                                                                    gratis_nachjustieren=100)
     yield TestClient(app)
     app.dependency_overrides.clear()
 

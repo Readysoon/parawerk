@@ -62,6 +62,7 @@
       <div class="chips">{% for w in wuensche %}<button class="chip" data-wunsch="{{ w }}">{{ w }}</button>{% endfor %}</div>
       <p class="hint">{{ t("ui.wunsch_hinweis") }}</p>
       <div class="btns"><button class="b primary" id="entwerfen">{{ t("ui.entwuerfe_erzeugen", n=anzahl_entwuerfe) }}</button></div>
+      <p class="hint frei" id="frei-runden" hidden></p>
     </div>
     <div class="side"><div class="panel"><h3>{{ t("ui.s1") }}</h3><dl class="kv"><dt>{{ t("ui.btH") }}</dt><dd id="bereich-text"></dd></dl></div></div>
   </section>
@@ -82,6 +83,7 @@
       <p class="hint">{{ t("ui.nj_hinweis") }}</p>
       <textarea id="nj-text" placeholder="{{ t('ui.nj_platzhalter') }}" aria-label="{{ t('ui.nj_aria') }}"></textarea>
       <div class="btns"><button class="b primary" id="nj-los">{{ t("ui.aendern") }}</button><button class="b" id="nj-zurueck" disabled>{{ t("ui.rueckgaengig") }}</button></div>
+      <p class="hint frei" id="frei-nj" hidden></p>
     </div></div>
   </section>
 

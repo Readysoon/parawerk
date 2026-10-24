@@ -117,8 +117,26 @@ gh secret set FLY_API_TOKEN                    # Token einfügen (oder GitHub �
   ```bash
   fly launch --copy-config --no-deploy   # App-Namen bei Bedarf ändern
   fly secrets set REPLICATE_API_TOKEN=... ANTHROPIC_API_KEY=...
+  fly volumes create parawerk_daten --size 1 --region fra   # Verbrauchs-Datenbank
+  fly scale count 1                                         # ein Volume gehört zu genau einer Maschine
   fly deploy
   ```
+
+## Kostendeckel
+
+Jeder bezahlte KI-Aufruf wird vorher in der Tabelle `verbrauch` eingetragen (`services/kostendeckel.py`), schlägt er fehl, wird er wieder gestrichen. Im Demo-Modus zählt nichts.
+
+| Regel | Standard | Einstellung |
+|---|---|---|
+| Gratis-Runden je Gerät (1 Runde = 4 Entwürfe ≈ 0,21 $) | 1 | `GRATIS_RUNDEN` |
+| Gratis-Nachjustieren je Gerät (≈ 0,045 $) | 2 | `GRATIS_NACHJUSTIEREN` |
+| Runden je IP und Tag (gegen gelöschte Cookies) | 3 | `IP_RUNDEN_PRO_TAG` |
+| Lesungen / Anpassungen je Gerät und Tag | 5 / 10 | `LESEN_PRO_TAG`, `ANPASSEN_PRO_TAG` |
+| Tagesbudget für alle zusammen, gilt auch für Admin | 5 $ | `TAGESBUDGET_USD` |
+
+Die Geräte-ID ist ein Cookie, das die Startseite vergibt. Mit `ADMIN_SCHLUESSEL` gesetzt hebt `/?schluessel=…` die Kontingente für diesen Browser auf (nicht das Tagesbudget). `GET /api/kontingent` zeigt, was das Gerät noch gratis hat.
+
+Datenbank: ohne `DATABASE_URL` eine SQLite-Datei im Temp-Ordner. Auf fly.io eine SQLite-Datei auf dem Volume `/data` (siehe `fly.toml`). Für Postgres genügt `DATABASE_URL=postgres://…`; Tabellen legt die App selbst an.
 
 ## Bild-KI austauschen (z. B. Midjourney)
 

@@ -136,6 +136,12 @@ TEXTE = {
     "fehler.kein_objekt": "Teil {n}: kein Objekt.",
     "fehler.keine_box": "Teil {n}: Lage (box) fehlt.",
     # ---------- Kostendeckel ----------
+    "fehler.bild_kaputt": "Das Bild ließ sich nicht öffnen. Bitte ein JPG oder PNG schicken.",
+    "fehler.nichts_markiert": "Auf der Maske ist kein Bereich markiert.",
+    "fehler.bild_fehlt": "Dieses Bild gibt es nicht (mehr). Bitte neu hochladen.",
+    "fehler.auftrag_fehlt": "Diesen Auftrag gibt es nicht.",
+    "fehler.entwurf_fehlt": "Diesen Entwurf gibt es nicht.",
+    "fehler.intern": "interner Fehler",
     "fehler.budget": "Parawerk hat sein KI-Budget für heute aufgebraucht. Bitte morgen wieder versuchen.",
     "fehler.gratis_runde": "Deine Gratis-Runde ist verbraucht. Weitere Entwürfe gibt es bald mit einem Konto.",
     "fehler.gratis_nj": "Deine {n} Gratis-Änderungen sind verbraucht. Weitere gibt es bald mit einem Konto.",

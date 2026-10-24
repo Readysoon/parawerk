@@ -137,6 +137,12 @@ TEXTE = {
     "fehler.kein_objekt": "Part {n}: not an object.",
     "fehler.keine_box": "Part {n}: position (box) missing.",
     # ---------- Cost cap ----------
+    "fehler.bild_kaputt": "The image could not be opened. Please send a JPG or PNG.",
+    "fehler.nichts_markiert": "No area is marked on the mask.",
+    "fehler.bild_fehlt": "This image does not exist (any more). Please upload it again.",
+    "fehler.auftrag_fehlt": "This job does not exist.",
+    "fehler.entwurf_fehlt": "This design does not exist.",
+    "fehler.intern": "internal error",
     "fehler.budget": "Parawerk has used up its AI budget for today. Please try again tomorrow.",
     "fehler.gratis_runde": "Your free round is used up. More designs will soon be available with an account.",
     "fehler.gratis_nj": "Your {n} free changes are used up. More will soon be available with an account.",

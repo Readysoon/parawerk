@@ -122,6 +122,22 @@ gh secret set FLY_API_TOKEN                    # Token einfügen (oder GitHub �
   fly deploy
   ```
 
+## App-API (v1, für die Flutter-App)
+
+Unter `/api/v1` gibt es alles als JSON; Bildarbeit (Entwurf einsetzen, Ausschnitt fürs Lesen) und das 3D-Modell (glb) macht der Server. Beschreibung mit allen Feldern: `/docs` bzw. `/openapi.json`.
+
+| Schritt | Aufruf | Antwort |
+|---|---|---|
+| Entwürfe | `POST /api/v1/entwuerfe` `{foto, maske, wunsch}` | Auftrag, `foto_id`, `maske_id` |
+| Nachjustieren | `POST /api/v1/entwuerfe/nachjustieren` `{foto_id, maske_id, entwurf_id, anpassung}` | Auftrag |
+| Konstruktion lesen | `POST /api/v1/bauplan/lesen` `{entwurf_id, maske_id, bereich}` | Auftrag |
+| Bauplan | `POST /api/v1/bauplan/berechnen` `{graph, bereich}` | sofort: Bauplan, `modell_glb` |
+| Anpassen | `POST /api/v1/bauplan/anpassen` `{graph, wunsch}` | Auftrag |
+| Stand | `GET /api/v1/auftraege/{id}` | `laeuft` → `fertig` (+ `ergebnis`) oder `fehler` |
+| Bilder, 3D | `GET /api/v1/bilder/{id}` | JPEG, PNG oder glb |
+
+Foto und Maske kommen als data-URL; die Maske ist ein PNG, weiß (oder bei transparentem PNG: deckend gemalt) = hier soll das Möbel hin. Header: `X-Geraet` (Geräte-ID, 8–64 Zeichen, von der App einmal erzeugt), `X-Sprache` (`de`/`en`). Bilder und Aufträge werden nach 7 Tagen gelöscht. Die Website nutzt vorerst noch die alten Aufrufe unter `/api`.
+
 ## Kostendeckel
 
 Jeder bezahlte KI-Aufruf wird vorher in der Tabelle `verbrauch` eingetragen (`services/kostendeckel.py`), schlägt er fehl, wird er wieder gestrichen. Im Demo-Modus zählt nichts.

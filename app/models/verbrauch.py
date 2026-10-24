@@ -40,6 +40,7 @@ def _url(url: str) -> str:
 
 @lru_cache
 def datenbank(url: str = "") -> Engine:
+    from . import speicher  # noqa: F401  (Tabellen für Bilder und Aufträge registrieren)
     engine = create_engine(_url(url or STANDARD_URL), pool_pre_ping=True)
     metadata.create_all(engine)
     return engine

@@ -4,6 +4,7 @@ In Tests lassen sie sich über ``app.dependency_overrides`` ersetzen.
 """
 from __future__ import annotations
 
+import re
 import secrets
 
 from fastapi import Depends, Request, Response
@@ -38,10 +39,16 @@ def client_ip(request: Request) -> str:
             or (request.client.host if request.client else "") or "?")[:64]
 
 
+GUELTIGE_ID = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
+
+
 def geraete_id(request: Request, response: Response) -> str:
-    """Geräte-ID aus dem Cookie; fehlt sie, wird eine neue vergeben und gesetzt."""
+    """Geräte-ID: von der App im Header ``X-Geraet``, im Browser aus dem Cookie. Fehlt sie, wird ein Cookie vergeben."""
+    kopf = request.headers.get("x-geraet", "")
+    if GUELTIGE_ID.match(kopf):
+        return kopf
     gid = request.cookies.get(GERAET, "")
-    if not (8 <= len(gid) <= 64 and gid.replace("-", "").replace("_", "").isalnum()):
+    if not GUELTIGE_ID.match(gid):
         gid = secrets.token_urlsafe(16)
         response.set_cookie(GERAET, gid, max_age=JAHR, httponly=True, samesite="lax", secure=request.url.scheme == "https")
     return gid

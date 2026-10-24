@@ -15,7 +15,8 @@ import httpx
 
 from ..models.bauteilgraph import JSON_SCHEMA, bereinigen, json_aus_text
 from .fehler import DienstFehler, NichtVerfuegbar
-from .prompts import anpass_prompt, bildprompt_anweisung, inpaint_prompt, inpaint_prompt_aus, lese_prompt
+from .prompts import (KONTEXT_REGELN, anpass_prompt, bearbeitung_anweisung, bearbeitung_prompt, bildprompt_anweisung,
+                      inpaint_prompt, inpaint_prompt_aus, lese_prompt)
 
 
 class Konstrukteur(Protocol):
@@ -26,6 +27,8 @@ class Konstrukteur(Protocol):
     async def anpassen(self, graph: dict, wunsch: str) -> dict: ...
 
     async def bild_prompt(self, wunsch: str, foto: str | None, maske: str | None) -> str: ...
+
+    async def bearbeitungs_prompt(self, wunsch: str, anpassung: str, bild: str) -> str: ...
 
 
 DATA_URL = re.compile(r"^data:(image/[a-z]+);base64,(.*)$", re.S)
@@ -91,6 +94,13 @@ class ClaudeKonstrukteur:
             raise DienstFehler("Claude hat keine Beschreibung geliefert.")
         return inpaint_prompt_aus(text)
 
+    async def bearbeitungs_prompt(self, wunsch: str, anpassung: str, bild: str) -> str:
+        """Nachjustieren: Wunsch → englische Bearbeitungsanweisung, mit Blick auf den Entwurf."""
+        text = (await self._fragen(bearbeitung_anweisung(wunsch, anpassung), [bild], max_tokens=300)).strip().strip('"')
+        if not text:
+            raise DienstFehler("Claude hat keine Anweisung geliefert.")
+        return f"{text} {KONTEXT_REGELN}"
+
 
 @lru_cache
 def demo_graphen() -> list[dict]:
@@ -112,3 +122,6 @@ class DemoKonstrukteur:
 
     async def bild_prompt(self, wunsch: str, foto: str | None, maske: str | None) -> str:
         return inpaint_prompt(wunsch)
+
+    async def bearbeitungs_prompt(self, wunsch: str, anpassung: str, bild: str) -> str:
+        return bearbeitung_prompt(anpassung)

@@ -12,7 +12,7 @@ from ..services.konstrukteur import ClaudeKonstrukteur, DemoKonstrukteur, Konstr
 
 
 def bild_ki(e: Einstellungen = Depends(einstellungen)) -> BildKI:
-    return ReplicateFluxFill(e.replicate_api_token, e.replicate_model) if e.bild_ki_aktiv else DemoBildKI()
+    return ReplicateFluxFill(e.replicate_api_token, e.replicate_model, e.replicate_edit_model) if e.bild_ki_aktiv else DemoBildKI()
 
 
 def konstrukteur(e: Einstellungen = Depends(einstellungen)) -> Konstrukteur:

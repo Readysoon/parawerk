@@ -72,3 +72,25 @@ def anpass_prompt(graph: dict, wunsch: str) -> str:
 Behalte alles andere bei. Das Möbel muss baubar und stabil bleiben; Maße, Verbindungen und Statik rechnet danach Code.
 Antworte mit dem vollständigen geänderten Bauteilgraph als JSON. Bedeutung der Felder:
 {GRAPH_SCHEMA}"""
+
+
+KONTEXT_REGELN = ("Keep it built from straight pine battens and boards, no curves. "
+                  "Keep everything else in the photo exactly the same: same camera angle, same lighting, same room.")
+
+
+def bearbeitung_prompt(anpassung: str) -> str:
+    """Anweisung für FLUX Kontext ohne Claude: die Änderung wörtlich."""
+    return f"Change only the newly built wooden furniture: {anpassung.strip()}. {KONTEXT_REGELN}"
+
+
+def bearbeitung_anweisung(wunsch: str | None, anpassung: str) -> str:
+    """Claude formuliert die Änderung als präzise englische Bearbeitungsanweisung für FLUX Kontext."""
+    w = (wunsch or "").strip() or "ein selbstgebautes Holzmöbel"
+    return f"""Das Bild zeigt einen Entwurf: ein selbstgebautes Holzmöbel in einem Wohnungsfoto. Ursprünglicher Wunsch: "{w}".
+Die Person möchte jetzt nachjustieren: "{anpassung.strip()}"
+
+Schreibe EINE englische Bearbeitungsanweisung für die Bild-KI FLUX Kontext, höchstens 50 Wörter, NUR die Anweisung:
+- nenne das Möbel eindeutig mit sichtbaren Merkmalen (z. B. "the light wooden daybed below the window")
+- beschreibe nur die gewünschte Änderung, konkret (Farbe genau, Größe relativ: "about 20 cm higher")
+- ändere nichts anderes am Möbel als gewünscht
+Die App hängt selbst an: {KONTEXT_REGELN}"""

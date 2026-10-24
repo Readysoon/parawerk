@@ -22,6 +22,17 @@ class EntwuerfeAntwort(BaseModel):
     bilder: list[str]
 
 
+class NachjustierenAnfrage(BaseModel):
+    bild: DataUrl
+    wunsch: str = Field("", max_length=500)
+    anpassung: str = Field(min_length=1, max_length=500)
+
+
+class NachjustierenAntwort(BaseModel):
+    prompt: str
+    bild: str
+
+
 class LesenAnfrage(BaseModel):
     bild: DataUrl | None = None
     bereich: Bereich = [2000, 1000, 1000]

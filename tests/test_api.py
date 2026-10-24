@@ -75,9 +75,18 @@ class KonstrukteurAttrappe:
             raise DienstFehler("Claude nicht erreichbar")
         return f"An L-shaped sofa ({wunsch}). Only this one piece of furniture."
 
+    async def bearbeitungs_prompt(self, wunsch, anpassung, bild):
+        if "offline" in anpassung:
+            raise DienstFehler("Claude nicht erreichbar")
+        return f"Make the backrest of the sofa {anpassung}."
+
 
 class BildKIAttrappe:
     demo = False
+
+    async def bearbeiten(self, bild, anweisung, seed):
+        assert bild.startswith("data:image/")
+        return "data:image/png;base64,BEARBEITET"
 
     async def entwerfen(self, foto, maske, prompt, seeds):
         if "kaputt" in prompt:
@@ -101,3 +110,18 @@ def test_mit_echten_diensten(client):
     graph = client.post("/api/bauplan/lesen", json={"bild": FOTO, "bereich": BEREICH}).json()["graph"]
     r = client.post("/api/bauplan/anpassen", json={"graph": graph, "wunsch": "breiter"})
     assert r.status_code == 200 and k.wuensche == ["breiter"]
+
+
+def test_nachjustieren(client):
+    app.dependency_overrides[konstrukteur] = lambda: KonstrukteurAttrappe()
+    app.dependency_overrides[bild_ki] = lambda: BildKIAttrappe()
+    r = client.post("/api/entwuerfe/nachjustieren", json={"bild": FOTO, "wunsch": "Sofa", "anpassung": "höher"})
+    assert r.status_code == 200 and r.json() == {"prompt": "Make the backrest of the sofa höher.", "bild": "data:image/png;base64,BEARBEITET"}
+    r = client.post("/api/entwuerfe/nachjustieren", json={"bild": FOTO, "anpassung": "höher offline"})
+    assert r.status_code == 200 and r.json()["prompt"].startswith("Change only the newly built wooden furniture: höher offline.")
+    assert client.post("/api/entwuerfe/nachjustieren", json={"bild": FOTO, "anpassung": ""}).status_code == 422
+
+
+def test_nachjustieren_im_demo_modus(client):
+    r = client.post("/api/entwuerfe/nachjustieren", json={"bild": FOTO, "anpassung": "höher"})
+    assert r.status_code == 501 and "REPLICATE_API_TOKEN" in r.json()["fehler"]

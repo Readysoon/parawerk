@@ -7,11 +7,11 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from ..config import Einstellungen, einstellungen
 from ..services.bild_ki import BildKI
-from ..services.fehler import DienstFehler
+from ..services.fehler import DienstFehler, NichtVerfuegbar
 from ..services.konstrukteur import Konstrukteur
-from ..services.prompts import inpaint_prompt
+from ..services.prompts import bearbeitung_prompt, inpaint_prompt
 from .abhaengigkeiten import bild_ki, konstrukteur
-from .schemas import EntwuerfeAnfrage, EntwuerfeAntwort
+from .schemas import EntwuerfeAnfrage, EntwuerfeAntwort, NachjustierenAnfrage, NachjustierenAntwort
 
 router = APIRouter(prefix="/api", tags=["Entwürfe"])
 
@@ -37,3 +37,23 @@ async def entwuerfe(
     except DienstFehler as err:
         raise HTTPException(502, f"Die Entwürfe konnten nicht erzeugt werden: {err}") from err
     return EntwuerfeAntwort(demo=ki.demo, prompt=prompt, bilder=bilder)
+
+
+@router.post("/entwuerfe/nachjustieren", response_model=NachjustierenAntwort)
+async def nachjustieren(
+    anfrage: NachjustierenAnfrage,
+    ki: BildKI = Depends(bild_ki),
+    k: Konstrukteur = Depends(konstrukteur),
+) -> NachjustierenAntwort:
+    """Gewählten Entwurf per Text ändern (FLUX Kontext). Die App setzt danach wieder nur den markierten Bereich ein."""
+    try:
+        prompt = await k.bearbeitungs_prompt(anfrage.wunsch, anfrage.anpassung, anfrage.bild)
+    except DienstFehler:
+        prompt = bearbeitung_prompt(anfrage.anpassung)
+    try:
+        bild = await ki.bearbeiten(anfrage.bild, prompt, secrets.randbelow(10**9))
+    except NichtVerfuegbar as err:
+        raise HTTPException(501, str(err)) from err
+    except DienstFehler as err:
+        raise HTTPException(502, f"Der Entwurf konnte nicht angepasst werden: {err}") from err
+    return NachjustierenAntwort(prompt=prompt, bild=bild)

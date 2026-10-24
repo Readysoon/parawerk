@@ -73,6 +73,12 @@
       <p class="hint">Wähle den Entwurf, der dir gefällt. Claude liest daraus die Konstruktion; der Code macht sie baubar und stabil. Die Maße richten sich nach deinem Bereich, nicht exakt nach dem Bild.</p>
       <div class="btns"><button class="b primary" id="bauplan-erstellen" disabled>Bauplan erstellen</button><button class="b" id="neu-entwerfen">Neue Entwürfe</button></div>
       <details><summary>Prompt an die Bild-KI</summary><p class="hint" id="bild-prompt"></p></details>
+    </div>
+    <div class="panel" id="nachjustieren" hidden>
+      <h3>Entwurf nachjustieren</h3>
+      <p class="hint">Beschreibe, was sich an diesem Entwurf ändern soll. Der Rest bleibt, wie er ist.</p>
+      <textarea id="nj-text" placeholder="z. B. Lehne 10 cm höher, dunkleres Holz, ohne Kissen" aria-label="Änderung am Entwurf"></textarea>
+      <div class="btns"><button class="b primary" id="nj-los">Ändern</button><button class="b" id="nj-zurueck" disabled>Rückgängig</button></div>
     </div></div>
   </section>
 

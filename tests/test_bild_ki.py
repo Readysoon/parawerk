@@ -21,6 +21,9 @@ class FalschesReplicate:
         self.starts, self.abgelehnt, self.seeds = 0, 0, []
 
     def __call__(self, req: httpx.Request) -> httpx.Response:
+        if req.method == "POST" and "flux-kontext-pro" in req.url.path:
+            self.kontext = json.loads(req.content)["input"]
+            return httpx.Response(201, json={"status": "succeeded", "output": "https://bilder.test/kontext.png"})
         if req.method == "POST" and req.url.path.endswith("/predictions"):
             self.starts += 1
             if self.immer_429 or (self.drosseln and self.starts % 2 == 0):
@@ -33,7 +36,8 @@ class FalschesReplicate:
             seed = req.url.path.rsplit("/", 1)[1]
             return httpx.Response(200, json={"status": "succeeded", "output": [f"https://bilder.test/{seed}.jpg"]})
         if req.url.host == "bilder.test":
-            return httpx.Response(200, content=b"jpg")
+            typ = "image/png" if req.url.path.endswith(".png") else "image/jpeg"
+            return httpx.Response(200, content=b"bild", headers={"content-type": typ})
         return httpx.Response(404)
 
 
@@ -56,3 +60,10 @@ def test_gibt_nach_zu_vielen_429_auf():
     with pytest.raises(DienstFehler, match="bremst"):
         asyncio.run(_ki(api, pausen).entwerfen(FOTO, FOTO, "Bank", [1]))
     assert api.starts == ReplicateFluxFill.MAX_VERSUCHE
+
+
+def test_bearbeiten_mit_kontext():
+    api, pausen = FalschesReplicate(), []
+    bild = asyncio.run(_ki(api, pausen).bearbeiten(FOTO, "Make the backrest higher.", 7))
+    assert bild.startswith("data:image/png;base64,")
+    assert api.kontext == {"prompt": "Make the backrest higher.", "input_image": FOTO, "aspect_ratio": "match_input_image", "seed": 7}

@@ -7,7 +7,7 @@ const $ = id => document.getElementById(id);
 
 const z = {
   schritt: 0, foto: null, a4: [], a4Modus: false, radierer: false, cursor: null, bereich: [1800, 900, 900],
-  entwuerfe: [], demo: false, gewaehlt: -1, graph: null, verlauf: [], beschaeftigt: false, ergebnis: null,
+  entwuerfe: [], njVerlauf: [], demo: false, gewaehlt: -1, graph: null, verlauf: [], beschaeftigt: false, ergebnis: null,
 };
 const maske = document.createElement('canvas');
 let bild = null, viewer = null, malt = false;
@@ -186,7 +186,7 @@ async function entwerfen() {
     $('bild-prompt').textContent = j.prompt;
     z.entwuerfe = [];
     for (const src of j.bilder) z.entwuerfe.push(await einsetzen(src));
-    z.gewaehlt = -1; z.graph = null;
+    z.gewaehlt = -1; z.graph = null; z.njVerlauf = [];
     entwuerfeAnzeigen(); zeigeSchritt(3);
   } catch (e) { fehler(e.message); } finally { status(''); }
 }
@@ -211,11 +211,33 @@ function entwuerfeAnzeigen() {
     const img = document.createElement('img'); img.src = src; img.alt = `Entwurf ${i + 1}`;
     const s = document.createElement('span'); s.textContent = `Entwurf ${i + 1}`;
     b.append(img, s);
-    b.addEventListener('click', () => { z.gewaehlt = i; entwuerfeAnzeigen(); });
+    b.addEventListener('click', () => { z.gewaehlt = i; entwuerfeAnzeigen(); $('nj-text').focus(); });
     box.append(b);
   });
   $('bauplan-erstellen').disabled = z.gewaehlt < 0;
+  $('nachjustieren').hidden = z.gewaehlt < 0;
+  $('nj-zurueck').disabled = !(z.njVerlauf[z.gewaehlt] || []).length;
 }
+
+// ---------- Entwurf nachjustieren (FLUX Kontext ändert das Bild, eingesetzt wird wieder nur der markierte Bereich) ----------
+async function nachjustieren() {
+  const i = z.gewaehlt, text = $('nj-text').value.trim();
+  if (i < 0 || !text || z.beschaeftigt) return;
+  status('Die Bild-KI passt den Entwurf an. Das dauert meist 20–40 Sekunden …'); fehler('');
+  try {
+    const j = await api('/api/entwuerfe/nachjustieren', { bild: z.entwuerfe[i], wunsch: $('wunsch').value, anpassung: text });
+    (z.njVerlauf[i] ||= []).push(z.entwuerfe[i]);
+    z.entwuerfe[i] = await einsetzen(j.bild);
+    $('bild-prompt').textContent = j.prompt; $('nj-text').value = '';
+    entwuerfeAnzeigen();
+  } catch (e) { fehler(e.message); } finally { status(''); }
+}
+$('nj-los').addEventListener('click', nachjustieren);
+$('nj-text').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); nachjustieren(); } });
+$('nj-zurueck').addEventListener('click', () => {
+  const v = z.njVerlauf[z.gewaehlt]; if (!v?.length) return;
+  z.entwuerfe[z.gewaehlt] = v.pop(); entwuerfeAnzeigen();
+});
 $('entwerfen').addEventListener('click', entwerfen);
 $('neu-entwerfen').addEventListener('click', entwerfen);
 

@@ -12,7 +12,7 @@ from typing import Protocol
 
 import httpx
 
-from .fehler import DienstFehler
+from .fehler import DienstFehler, NichtVerfuegbar
 
 DATA_URL = re.compile(r"^data:([^;]+);base64,(.*)$", re.S)
 
@@ -22,6 +22,10 @@ class BildKI(Protocol):
 
     async def entwerfen(self, foto: str, maske: str, prompt: str, seeds: list[int]) -> list[str]:
         """Foto und Maske (data-URLs, Weiß = neu malen) → ein Bild je Seed (data-URL oder URL)."""
+        ...
+
+    async def bearbeiten(self, bild: str, anweisung: str, seed: int) -> str:
+        """Fertigen Entwurf (data-URL) nach einer Anweisung ändern, der Rest des Bildes bleibt → data-URL."""
         ...
 
 
@@ -38,8 +42,9 @@ class ReplicateFluxFill:
     MAX_DATA_URL = 250_000  # größere Dateien nimmt Replicate nicht als data-URL, sie gehen über die Files-API
     MAX_VERSUCHE = 8
 
-    def __init__(self, token: str, model: str, transport: httpx.AsyncBaseTransport | None = None, schlafen=asyncio.sleep) -> None:
-        self.token, self.model = token, model
+    def __init__(self, token: str, model: str, edit_model: str = "black-forest-labs/flux-kontext-pro",
+                 transport: httpx.AsyncBaseTransport | None = None, schlafen=asyncio.sleep) -> None:
+        self.token, self.model, self.edit_model = token, model, edit_model
         self._transport, self._schlafen = transport, schlafen
 
     @property
@@ -70,9 +75,9 @@ class ReplicateFluxFill:
                 sek = 10
         return min(max(sek, 1), 30) + 0.5
 
-    async def _starten(self, client: httpx.AsyncClient, eingabe: dict) -> dict:
+    async def _starten(self, client: httpx.AsyncClient, eingabe: dict, model: str | None = None) -> dict:
         for _ in range(self.MAX_VERSUCHE):
-            res = await client.post(f"{self.API}/models/{self.model}/predictions",
+            res = await client.post(f"{self.API}/models/{model or self.model}/predictions",
                                     headers={**self._auth, "Content-Type": "application/json"}, json={"input": eingabe})
             if res.status_code == 429:
                 await self._schlafen(self._wartezeit(res))
@@ -102,7 +107,9 @@ class ReplicateFluxFill:
         bild = await client.get(url)
         if bild.status_code >= 400:
             raise DienstFehler(f"Replicate: Bild nicht abrufbar ({bild.status_code})")
-        return "data:image/jpeg;base64," + base64.b64encode(bild.content).decode()
+        typ = bild.headers.get("content-type", "").split(";")[0]
+        typ = typ if typ.startswith("image/") else "image/png" if url.lower().endswith(".png") else "image/jpeg"
+        return f"data:{typ};base64," + base64.b64encode(bild.content).decode()
 
     async def entwerfen(self, foto: str, maske: str, prompt: str, seeds: list[int]) -> list[str]:
         try:
@@ -116,6 +123,17 @@ class ReplicateFluxFill:
         except httpx.HTTPError as err:
             raise DienstFehler(f"Replicate nicht erreichbar: {type(err).__name__}") from err
 
+    async def bearbeiten(self, bild: str, anweisung: str, seed: int) -> str:
+        """FLUX Kontext: ändert das Bild nach Anweisung, statt neu zu malen."""
+        try:
+            async with httpx.AsyncClient(timeout=120, transport=self._transport) as client:
+                eingabe = await self._eingabe(client, bild, "entwurf.jpg")
+                pred = await self._starten(client, {"prompt": anweisung, "input_image": eingabe,
+                                                    "aspect_ratio": "match_input_image", "seed": seed}, self.edit_model)
+                return await self._fertigstellen(client, pred)
+        except httpx.HTTPError as err:
+            raise DienstFehler(f"Replicate nicht erreichbar: {type(err).__name__}") from err
+
 
 class DemoBildKI:
     """Ohne API-Schlüssel: vier fertige Entwürfe für das Beispielzimmer."""
@@ -124,3 +142,6 @@ class DemoBildKI:
 
     async def entwerfen(self, foto: str, maske: str, prompt: str, seeds: list[int]) -> list[str]:
         return [f"/static/demo/entwurf{i + 1}.jpg" for i in range(min(4, len(seeds)))]
+
+    async def bearbeiten(self, bild: str, anweisung: str, seed: int) -> str:
+        raise NichtVerfuegbar("Nachjustieren braucht einen REPLICATE_API_TOKEN (Demo-Modus).")

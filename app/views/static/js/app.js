@@ -48,23 +48,25 @@ async function fotoSetzen(src, istDemo) {
   bild = await bildLaden(url);
   maske.width = c.width; maske.height = c.height;
   Object.assign(z, { foto: { url, w: c.width, h: c.height, demo: istDemo }, a4: [], entwuerfe: [], graph: null, gewaehlt: -1 });
-  $('arbeitsflaeche').hidden = false; $('kein-foto').hidden = true; $('foto-weiter').hidden = false;
-  fehler(''); a4Anzeigen(); zeigeSchritt(0);
+  $('arbeitsflaeche').hidden = false; $('kein-foto').hidden = true;
+  fehler(''); a4Anzeigen(); zeigeSchritt(1);  // direkt markieren
 }
 $('foto-datei').addEventListener('change', e => {
   const f = e.target.files?.[0]; if (!f) return;
   const r = new FileReader();
   r.onload = () => fotoSetzen(r.result, false).catch(() => fehler('Das Bild konnte nicht geladen werden. Bitte ein JPG oder PNG wählen.'));
   r.readAsDataURL(f);
+  e.target.value = '';  // dasselbe Foto noch einmal wählen können
 });
 $('beispielzimmer').addEventListener('click', () => fotoSetzen('/static/demo/zimmer.jpg', true));
+$('anderes-foto').addEventListener('click', () => $('foto-datei').click());
 
 function a4Anzeigen() {
   $('a4-start').setAttribute('aria-pressed', z.a4Modus);
   $('a4-reset').hidden = !z.a4.length;
   $('a4-hinweis').textContent = z.a4Modus ? `Klicke Ecke ${z.a4.length + 1} von 4: oben links, oben rechts, unten rechts, unten links.`
     : z.a4.length === 4 ? 'A4-Blatt erkannt. Die Maße des Bereichs werden aus dem Foto gemessen.'
-    : 'Ohne A4-Blatt gibst du die Maße des Bereichs im nächsten Schritt selbst ein.';
+    : 'Liegt ein A4-Blatt flach an der Wand im Bereich? Dann tippe seine 4 Ecken an, und Breite und Höhe werden aus dem Foto gemessen.';
   zeichnen();
 }
 $('a4-start').addEventListener('click', () => { z.a4 = []; z.a4Modus = true; a4Anzeigen(); });
@@ -99,9 +101,9 @@ function malen(e) {
 const cv = $('arbeitsflaeche');
 cv.addEventListener('pointerdown', e => {
   if (!z.foto) return;
-  if (z.schritt === 0 && z.a4Modus) {
+  if (z.a4Modus) {  // Ecken setzen statt malen
     if (z.a4.length < 4) z.a4.push(pos(e));
-    if (z.a4.length === 4) z.a4Modus = false;
+    if (z.a4.length === 4) { z.a4Modus = false; messen(); }
     a4Anzeigen(); return;
   }
   if (z.schritt === 1) { malt = true; cv.setPointerCapture(e.pointerId); malen(e); }

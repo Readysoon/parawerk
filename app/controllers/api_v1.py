@@ -1,4 +1,4 @@
-"""App-API (v1): alles, was die Flutter-App braucht, als JSON. Bildarbeit und 3D macht der Server.
+"""API (v1) für Website und Flutter-App: alles als JSON. Bildarbeit und 3D macht der Server.
 
 Ablauf:
 1. ``POST /api/v1/entwuerfe`` mit Foto, Maske, Wunsch → Auftrag; Ergebnis: 4 fertig eingesetzte Entwürfe
@@ -23,7 +23,9 @@ from PIL import Image
 from ..config import Einstellungen, einstellungen
 from ..i18n import t
 from ..models import speicher
+from ..models.bauteilgraph import GraphFehler, bereinigen
 from ..models.dxf import teile_als_dxf
+from ..models.engine import Ergebnis, berechnen as engine_berechnen
 from ..models.gltf import als_glb
 from ..models.verbrauch import datenbank
 from ..services import bildarbeit as ba
@@ -31,23 +33,54 @@ from ..services.auftraege import starten
 from ..services.bild_ki import BildKI
 from ..services.fehler import DienstFehler
 from ..services.konstrukteur import Konstrukteur
-from ..services.kostendeckel import Kostendeckel, Kunde
+from ..services.kostendeckel import Gesperrt, Kostendeckel, Kunde
 from ..services.prompts import bearbeitung_prompt, inpaint_prompt
-from ..views import STATIC
+from ..views import STATIC, templates
 from ..views.praesentation import bauplan_ansicht, modell_3d
 from .abhaengigkeiten import bild_ki, konstrukteur, kostendeckel, kunde
-from .bauplan import _graph, _rechnen
-from .kontingent import erstatten, kontingent, reservieren
-from .schemas_v1 import (AuftragAntwort, AuftragStand, BauplanAntwort, BerechnenV1, EntwuerfeV1, LesenV1,
-                         NachjustierenV1)
-from .schemas import AnpassenAnfrage
+from .schemas import (AnpassenAnfrage, AuftragAntwort, AuftragStand, BauplanAntwort, BerechnenV1, EntwuerfeV1, LesenV1,
+                      NachjustierenV1)
 
-router = APIRouter(prefix="/api/v1", tags=["App-API v1"])
-router.add_api_route("/kontingent", kontingent, methods=["GET"])
+router = APIRouter(prefix="/api/v1", tags=["API v1"])
 
 
 def _db(e: Einstellungen):
     return datenbank(e.database_url)
+
+
+def _graph(roh: dict) -> dict:
+    try:
+        return bereinigen(roh)
+    except GraphFehler as err:
+        raise HTTPException(422, str(err)) from err
+
+
+def _rechnen(graph: dict, bereich: list[float], sortiment: str) -> Ergebnis:
+    try:
+        return engine_berechnen(graph, bereich, sortiment)
+    except (ValueError, KeyError, IndexError, ZeroDivisionError) as err:
+        raise HTTPException(422, t("fehler.modell", art=type(err).__name__)) from err
+
+
+async def reservieren(deckel: Kostendeckel, art: str, k: Kunde) -> int:
+    """Kosten vor dem Aufruf eintragen; ist das Kontingent oder Budget erschöpft, gibt es eine lesbare Fehlermeldung."""
+    try:
+        return await run_in_threadpool(deckel.reservieren, art, k)
+    except Gesperrt as g:
+        raise HTTPException(g.status, str(g)) from g
+
+
+async def erstatten(deckel: Kostendeckel, eintrag: int | None) -> None:
+    await run_in_threadpool(deckel.erstatten, eintrag)
+
+
+@router.get("/kontingent")
+async def kontingent(k: Kunde = Depends(kunde), deckel: Kostendeckel = Depends(kostendeckel),
+                     e: Einstellungen = Depends(einstellungen)) -> dict:
+    """Verbleibende Gratis-Runden und -Änderungen (``null`` = unbegrenzt bzw. Demo-Modus)."""
+    if not e.bild_ki_aktiv:
+        return {"runden": None, "nachjustieren": None}
+    return await run_in_threadpool(deckel.stand, k)
 
 
 def _bild(db, bid: str) -> Image.Image:
@@ -190,17 +223,25 @@ async def anpassen(anfrage: AnpassenAnfrage, kon: Konstrukteur = Depends(konstru
     return AuftragAntwort(auftrag=aid)
 
 
-@router.post("/bauplan/berechnen", response_model=BauplanAntwort)
-async def berechnen(anfrage: BerechnenV1, k: Kunde = Depends(kunde), e: Einstellungen = Depends(einstellungen)) -> BauplanAntwort:
-    """Bauteilgraph → baubarer Bauplan als Daten, dazu das 3D-Modell als glb-Datei (URL)."""
+@router.post("/bauplan/berechnen", response_model=BauplanAntwort, response_model_exclude_none=True)
+async def berechnen(anfrage: BerechnenV1, mit_glb: bool = True, mit_html: bool = False, k: Kunde = Depends(kunde),
+                    e: Einstellungen = Depends(einstellungen)) -> BauplanAntwort:
+    """Bauteilgraph → baubarer Bauplan als Daten, dazu das 3D-Modell als glb-Datei (URL).
+
+    ``mit_html=true`` liefert zusätzlich den fertigen Bauplan-Ausschnitt für die Website,
+    ``mit_glb=false`` spart die glb-Datei, wenn die Anzeige die Quader selbst zeichnet.
+    """
     graph = _graph(anfrage.graph)
     ergebnis = await run_in_threadpool(_rechnen, graph, anfrage.bereich, anfrage.sortiment or e.sortiment)
     ansicht = bauplan_ansicht(ergebnis, graph, anfrage.bereich)
+    html = templates.get_template("teile/bauplan.html").render(**ansicht) if mit_html else None
     ansicht.pop("graph_json", None)
     modell = modell_3d(ergebnis)
-    glb = await run_in_threadpool(speicher.bild_speichern, _db(e), k.geraet, als_glb(modell), "model/gltf-binary")
+    glb = None
+    if mit_glb:
+        glb = _url(await run_in_threadpool(speicher.bild_speichern, _db(e), k.geraet, als_glb(modell), "model/gltf-binary"))
     return BauplanAntwort(name=graph["name"], offene_punkte=ergebnis.offene_punkte, bauplan=ansicht,
-                          modell=modell, modell_glb=_url(glb), plan=ergebnis.plan)
+                          modell=modell, modell_glb=glb, plan=ergebnis.plan, html=html)
 
 
 @router.post("/bauplan/dxf")

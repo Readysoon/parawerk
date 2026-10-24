@@ -43,6 +43,8 @@ app/
   config.py                Einstellungen aus Umgebung bzw. .env
   models/                  ── Model: Domäne, ohne Web und ohne KI
     bauteilgraph.py        Schema der Möbelbeschreibung, Bereinigen von KI-Antworten
+    verbrauch.py, speicher.py  Datenbank: Verbrauch, Bilder, Aufträge
+    gltf.py                3D-Modell als glb
     sortiment.py           Holz im Baumarkt (DE/US), Handelslängen, Schnittpreis
     dxf.py                 Zuschnitte als DXF
     engine/                Bauteil-Engine
@@ -55,34 +57,36 @@ app/
     bild_ki.py             Inpainting (Replicate), austauschbar
     konstrukteur.py        Bild → Bauteilgraph, Graph + Wunsch → Graph (Claude)
     prompts.py             Anweisungen an Bild-KI und Claude
+    bildarbeit.py          Entwurf ins Foto einsetzen, Ausschnitt fürs Lesen (Pillow)
+    auftraege.py           lange KI-Aufrufe im Hintergrund
+    kostendeckel.py        Gratis-Kontingent, IP-Limit, Tagesbudget
   controllers/             ── Controller: FastAPI-Router
     seiten.py              GET /
-    entwuerfe.py           POST /api/entwuerfe
-    bauplan.py             POST /api/bauplan/{lesen,anpassen,berechnen,dxf}
+    api_v1.py              /api/v1/… für Website und App (siehe unten)
     schemas.py             Anfragen/Antworten (Pydantic)
     abhaengigkeiten.py     welcher Dienst (echt oder Demo)
   views/                   ── View
     praesentation.py       Ergebnis für die Anzeige aufbereiten
     templates/             Jinja: Seite, Bauplan-Ausschnitt
-    static/                CSS, JS (Foto, Maske, Zusammensetzen, 3D), three.js, Demo-Bilder
+    static/                CSS, JS (Foto, Maske, Anzeige, 3D), three.js, Demo-Bilder
 tests/                     Engine (Referenzfälle), Bauteilgraph, API
 ```
 
 **Sprachen:** Deutsch und Englisch. Die Sprache kommt aus `?sprache=de|en` (Umschalter oben rechts, wird als Cookie gemerkt), sonst aus dem Cookie, dem Header `X-Sprache` oder der Browsersprache. Alles läuft über `app/i18n`: Oberfläche, Fehlermeldungen, Rechenweg, Prüfung, Einkaufsliste und Montage. Claude schreibt die Bauteilnamen in der gewählten Sprache. Intern bleiben die Schlüssel deutsch (Sortiment, Rollen), übersetzt wird erst bei der Anzeige. Neue Texte kommen in beide Kataloge; `tests/test_i18n.py` prüft, dass keiner fehlt.
 
-Im Browser passiert nur, was Foto und Maske brauchen: Maske malen, A4-Maßstab, Entwurf zurück ins Foto setzen, 3D drehen. Gerechnet und gerendert wird auf dem Server.
+Website und App sprechen dieselbe API (`/api/v1`). Im Browser passiert nur, was Foto und Maske brauchen: Maske malen, A4-Maßstab, 3D drehen. Bildarbeit, Rechnen und Bauplan macht der Server.
 
 ## Ablauf und Schnittstellen
 
 ```
-Browser                                Server
-Foto + Maske + Wunsch  ── /api/entwuerfe ──▶ Bild-KI malt in die Maske
-  setzt nur den Maskenbereich ins Foto ◀── Bilder
-Ausschnitt des Entwurfs ── /api/bauplan/lesen ──▶ Claude liest Bauteilgraph
-Graph + Bereich         ── /api/bauplan/berechnen ──▶ Engine: skalieren → einrasten → setzen
-                                                       → prüfen/reparieren → Endkontrolle → Bauplan
-  Bauplan (HTML) + 3D-Modell ◀──
-Wunsch in Worten        ── /api/bauplan/anpassen ──▶ Claude ändert den Graph, dann neu berechnen
+Website / App                          Server (/api/v1)
+Foto + Maske + Wunsch  ── entwuerfe ──▶ Bild-KI malt in die Maske, Server setzt nur den Bereich ins Foto
+  4 Entwürfe (URLs) ◀── Auftrag fertig
+Entwurf + Maske        ── bauplan/lesen ──▶ Server schneidet den Ausschnitt, Claude liest den Bauteilgraph
+Graph + Bereich        ── bauplan/berechnen ──▶ Engine: skalieren → einrasten → setzen
+                                                 → prüfen/reparieren → Endkontrolle → Bauplan
+  Bauplan (JSON, für die Website auch HTML) + 3D-Modell ◀──
+Wunsch in Worten       ── bauplan/anpassen ──▶ Claude ändert den Graph, dann neu berechnen
 ```
 
 ## Engine-Tests
@@ -122,7 +126,7 @@ gh secret set FLY_API_TOKEN                    # Token einfügen (oder GitHub �
   fly deploy
   ```
 
-## App-API (v1, für die Flutter-App)
+## API (v1, für Website und Flutter-App)
 
 Unter `/api/v1` gibt es alles als JSON; Bildarbeit (Entwurf einsetzen, Ausschnitt fürs Lesen) und das 3D-Modell (glb) macht der Server. Beschreibung mit allen Feldern: `/docs` bzw. `/openapi.json`.
 
@@ -136,7 +140,7 @@ Unter `/api/v1` gibt es alles als JSON; Bildarbeit (Entwurf einsetzen, Ausschnit
 | Stand | `GET /api/v1/auftraege/{id}` | `laeuft` → `fertig` (+ `ergebnis`) oder `fehler` |
 | Bilder, 3D | `GET /api/v1/bilder/{id}` | JPEG, PNG oder glb |
 
-Foto und Maske kommen als data-URL; die Maske ist ein PNG, weiß (oder bei transparentem PNG: deckend gemalt) = hier soll das Möbel hin. Header: `X-Geraet` (Geräte-ID, 8–64 Zeichen, von der App einmal erzeugt), `X-Sprache` (`de`/`en`). Bilder und Aufträge werden nach 7 Tagen gelöscht. Die Website nutzt vorerst noch die alten Aufrufe unter `/api`.
+Foto und Maske kommen als data-URL; die Maske ist ein PNG, weiß (oder bei transparentem PNG: deckend gemalt) = hier soll das Möbel hin. Header: `X-Geraet` (Geräte-ID, 8–64 Zeichen, von der App einmal erzeugt), `X-Sprache` (`de`/`en`). Im Browser ersetzt das Cookie `geraet` den Header. Bilder und Aufträge werden nach 7 Tagen gelöscht. `berechnen?mit_html=true` liefert zusätzlich den fertigen Bauplan-Ausschnitt für die Website.
 
 ## Kostendeckel
 
@@ -150,7 +154,7 @@ Jeder bezahlte KI-Aufruf wird vorher in der Tabelle `verbrauch` eingetragen (`se
 | Lesungen / Anpassungen je Gerät und Tag | 5 / 10 | `LESEN_PRO_TAG`, `ANPASSEN_PRO_TAG` |
 | Tagesbudget für alle zusammen, gilt auch für Admin | 5 $ | `TAGESBUDGET_USD` |
 
-Die Geräte-ID ist ein Cookie, das die Startseite vergibt. Mit `ADMIN_SCHLUESSEL` gesetzt hebt `/?schluessel=…` die Kontingente für diesen Browser auf (nicht das Tagesbudget). `GET /api/kontingent` zeigt, was das Gerät noch gratis hat.
+Die Geräte-ID ist ein Cookie, das die Startseite vergibt. Mit `ADMIN_SCHLUESSEL` gesetzt hebt `/?schluessel=…` die Kontingente für diesen Browser auf (nicht das Tagesbudget). `GET /api/v1/kontingent` zeigt, was das Gerät noch gratis hat.
 
 Datenbank: ohne `DATABASE_URL` eine SQLite-Datei im Temp-Ordner. Auf fly.io eine SQLite-Datei auf dem Volume `/data` (siehe `fly.toml`). Für Postgres genügt `DATABASE_URL=postgres://…`; Tabellen legt die App selbst an.
 
@@ -180,6 +184,4 @@ Die Bild-KI malt manchmal Möbel, die man so nicht bauen kann: Rundungen, schweb
 
 Ergebnis: Die angezeigten Entwürfe sind schon baubar, und Bild und Bauplan passen zusammen. Kosten: je Runde ein Inpainting-Aufruf und ein bis zwei Claude-Aufrufe pro Entwurf. Den Loop eventuell nur für den gewählten Entwurf laufen lassen.
 
-Umsetzung: ein neuer Dienst `services/pruefer.py` (Claude: Bild → Mängelliste und Korrektur-Prompt). Dazu eine Funktion, die Bild-KI, Prüfer und Engine im Wechsel aufruft, angebunden an `controllers/entwuerfe.py`. Den Fortschritt je Runde an die Oberfläche melden, z. B. „Runde 2: Armlehne begradigt“.
-
-test
+Umsetzung: ein neuer Dienst `services/pruefer.py` (Claude: Bild → Mängelliste und Korrektur-Prompt). Dazu eine Funktion, die Bild-KI, Prüfer und Engine im Wechsel aufruft, angebunden an `controllers/api_v1.py` (Auftrag `entwuerfe`). Den Fortschritt je Runde an die Oberfläche melden, z. B. „Runde 2: Armlehne begradigt“.

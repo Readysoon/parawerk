@@ -1,11 +1,9 @@
 """App-API v1: ganzer Ablauf über Aufträge, Bildarbeit am Server, Bauplan als JSON, 3D als glb."""
 from __future__ import annotations
 
-import base64
 import io
 import json
 import struct
-import time
 
 import pytest
 from fastapi.testclient import TestClient
@@ -15,53 +13,13 @@ from app.config import Einstellungen, einstellungen
 from app.controllers.abhaengigkeiten import bild_ki, konstrukteur
 from app.main import app
 from app.services import bildarbeit as ba
-from app.services.fehler import DienstFehler
-from tests.test_api import KonstrukteurAttrappe
-
-BEREICH = [2000, 1000, 1000]
-GERAET = {"X-Geraet": "testgeraet-0001"}
-
-
-def data_url(bild: Image.Image, fmt: str = "JPEG") -> str:
-    puffer = io.BytesIO()
-    bild.save(puffer, fmt)
-    return f"data:image/{fmt.lower()};base64,{base64.b64encode(puffer.getvalue()).decode()}"
-
-
-def foto_und_maske(w: int = 1600, h: int = 1200) -> tuple[str, str]:
-    foto = Image.new("RGB", (w, h), (200, 190, 170))
-    maske = Image.new("L", (w // 2, h // 2), 0)  # andere Größe als das Foto: der Server skaliert
-    ImageDraw.Draw(maske).rectangle((100, 150, 500, 450), fill=255)
-    return data_url(foto), data_url(maske, "PNG")
-
-
-class BildKI:
-    """Malt den ganzen Entwurf rot; eingesetzt werden darf davon nur der markierte Bereich."""
-    demo = False
-
-    async def entwerfen(self, foto, maske, prompt, seeds):
-        if "kaputt" in prompt:
-            raise DienstFehler("Zeitüberschreitung")
-        return [data_url(Image.new("RGB", (512, 384), (255, 0, 0))) for _ in seeds]
-
-    async def bearbeiten(self, bild, anweisung, seed):
-        return data_url(Image.new("RGB", (512, 384), (0, 0, 255)))
-
-
-def warten(c: TestClient, aid: str) -> dict:
-    for _ in range(200):
-        stand = c.get(f"/api/v1/auftraege/{aid}", headers=GERAET).json()
-        if stand["status"] != "laeuft":
-            return stand
-        time.sleep(0.02)
-    raise AssertionError("Auftrag läuft zu lange")
-
+from tests.hilfen import BEREICH, GERAET, BildKIAttrappe, KonstrukteurAttrappe, data_url, foto_und_maske, warten
 
 @pytest.fixture
 def echt():
     app.dependency_overrides[einstellungen] = lambda: Einstellungen(_env_file=None, replicate_api_token="x",
                                                                     anthropic_api_key="x")
-    app.dependency_overrides[bild_ki] = lambda: BildKI()
+    app.dependency_overrides[bild_ki] = lambda: BildKIAttrappe()
     app.dependency_overrides[konstrukteur] = lambda: KonstrukteurAttrappe()
     with TestClient(app) as c:  # ein Event-Loop für alle Anfragen, damit Aufträge weiterlaufen
         yield c

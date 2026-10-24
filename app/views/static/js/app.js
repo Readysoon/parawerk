@@ -1,5 +1,5 @@
-// Oberfläche: Foto, Maske malen, Entwürfe zusammensetzen, Bauplan anzeigen.
-// Gerechnet wird auf dem Server; hier passiert nur, was ein Foto im Browser braucht.
+// Oberfläche: Foto, Maske malen, Entwürfe und Bauplan anzeigen.
+// Alles Rechnen und die Bildarbeit macht der Server (/api/v1, dieselbe API wie die App); hier nur Foto, Maske, Anzeige.
 import { a4Homography, messeMm } from './geometrie.js';
 
 const MAXPX = 1024;
@@ -10,7 +10,7 @@ const tx = (k, w = {}) => (TEXTE[`ui.${k}`] ?? k).replace(/\{(\w+)\}/g, (_, n) =
 
 const z = {
   schritt: 0, foto: null, a4: [], a4Modus: false, radierer: false, cursor: null, bereich: [1800, 900, 900],
-  entwuerfe: [], njVerlauf: [], demo: false, gewaehlt: -1, graph: null, verlauf: [], beschaeftigt: false, ergebnis: null,
+  entwuerfe: [], njVerlauf: [], demo: false, fotoId: null, maskeId: null, gewaehlt: -1, graph: null, verlauf: [], beschaeftigt: false, ergebnis: null,
 };
 const maske = document.createElement('canvas');
 let bild = null, viewer = null, malt = false;
@@ -33,18 +33,31 @@ function zeigeSchritt(n) {
 function status(text) { z.beschaeftigt = !!text; $('status').hidden = !text; $('status-text').textContent = text || ''; }
 function fehler(text) { $('fehler').hidden = !text; $('fehler').textContent = text || ''; }
 
-async function api(pfad, daten, { roh = false } = {}) {
-  const res = await fetch(pfad, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(daten) });
+const API = '/api/v1';
+async function api(pfad, daten, { roh = false, methode = 'POST' } = {}) {
+  const res = await fetch(API + pfad, methode === 'GET' ? {} :
+    { method: methode, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(daten) });
   if (roh && res.ok) return res;
   const j = await res.json().catch(() => ({ fehler: tx('serverfehler', { n: res.status }) }));
   if (!res.ok) throw new Error(j.fehler || tx('serverfehler', { n: res.status }));
   return j;
 }
+// Lange KI-Aufrufe sind Aufträge: starten, dann nachfragen, bis sie fertig sind
+const warte = ms => new Promise(ok => setTimeout(ok, ms));
+async function auftrag(pfad, daten) {
+  const start = await api(pfad, daten);
+  for (let i = 0; ; i++) {
+    await warte(i === 0 ? 300 : 1000);
+    const s = await api(`/auftraege/${start.auftrag}`, null, { methode: 'GET' });
+    if (s.status === 'fertig') return { ...start, ...s.ergebnis };
+    if (s.status === 'fehler') throw new Error(s.fehler);
+  }
+}
 
 // ---------- Gratis-Kontingent ----------
 async function kontingentLaden() {
   try {
-    const k = await (await fetch('/api/kontingent')).json();
+    const k = await api('/kontingent', null, { methode: 'GET' });
     const zeige = (id, n, art) => {
       $(id).hidden = n == null;
       if (n != null) $(id).textContent = tx(n === 0 ? `${art}_0` : n === 1 ? `${art}_1` : art, { n });
@@ -62,7 +75,7 @@ async function fotoSetzen(src, istDemo) {
   const url = c.toDataURL('image/jpeg', 0.88);
   bild = await bildLaden(url);
   maske.width = c.width; maske.height = c.height; toenung = null;
-  Object.assign(z, { foto: { url, w: c.width, h: c.height, demo: istDemo }, a4: [], entwuerfe: [], graph: null, gewaehlt: -1 });
+  Object.assign(z, { foto: { url, w: c.width, h: c.height, demo: istDemo }, a4: [], entwuerfe: [], graph: null, gewaehlt: -1, fotoId: null });
   $('arbeitsflaeche').hidden = false; $('kein-foto').hidden = true;
   fehler(''); a4Anzeigen(); zeigeSchritt(1);  // direkt markieren
 }
@@ -193,36 +206,21 @@ async function entwerfen() {
   if (!b) { fehler(tx('erst_markieren')); zeigeSchritt(1); return; }
   status(tx('st_entwerfen')); fehler('');
   try {
-    const mk = document.createElement('canvas'); mk.width = z.foto.w; mk.height = z.foto.h; const g = mk.getContext('2d');
-    g.fillStyle = '#000'; g.fillRect(0, 0, mk.width, mk.height); g.filter = 'blur(2px)'; g.drawImage(maske, 0, 0);
-    const j = await api('/api/entwuerfe', { foto: z.foto.url, maske: mk.toDataURL('image/png'), wunsch: $('wunsch').value });
-    z.demo = j.demo;
+    // Maske: transparent, gemalt = deckend weiß; das Foto nur beim ersten Mal hochladen
+    const foto = z.fotoId ? { foto_id: z.fotoId } : { foto: z.foto.url };
+    const j = await auftrag('/entwuerfe', { ...foto, maske: maske.toDataURL('image/png'), wunsch: $('wunsch').value });
+    Object.assign(z, { demo: j.demo, fotoId: j.foto_id, maskeId: j.maske_id, entwuerfe: j.entwuerfe });
     $('bild-prompt').textContent = j.prompt;
-    z.entwuerfe = [];
-    for (const src of j.bilder) z.entwuerfe.push(await einsetzen(src));
     z.gewaehlt = -1; z.graph = null; z.njVerlauf = [];
     entwuerfeAnzeigen(); zeigeSchritt(3);
   } catch (e) { fehler(e.message); } finally { status(''); kontingentLaden(); }
 }
-// nur den markierten Bereich (weich ausgeblendet) aus dem Entwurf ins Originalfoto übernehmen
-async function einsetzen(src) {
-  const d = await bildLaden(src);
-  const out = document.createElement('canvas'); out.width = bild.width; out.height = bild.height; const g = out.getContext('2d');
-  g.drawImage(bild, 0, 0);
-  const t = document.createElement('canvas'); t.width = bild.width; t.height = bild.height; const tg = t.getContext('2d');
-  tg.drawImage(d, 0, 0, t.width, t.height);
-  const m = document.createElement('canvas'); m.width = bild.width; m.height = bild.height; const mg = m.getContext('2d');
-  mg.filter = 'blur(10px)'; mg.drawImage(maske, 0, 0); mg.drawImage(maske, 0, 0);
-  tg.globalCompositeOperation = 'destination-in'; tg.drawImage(m, 0, 0);
-  g.drawImage(t, 0, 0);
-  return out.toDataURL('image/jpeg', 0.9);
-}
 function entwuerfeAnzeigen() {
   const box = $('entwuerfe'); box.replaceChildren();
-  z.entwuerfe.forEach((src, i) => {
+  z.entwuerfe.forEach((e, i) => {
     const b = document.createElement('button');
     b.className = 'design'; b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', z.gewaehlt === i);
-    const img = document.createElement('img'); img.src = src; img.alt = tx('entwurf', { n: i + 1 });
+    const img = document.createElement('img'); img.src = e.url; img.alt = tx('entwurf', { n: i + 1 });
     const s = document.createElement('span'); s.textContent = tx('entwurf', { n: i + 1 });
     b.append(img, s);
     b.addEventListener('click', () => { z.gewaehlt = i; entwuerfeAnzeigen(); $('nj-text').focus(); });
@@ -233,15 +231,16 @@ function entwuerfeAnzeigen() {
   $('nj-zurueck').disabled = !(z.njVerlauf[z.gewaehlt] || []).length;
 }
 
-// ---------- Entwurf nachjustieren (FLUX Kontext ändert das Bild, eingesetzt wird wieder nur der markierte Bereich) ----------
+// ---------- Entwurf nachjustieren (FLUX Kontext ändert das Bild, der Server setzt wieder nur den markierten Bereich ein) ----------
 async function nachjustieren() {
   const i = z.gewaehlt, text = $('nj-text').value.trim();
   if (i < 0 || !text || z.beschaeftigt) return;
   status(tx('st_nachjustieren')); fehler('');
   try {
-    const j = await api('/api/entwuerfe/nachjustieren', { bild: z.entwuerfe[i], wunsch: $('wunsch').value, anpassung: text });
+    const j = await auftrag('/entwuerfe/nachjustieren', {
+      foto_id: z.fotoId, maske_id: z.maskeId, entwurf_id: z.entwuerfe[i].id, wunsch: $('wunsch').value, anpassung: text });
     (z.njVerlauf[i] ||= []).push(z.entwuerfe[i]);
-    z.entwuerfe[i] = await einsetzen(j.bild);
+    z.entwuerfe[i] = j.entwurf;
     $('bild-prompt').textContent = j.prompt; $('nj-text').value = '';
     entwuerfeAnzeigen();
   } catch (e) { fehler(e.message); } finally { status(''); kontingentLaden(); }
@@ -260,14 +259,10 @@ async function bauplanErstellen() {
   if (z.gewaehlt < 0) return;
   status(tx('st_lesen')); fehler('');
   try {
-    const b = maskenRahmen(), img = await bildLaden(z.entwuerfe[z.gewaehlt]);
-    const mx = (b.x1 - b.x0) * 0.2, my = (b.y1 - b.y0) * 0.2;
-    const x0 = Math.max(0, b.x0 - mx), y0 = Math.max(0, b.y0 - my), x1 = Math.min(img.width, b.x1 + mx), y1 = Math.min(img.height, b.y1 + my);
-    const c = document.createElement('canvas'); c.width = x1 - x0; c.height = y1 - y0;
-    c.getContext('2d').drawImage(img, x0, y0, c.width, c.height, 0, 0, c.width, c.height);
-    const j = await api('/api/bauplan/lesen', { bild: c.toDataURL('image/jpeg', 0.9), bereich: z.bereich, demo_index: z.demo ? z.gewaehlt : null });
+    const e = z.entwuerfe[z.gewaehlt];  // den Ausschnitt um den Bereich schneidet der Server
+    const j = await auftrag('/bauplan/lesen', { entwurf_id: e.id, maske_id: z.maskeId, bereich: z.bereich, demo_index: z.demo ? z.gewaehlt : null });
     z.graph = j.graph; z.verlauf = []; $('verlauf').replaceChildren(); $('rueckgaengig').disabled = true;
-    $('gewaehlt').src = z.entwuerfe[z.gewaehlt];
+    $('gewaehlt').src = e.url;
     await berechnen();
     zeigeSchritt(4);
   } catch (e) { fehler(e.message); } finally { status(''); }
@@ -276,7 +271,7 @@ $('bauplan-erstellen').addEventListener('click', bauplanErstellen);
 
 async function berechnen() {
   try {
-    const j = await api('/api/bauplan/berechnen', { graph: z.graph, bereich: z.bereich });
+    const j = await api('/bauplan/berechnen?mit_html=true&mit_glb=false', { graph: z.graph, bereich: z.bereich });
     z.ergebnis = j;
     $('bauplan').innerHTML = j.html;
     const vorlage = $('bauplan').querySelector('#ergebnis-vorlage');
@@ -294,7 +289,7 @@ async function anpassen() {
   const text = $('anpassen-text').value.trim(); if (!text || !z.graph || z.beschaeftigt) return;
   verlauf('me', text); $('anpassen-text').value = ''; status(tx('st_anpassen'));
   try {
-    const j = await api('/api/bauplan/anpassen', { graph: z.graph, wunsch: text });
+    const j = await auftrag('/bauplan/anpassen', { graph: z.graph, wunsch: text });
     z.verlauf.push(z.graph); z.graph = j.graph; $('rueckgaengig').disabled = false;
     await berechnen();
     verlauf('ai', tx('geaendert'));
@@ -316,7 +311,7 @@ $('ergebnis').addEventListener('click', async e => {
   const aktion = e.target.closest('[data-aktion]')?.dataset.aktion;
   if (aktion === 'drucken') window.print();
   if (aktion === 'dxf') {
-    try { herunterladen('parawerk.dxf', await (await api('/api/bauplan/dxf', { graph: z.graph, bereich: z.bereich }, { roh: true })).blob()); }
+    try { herunterladen('parawerk.dxf', await (await api('/bauplan/dxf', { graph: z.graph, bereich: z.bereich }, { roh: true })).blob()); }
     catch (err) { fehler(err.message); }
   }
   if (aktion === 'json') {

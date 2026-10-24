@@ -17,7 +17,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from .controllers import api_v1, bauplan, entwuerfe, kontingent, seiten
+from .controllers import api_v1, seiten
 from .i18n import SPRACHEN, aus_header, setze_sprache, t, zuruecksetzen
 from .views import STATIC
 
@@ -62,9 +62,6 @@ def create_app() -> FastAPI:
     app.add_middleware(SprachMiddleware)
     app.mount("/static", StaticFiles(directory=STATIC), name="static")
     app.include_router(seiten.router)
-    app.include_router(entwuerfe.router)
-    app.include_router(bauplan.router)
-    app.include_router(kontingent.router)
     app.include_router(api_v1.router)
 
     # Fehler immer als {"fehler": "..."} in der Sprache der Anfrage, damit die Oberfläche sie direkt zeigen kann

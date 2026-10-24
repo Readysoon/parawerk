@@ -134,24 +134,33 @@ class _EntwuerfeSeiteState extends State<EntwuerfeSeite> {
             ],
           ),
           if (_gewaehlt >= 0) ...[
-            Abschnitt(tr('nachjustieren')),
-            TextField(
-              controller: _aenderung,
-              maxLength: 500,
-              decoration: InputDecoration(hintText: tr('nachjustieren_platzhalter'), border: const OutlineInputBorder()),
-              onSubmitted: (_) => _nachjustieren(),
-            ),
-            Row(children: [
-              OutlinedButton(onPressed: _nachjustieren, child: Text(tr('aendern'))),
-              const SizedBox(width: 8),
-              if (hatVerlauf) IconButton(onPressed: _rueckgaengig, icon: const Icon(Icons.undo)),
-            ]),
-            FreiHinweis(_freiNj),
-            const SizedBox(height: 20),
+            // Hauptweg: Entwurf passt → gleich den Bauplan. Ändern ist nur eine Option darunter.
+            const SizedBox(height: 16),
             FilledButton(
               onPressed: _bauplan,
               style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
               child: Text(tr('bauplan_erstellen')),
+            ),
+            const SizedBox(height: 8),
+            ExpansionTile(
+              title: Text(tr('nachjustieren')),
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: const EdgeInsets.only(bottom: 8),
+              initiallyExpanded: hatVerlauf,
+              children: [
+                TextField(
+                  controller: _aenderung,
+                  maxLength: 500,
+                  decoration: InputDecoration(hintText: tr('nachjustieren_platzhalter'), border: const OutlineInputBorder()),
+                  onSubmitted: (_) => _nachjustieren(),
+                ),
+                Row(children: [
+                  OutlinedButton(onPressed: _nachjustieren, child: Text(tr('aendern'))),
+                  const SizedBox(width: 8),
+                  if (hatVerlauf) IconButton(onPressed: _rueckgaengig, icon: const Icon(Icons.undo)),
+                ]),
+                Align(alignment: Alignment.centerLeft, child: FreiHinweis(_freiNj)),
+              ],
             ),
           ],
         ]),

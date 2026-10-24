@@ -223,7 +223,7 @@ function entwuerfeAnzeigen() {
     const img = document.createElement('img'); img.src = e.url; img.alt = tx('entwurf', { n: i + 1 });
     const s = document.createElement('span'); s.textContent = tx('entwurf', { n: i + 1 });
     b.append(img, s);
-    b.addEventListener('click', () => { z.gewaehlt = i; entwuerfeAnzeigen(); $('nj-text').focus(); });
+    b.addEventListener('click', () => { z.gewaehlt = i; entwuerfeAnzeigen(); $('bauplan-erstellen').focus(); });  // Ändern ist optional
     box.append(b);
   });
   $('bauplan-erstellen').disabled = z.gewaehlt < 0;

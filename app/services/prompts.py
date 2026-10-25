@@ -71,8 +71,15 @@ Antworte mit dem Bauteilgraph als JSON. Bedeutung der Felder:
 {GRAPH_SCHEMA}{_namen()}"""
 
 
-def pruef_prompt(graph: dict, bereich: list[float]) -> str:
-    """Selbstkontrolle: Claude vergleicht das berechnete Modell mit dem Entwurf und korrigiert den Graph."""
+def pruef_prompt(graph: dict, bereich: list[float], meldungen: list[str] | None = None) -> str:
+    """Selbstkontrolle: Claude vergleicht das berechnete Modell mit dem Entwurf und korrigiert den Graph.
+
+    ``meldungen``: was die Endkontrolle der Engine bemängelt (z. B. Teile ohne Verbindung), als zusätzlicher Hinweis.
+    """
+    code = ""
+    if meldungen:
+        code = ("\nDie Endkontrolle des Codes meldet außerdem:\n" + "\n".join(f"- {m}" for m in meldungen)
+                + "\nKommt so ein Punkt aus der Lesung (z. B. Teile, die nirgends anliegen), korrigiere die Lage im Graph.\n")
     return f"""Du bist Schreiner und prüfst einen Bauplan-Generator.
 Bild 1 ist der Entwurf: ein Möbel in einem Wohnungsfoto (Ausschnitt).
 Bild 2 zeigt das Möbel, das der Generator aus dem unten stehenden Bauteilgraph berechnet hat, von vorne links oben gesehen.
@@ -82,7 +89,7 @@ Der Platz in der Wohnung ist {_mm(bereich)} mm (Breite × Tiefe × Höhe).
 Vergleiche Bild 2 mit Bild 1: Art und Form des Möbels, Lehne, Armlehnen, Beine, Richtung der Latten (waagrecht oder senkrecht),
 Proportionen (Höhe zu Breite zu Tiefe), Sitz- bzw. Liegehöhe. Fehlen sichtbare Teile, oder gibt es Teile, die im Entwurf nicht vorkommen?
 Schweben Teile oder stecken sie ineinander?
-
+{code}
 Passt es im Wesentlichen: "passt": true, "maengel": [], "graph" unverändert.
 Sonst: "passt": false, "maengel" = kurze Liste, je ein Satz {t("prompt.maengel_sprache")}, und "graph" = der vollständige korrigierte
 Bauteilgraph. Ändere nur, was nötig ist; Maße, Verbindungen und Statik rechnet danach wieder der Code.

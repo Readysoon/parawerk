@@ -22,7 +22,8 @@ from ..models import verbrauch as v
 
 # geschätzte Kosten je Aufruf in US-Dollar (Okt. 2026): FLUX Fill Pro 0,05 $/Bild, FLUX Kontext Pro 0,04 $/Bild,
 # Claude Sonnet 5.5 2 $ / 10 $ je Million Tokens Ein-/Ausgabe
-KOSTEN = {"runde": 0.21, "nachjustieren": 0.045, "lesen": 0.09, "anpassen": 0.04}  # lesen inkl. Selbstkontrolle
+# lesen inkl. einer Runde Selbstkontrolle; jede weitere Runde ist eine „kontrolle“ (zählt nur fürs Tagesbudget)
+KOSTEN = {"runde": 0.21, "nachjustieren": 0.045, "lesen": 0.09, "anpassen": 0.04, "kontrolle": 0.05}
 
 
 @dataclass(frozen=True)

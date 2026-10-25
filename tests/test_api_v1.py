@@ -60,7 +60,8 @@ def test_ganzer_ablauf(echt):
                json={"entwurf_id": entwuerfe[1]["id"], "maske_id": ids["maske_id"], "bereich": BEREICH})
     gelesen = warten(c, r.json()["auftrag"])["ergebnis"]
     graph = gelesen["graph"]
-    assert gelesen["pruefung"] == {"passt": False, "maengel": ["Die Lehne fehlt."]} and graph["name"].endswith("(geprüft)")
+    assert gelesen["pruefung"]["passt"] is False and gelesen["pruefung"]["maengel"] == ["Die Lehne fehlt."]
+    assert gelesen["pruefung"]["runden"] in (1, 2) and graph["name"].endswith("(geprüft)")
     r = c.post("/api/v1/bauplan/berechnen", json={"graph": graph, "bereich": BEREICH}, headers={**GERAET, "X-Sprache": "en"})
     plan = r.json()
     assert r.status_code == 200 and plan["bauplan"]["pruefungen"] and plan["bauplan"]["einkauf"]
@@ -155,3 +156,35 @@ def test_selbstkontrolle_aus_oder_kaputt():
             assert getattr(k, "pruefungen", 0) == (1 if einstellung else 0)
         finally:
             app.dependency_overrides.clear()
+
+
+def test_zweite_runde_nur_bei_meldungen():
+    """Meldet die Engine nach der ersten Korrektur noch Fehler, gibt es eine zweite Runde mit diesen Meldungen."""
+    from tests.hilfen import alte_graphen
+
+    kaputt = alte_graphen()[0]
+    kaputt["teile"].append({"id": "x", "name": "Schwebende Leiste", "typ": "latte", "rolle": "leiste",
+                            "box": [0.4, 0.6, 0.4, 0.45, 0.97, 1.0]})  # hängt in der Luft: „ohne Verbindung“
+    for gut, runden in ((False, 2), (True, 1)):
+        k = KonstrukteurAttrappe()
+
+        async def lesen(bild, bereich, demo_index=None):
+            return json.loads(json.dumps(alte_graphen()[0] if gut else kaputt))
+        k.lesen = lesen
+        app.dependency_overrides[einstellungen] = lambda: Einstellungen(_env_file=None, replicate_api_token="x",
+                                                                        anthropic_api_key="x", gratis_runden=10)
+        app.dependency_overrides[bild_ki] = lambda: BildKIAttrappe()
+        app.dependency_overrides[konstrukteur] = lambda: k
+        try:
+            with TestClient(app) as c:
+                foto, maske = foto_und_maske()
+                r = c.post("/api/v1/entwuerfe", json={"foto": foto, "maske": maske}, headers=GERAET)
+                ids = r.json()
+                entwurf = warten(c, r)["ergebnis"]["entwuerfe"][0]["id"]
+                gelesen = warten(c, c.post("/api/v1/bauplan/lesen", headers=GERAET, json={
+                    "entwurf_id": entwurf, "maske_id": ids["maske_id"], "bereich": BEREICH}))["ergebnis"]
+        finally:
+            app.dependency_overrides.clear()
+        assert gelesen["pruefung"]["runden"] == runden and k.pruefungen == runden
+        if not gut:
+            assert any("Schwebende Leiste" in m for m in k.meldungen)

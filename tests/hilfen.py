@@ -58,10 +58,11 @@ class KonstrukteurAttrappe:
         assert bild.startswith("data:image/")
         return alte_graphen()[2]
 
-    async def pruefen(self, entwurf, modell, graph, bereich):
+    async def pruefen(self, entwurf, modell, graph, bereich, meldungen=None):
         """Selbstkontrolle: meldet einen Mangel und benennt den Graph um, damit man die Korrektur erkennt."""
         assert entwurf.startswith("data:image/jpeg") and modell.startswith("data:image/png")
         self.pruefungen = getattr(self, "pruefungen", 0) + 1
+        self.meldungen = meldungen
         if getattr(self, "pruefung_kaputt", False):
             raise DienstFehler("Claude nicht erreichbar")
         neu = json.loads(json.dumps(graph))

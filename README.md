@@ -145,7 +145,7 @@ Foto und Maske kommen als data-URL; die Maske ist ein PNG, weiß (oder bei trans
 
 ## Selbstkontrolle beim Lesen
 
-Nach dem Lesen rechnet der Server das Modell einmal durch und zeichnet es (`models/ansicht.py`, Schrägansicht von vorne links oben). Claude bekommt Entwurf und Modellbild nebeneinander, prüft wie ein Schreiner (Form, Lehne, Lattenrichtung, Proportionen, schwebende oder fehlende Teile) und liefert bei Mängeln einen korrigierten Bauteilgraph (`pruef_prompt`). Eine Runde, ca. 4–5 Cent extra; scheitert die Kontrolle, bleibt die erste Lesung. Die Korrekturen stehen im Ergebnis des Auftrags unter `pruefung` und erscheinen auf Website und in der App. Abschalten mit `SELBSTKONTROLLE=false`.
+Nach dem Lesen rechnet der Server das Modell einmal durch und zeichnet es (`models/ansicht.py`, Schrägansicht von vorne links oben). Claude bekommt Entwurf und Modellbild nebeneinander, prüft wie ein Schreiner (Form, Lehne, Lattenrichtung, Proportionen, schwebende oder fehlende Teile) und liefert bei Mängeln einen korrigierten Bauteilgraph (`pruef_prompt`). Meldet die Endkontrolle der Engine danach noch Fehler (z. B. Teile ohne Verbindung), gibt es eine zweite Runde, in der Claude diese Meldungen mitbekommt (`KONTROLLRUNDEN`, Standard 2). Je Runde ca. 5 Cent; scheitert die Kontrolle, bleibt der letzte gute Stand. Die Korrekturen stehen im Ergebnis des Auftrags unter `pruefung` und erscheinen auf Website und in der App. Abschalten mit `SELBSTKONTROLLE=false`.
 
 ## Kostendeckel
 

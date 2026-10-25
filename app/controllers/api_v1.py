@@ -192,20 +192,38 @@ async def nachjustieren(anfrage: NachjustierenV1, ki: BildKI = Depends(bild_ki),
     return AuftragAntwort(auftrag=aid)
 
 
-async def _selbstkontrolle(kon: Konstrukteur, entwurf_url: str, graph: dict, bereich: list[float],
-                           sortiment: str) -> tuple[dict, dict | None]:
-    """Modell berechnen und zeichnen, Claude vergleicht es mit dem Entwurf und korrigiert den Graph einmal.
+async def _selbstkontrolle(kon: Konstrukteur, entwurf_url: str, graph: dict, bereich: list[float], sortiment: str,
+                           runden: int, weitere_runde) -> tuple[dict, dict | None]:
+    """Modell berechnen und zeichnen, Claude vergleicht es mit dem Entwurf und korrigiert den Graph.
 
-    Geht dabei etwas schief, bleibt die erste Lesung; die Kontrolle ist ein Zusatz, kein Muss.
+    Die erste Runde läuft immer, jede weitere nur, wenn Claude etwas korrigiert hat und die Endkontrolle der Engine
+    danach noch etwas meldet. ``weitere_runde()`` bucht die Kosten und sagt, ob das Budget sie noch erlaubt.
+    Geht etwas schief, bleibt der letzte gute Stand; die Kontrolle ist ein Zusatz, kein Muss.
     """
-    try:
-        ergebnis = await run_in_threadpool(engine_berechnen, graph, bereich, sortiment)
-        bild = await run_in_threadpool(modellbild, modell_3d(ergebnis))
-        antwort = await kon.pruefen(entwurf_url, ba.als_data_url(ba.png(bild), "image/png"), graph, bereich)
-    except (DienstFehler, GraphFehler, ValueError, KeyError, IndexError, ZeroDivisionError) as err:
-        log.warning("Selbstkontrolle übersprungen: %s", err)
+    maengel: list[str] = []
+    passt = True
+    durchgefuehrt = 0
+    for runde in range(max(1, runden)):
+        try:
+            ergebnis = await run_in_threadpool(engine_berechnen, graph, bereich, sortiment)
+            meldungen = [c["t"] for c in ergebnis.checks if c["ok"] is False]
+            if runde > 0 and (not meldungen or not await weitere_runde()):
+                break
+            bild = await run_in_threadpool(modellbild, modell_3d(ergebnis))
+            antwort = await kon.pruefen(entwurf_url, ba.als_data_url(ba.png(bild), "image/png"), graph, bereich,
+                                        meldungen)
+        except (DienstFehler, GraphFehler, ValueError, KeyError, IndexError, ZeroDivisionError) as err:
+            log.warning("Selbstkontrolle Runde %d übersprungen: %s", runde + 1, err)
+            break
+        durchgefuehrt += 1
+        if antwort["passt"]:
+            break
+        passt = False
+        graph = antwort["graph"]
+        maengel += [m for m in antwort["maengel"] if m not in maengel]
+    if not durchgefuehrt:
         return graph, None
-    return antwort["graph"], {"passt": antwort["passt"], "maengel": antwort["maengel"]}
+    return graph, {"passt": passt, "maengel": maengel, "runden": durchgefuehrt}
 
 
 @router.post("/bauplan/lesen", response_model=AuftragAntwort, status_code=202)
@@ -222,7 +240,15 @@ async def lesen(anfrage: LesenV1, kon: Konstrukteur = Depends(konstrukteur), dec
         graph = await kon.lesen(teil_url, anfrage.bereich, anfrage.demo_index)
         pruefung = None
         if not kon.demo and e.selbstkontrolle:
-            graph, pruefung = await _selbstkontrolle(kon, teil_url, graph, anfrage.bereich, e.sortiment)
+            async def weitere_runde() -> bool:
+                try:
+                    await run_in_threadpool(deckel.reservieren, "kontrolle", k)
+                    return True
+                except Gesperrt:  # Tagesbudget erreicht: bei einer Runde bleiben
+                    return False
+
+            graph, pruefung = await _selbstkontrolle(kon, teil_url, graph, anfrage.bereich, e.sortiment,
+                                                     e.kontrollrunden, weitere_runde)
         return {"demo": kon.demo, "graph": graph, "pruefung": pruefung}
 
     aid = await starten(db, k.geraet, "lesen", arbeit, "fehler.lesen", lambda: erstatten(deckel, eintrag))

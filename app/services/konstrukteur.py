@@ -37,7 +37,8 @@ class Konstrukteur(Protocol):
 
     async def bild_prompt(self, wunsch: str, foto: str | None, maske: str | None) -> str: ...
 
-    async def pruefen(self, entwurf: str, modell: str, graph: dict, bereich: list[float]) -> dict: ...
+    async def pruefen(self, entwurf: str, modell: str, graph: dict, bereich: list[float],
+                      meldungen: list[str] | None = None) -> dict: ...
 
     async def bearbeitungs_prompt(self, wunsch: str, anpassung: str, bild: str) -> str: ...
 
@@ -94,9 +95,10 @@ class ClaudeKonstrukteur:
     async def lesen(self, bild: str | None, bereich: list[float], demo_index: int | None = None) -> dict:
         return await self._graph(lese_prompt(bereich), bild)
 
-    async def pruefen(self, entwurf: str, modell: str, graph: dict, bereich: list[float]) -> dict:
+    async def pruefen(self, entwurf: str, modell: str, graph: dict, bereich: list[float],
+                      meldungen: list[str] | None = None) -> dict:
         """Selbstkontrolle: Entwurf (Bild 1) gegen berechnetes Modell (Bild 2). Gibt passt, maengel und graph zurück."""
-        j = await self._senden(pruef_prompt(graph, bereich), [entwurf, modell], 9000, PRUEF_SCHEMA)
+        j = await self._senden(pruef_prompt(graph, bereich, meldungen), [entwurf, modell], 9000, PRUEF_SCHEMA)
         texte = "\n".join(c.get("text", "") for c in j.get("content", []) if c.get("type") == "text")
         antwort = json_aus_text(texte)
         if not isinstance(antwort, dict):
@@ -149,7 +151,8 @@ class DemoKonstrukteur:
     async def bild_prompt(self, wunsch: str, foto: str | None, maske: str | None) -> str:
         return inpaint_prompt(wunsch)
 
-    async def pruefen(self, entwurf: str, modell: str, graph: dict, bereich: list[float]) -> dict:
+    async def pruefen(self, entwurf: str, modell: str, graph: dict, bereich: list[float],
+                      meldungen: list[str] | None = None) -> dict:
         return {"passt": True, "maengel": [], "graph": graph}
 
     async def bearbeitungs_prompt(self, wunsch: str, anpassung: str, bild: str) -> str:

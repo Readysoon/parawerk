@@ -9,12 +9,20 @@ import '../sitzung.dart';
 import '../texte.dart';
 
 class BauplanSeite extends StatefulWidget {
-  const BauplanSeite({super.key, required this.sitzung, required this.entwurf, required this.graph, required this.plan});
+  const BauplanSeite({
+    super.key,
+    required this.sitzung,
+    required this.entwurf,
+    required this.graph,
+    required this.plan,
+    this.maengel = const [],
+  });
 
   final Sitzung sitzung;
   final Entwurf entwurf;
   final Map<String, dynamic> graph;
   final Map<String, dynamic> plan; // Antwort von /api/v1/bauplan/berechnen
+  final List<String> maengel; // von der Selbstkontrolle korrigiert
 
   @override
   State<BauplanSeite> createState() => _BauplanSeiteState();
@@ -89,6 +97,12 @@ class _BauplanSeiteState extends State<BauplanSeite> {
               ),
             ),
             Text(tr('modell_3d'), style: stil.bodySmall),
+          ],
+
+          if (widget.maengel.isNotEmpty) ...[
+            Abschnitt(tr('selbstkontrolle')),
+            Text(tr('selbstkontrolle_text')),
+            for (final m in widget.maengel) Text('• $m'),
           ],
 
           Abschnitt(tr('ergebnis')),

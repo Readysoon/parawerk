@@ -71,6 +71,29 @@ Antworte mit dem Bauteilgraph als JSON. Bedeutung der Felder:
 {GRAPH_SCHEMA}{_namen()}"""
 
 
+def pruef_prompt(graph: dict, bereich: list[float]) -> str:
+    """Selbstkontrolle: Claude vergleicht das berechnete Modell mit dem Entwurf und korrigiert den Graph."""
+    return f"""Du bist Schreiner und prüfst einen Bauplan-Generator.
+Bild 1 ist der Entwurf: ein Möbel in einem Wohnungsfoto (Ausschnitt).
+Bild 2 zeigt das Möbel, das der Generator aus dem unten stehenden Bauteilgraph berechnet hat, von vorne links oben gesehen.
+Hell: Holz aus dem Graph. Orange: vom Code für die Stabilität ergänzt (Absicht, nicht bemängeln). Grau: Polster oder Matratze.
+Der Platz in der Wohnung ist {_mm(bereich)} mm (Breite × Tiefe × Höhe).
+
+Vergleiche Bild 2 mit Bild 1: Art und Form des Möbels, Lehne, Armlehnen, Beine, Richtung der Latten (waagrecht oder senkrecht),
+Proportionen (Höhe zu Breite zu Tiefe), Sitz- bzw. Liegehöhe. Fehlen sichtbare Teile, oder gibt es Teile, die im Entwurf nicht vorkommen?
+Schweben Teile oder stecken sie ineinander?
+
+Passt es im Wesentlichen: "passt": true, "maengel": [], "graph" unverändert.
+Sonst: "passt": false, "maengel" = kurze Liste, je ein Satz {t("prompt.maengel_sprache")}, und "graph" = der vollständige korrigierte
+Bauteilgraph. Ändere nur, was nötig ist; Maße, Verbindungen und Statik rechnet danach wieder der Code.
+
+Bauteilgraph:
+{json.dumps(graph, ensure_ascii=False)}
+
+Bedeutung der Felder:
+{GRAPH_SCHEMA}{_namen()}"""
+
+
 def anpass_prompt(graph: dict, wunsch: str) -> str:
     return f"""Hier ist der Bauteilgraph eines Möbels:
 {json.dumps(graph, ensure_ascii=False)}

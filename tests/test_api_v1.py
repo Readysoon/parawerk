@@ -58,7 +58,9 @@ def test_ganzer_ablauf(echt):
     # Lesen und Berechnen
     r = c.post("/api/v1/bauplan/lesen", headers=GERAET,
                json={"entwurf_id": entwuerfe[1]["id"], "maske_id": ids["maske_id"], "bereich": BEREICH})
-    graph = warten(c, r.json()["auftrag"])["ergebnis"]["graph"]
+    gelesen = warten(c, r.json()["auftrag"])["ergebnis"]
+    graph = gelesen["graph"]
+    assert gelesen["pruefung"] == {"passt": False, "maengel": ["Die Lehne fehlt."]} and graph["name"].endswith("(geprüft)")
     r = c.post("/api/v1/bauplan/berechnen", json={"graph": graph, "bereich": BEREICH}, headers={**GERAET, "X-Sprache": "en"})
     plan = r.json()
     assert r.status_code == 200 and plan["bauplan"]["pruefungen"] and plan["bauplan"]["einkauf"]
@@ -129,3 +131,27 @@ def test_transparente_maske():
     ImageDraw.Draw(m).rectangle((50, 20, 150, 80), fill=(255, 200, 0, 255))
     grau = ba.maske_vorbereiten(m, (400, 200))
     assert ba.rahmen(grau) == pytest.approx((100, 40, 302, 162), abs=3)
+
+
+def test_selbstkontrolle_aus_oder_kaputt():
+    """Ohne Selbstkontrolle oder wenn sie scheitert, bleibt die erste Lesung."""
+    for einstellung, kaputt in ((False, False), (True, True)):
+        k = KonstrukteurAttrappe()
+        k.pruefung_kaputt = kaputt
+        app.dependency_overrides[einstellungen] = lambda: Einstellungen(_env_file=None, replicate_api_token="x",
+                                                                        anthropic_api_key="x", selbstkontrolle=einstellung,
+                                                                        gratis_runden=10, ip_runden_pro_tag=10)
+        app.dependency_overrides[bild_ki] = lambda: BildKIAttrappe()
+        app.dependency_overrides[konstrukteur] = lambda: k
+        try:
+            with TestClient(app) as c:
+                foto, maske = foto_und_maske()
+                r = c.post("/api/v1/entwuerfe", json={"foto": foto, "maske": maske}, headers=GERAET)
+                ids = r.json()
+                entwurf = warten(c, r)["ergebnis"]["entwuerfe"][0]["id"]
+                gelesen = warten(c, c.post("/api/v1/bauplan/lesen", headers=GERAET, json={
+                    "entwurf_id": entwurf, "maske_id": ids["maske_id"], "bereich": BEREICH}))["ergebnis"]
+            assert gelesen["pruefung"] is None and not gelesen["graph"]["name"].endswith("(geprüft)")
+            assert getattr(k, "pruefungen", 0) == (1 if einstellung else 0)
+        finally:
+            app.dependency_overrides.clear()

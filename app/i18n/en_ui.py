@@ -78,6 +78,8 @@ TEXTE = {
     "ui.st_nachjustieren": "The image AI is adjusting the design. This usually takes 20–40 seconds …",
     "ui.st_lesen": "Claude is reading the construction from the design. This usually takes 20–60 seconds …",
     "ui.st_anpassen": "Claude is changing the construction …",
+    "ui.geprueft_ok": "Self-check: Claude compared the calculated model with the design, it matches.",
+    "ui.geprueft": "Self-check: Claude compared the calculated model with the design and corrected: {liste}",
     "ui.geaendert": "Construction changed, everything recalculated and checked.",
     "ui.zurueckgenommen": "Last change undone.",
     # ---------- Build plan ----------
@@ -153,6 +155,7 @@ TEXTE = {
     "ui.frei_nj_1": "1 free change left",
     "ui.frei_nj": "{n} free changes left",
     # ---------- Claude: language of names ----------
+    "prompt.maengel_sprache": "in English",
     "prompt.namen": "Write the furniture \"name\" and every part \"name\" in English (e.g. \"Front legs\", \"Slats\", "
                     "\"Backrest battens\"). All other field values stay exactly as specified.",
     # ---------- Names in the sample constructions ----------

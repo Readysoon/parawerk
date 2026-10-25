@@ -150,8 +150,9 @@ class Api {
     return Entwurf.ausJson(j['entwurf'] as Map<String, dynamic>);
   }
 
-  /// Claude liest die Konstruktion (Bauteilgraph) aus dem Entwurf.
-  Future<Map<String, dynamic>> lesen({
+  /// Claude liest die Konstruktion (Bauteilgraph) aus dem Entwurf und vergleicht das berechnete Modell
+  /// einmal mit dem Entwurf (Selbstkontrolle). [maengel] sind die dabei korrigierten Punkte.
+  Future<({Map<String, dynamic> graph, List<String> maengel})> lesen({
     required String entwurfId,
     required String maskeId,
     required List<int> bereich,
@@ -163,7 +164,9 @@ class Api {
       'bereich': bereich,
       if (demoIndex != null) 'demo_index': demoIndex,
     });
-    return j['graph'] as Map<String, dynamic>;
+    final pruefung = j['pruefung'] as Map<String, dynamic>?;
+    final maengel = ((pruefung?['maengel'] as List?) ?? const []).map((m) => '$m').toList();
+    return (graph: j['graph'] as Map<String, dynamic>, maengel: maengel);
   }
 
   /// Bauteilgraph → Bauplan (Prüfungen, Einkauf, Zuschnitt, Montage) und 3D-Modell (glb-URL).

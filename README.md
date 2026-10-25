@@ -143,6 +143,10 @@ Unter `/api/v1` gibt es alles als JSON; Bildarbeit (Entwurf einsetzen, Ausschnit
 
 Foto und Maske kommen als data-URL; die Maske ist ein PNG, weiß (oder bei transparentem PNG: deckend gemalt) = hier soll das Möbel hin. Header: `X-Geraet` (Geräte-ID, 8–64 Zeichen, von der App einmal erzeugt), `X-Sprache` (`de`/`en`). Im Browser ersetzt das Cookie `geraet` den Header. Bilder und Aufträge werden nach 7 Tagen gelöscht. `berechnen?mit_html=true` liefert zusätzlich den fertigen Bauplan-Ausschnitt für die Website.
 
+## Selbstkontrolle beim Lesen
+
+Nach dem Lesen rechnet der Server das Modell einmal durch und zeichnet es (`models/ansicht.py`, Schrägansicht von vorne links oben). Claude bekommt Entwurf und Modellbild nebeneinander, prüft wie ein Schreiner (Form, Lehne, Lattenrichtung, Proportionen, schwebende oder fehlende Teile) und liefert bei Mängeln einen korrigierten Bauteilgraph (`pruef_prompt`). Eine Runde, ca. 4–5 Cent extra; scheitert die Kontrolle, bleibt die erste Lesung. Die Korrekturen stehen im Ergebnis des Auftrags unter `pruefung` und erscheinen auf Website und in der App. Abschalten mit `SELBSTKONTROLLE=false`.
+
 ## Kostendeckel
 
 Jeder bezahlte KI-Aufruf wird vorher in der Tabelle `verbrauch` eingetragen (`services/kostendeckel.py`), schlägt er fehl, wird er wieder gestrichen. Im Demo-Modus zählt nichts.

@@ -56,6 +56,8 @@ const Map<String, Map<String, String>> _texte = {
     'anpassen_platzhalter': 'z. B. Lehne 10 cm höher, Bett 160 breit',
     'geaendert': 'Konstruktion geändert und neu geprüft.',
     'fehler': 'Fehler',
+    'selbstkontrolle': 'Selbstkontrolle',
+    'selbstkontrolle_text': 'Claude hat das berechnete Modell mit dem Entwurf verglichen und korrigiert:',
     'modell_3d': '3D-Modell, ziehen zum Drehen',
   },
   'en': {
@@ -114,6 +116,8 @@ const Map<String, Map<String, String>> _texte = {
     'anpassen_platzhalter': 'e.g. backrest 10 cm higher, bed 160 wide',
     'geaendert': 'Construction changed and checked again.',
     'fehler': 'Error',
+    'selbstkontrolle': 'Self-check',
+    'selbstkontrolle_text': 'Claude compared the calculated model with the design and corrected:',
     'modell_3d': '3D model, drag to rotate',
   },
 };

@@ -262,6 +262,7 @@ async function bauplanErstellen() {
     const e = z.entwuerfe[z.gewaehlt];  // den Ausschnitt um den Bereich schneidet der Server
     const j = await auftrag('/bauplan/lesen', { entwurf_id: e.id, maske_id: z.maskeId, bereich: z.bereich, demo_index: z.demo ? z.gewaehlt : null });
     z.graph = j.graph; z.verlauf = []; $('verlauf').replaceChildren(); $('rueckgaengig').disabled = true;
+    if (j.pruefung) verlauf('ai', j.pruefung.passt ? tx('geprueft_ok') : tx('geprueft', { liste: j.pruefung.maengel.join(' · ') }));
     $('gewaehlt').src = e.url;
     await berechnen();
     zeigeSchritt(4);

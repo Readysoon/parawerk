@@ -12,6 +12,7 @@ Die Geräte-ID schickt die App im Header ``X-Geraet``, die Sprache in ``X-Sprach
 """
 from __future__ import annotations
 
+import logging
 import secrets
 from pathlib import Path
 
@@ -26,6 +27,7 @@ from ..models import speicher
 from ..models.bauteilgraph import GraphFehler, bereinigen
 from ..models.dxf import teile_als_dxf
 from ..models.engine import Ergebnis, berechnen as engine_berechnen
+from ..models.ansicht import modellbild
 from ..models.gltf import als_glb
 from ..models.verbrauch import datenbank
 from ..services import bildarbeit as ba
@@ -42,6 +44,7 @@ from .schemas import (AnpassenAnfrage, AuftragAntwort, AuftragStand, BauplanAntw
                       NachjustierenV1)
 
 router = APIRouter(prefix="/api/v1", tags=["API v1"])
+log = logging.getLogger("parawerk.api")
 
 
 def _db(e: Einstellungen):
@@ -189,6 +192,22 @@ async def nachjustieren(anfrage: NachjustierenV1, ki: BildKI = Depends(bild_ki),
     return AuftragAntwort(auftrag=aid)
 
 
+async def _selbstkontrolle(kon: Konstrukteur, entwurf_url: str, graph: dict, bereich: list[float],
+                           sortiment: str) -> tuple[dict, dict | None]:
+    """Modell berechnen und zeichnen, Claude vergleicht es mit dem Entwurf und korrigiert den Graph einmal.
+
+    Geht dabei etwas schief, bleibt die erste Lesung; die Kontrolle ist ein Zusatz, kein Muss.
+    """
+    try:
+        ergebnis = await run_in_threadpool(engine_berechnen, graph, bereich, sortiment)
+        bild = await run_in_threadpool(modellbild, modell_3d(ergebnis))
+        antwort = await kon.pruefen(entwurf_url, ba.als_data_url(ba.png(bild), "image/png"), graph, bereich)
+    except (DienstFehler, GraphFehler, ValueError, KeyError, IndexError, ZeroDivisionError) as err:
+        log.warning("Selbstkontrolle übersprungen: %s", err)
+        return graph, None
+    return antwort["graph"], {"passt": antwort["passt"], "maengel": antwort["maengel"]}
+
+
 @router.post("/bauplan/lesen", response_model=AuftragAntwort, status_code=202)
 async def lesen(anfrage: LesenV1, kon: Konstrukteur = Depends(konstrukteur), deckel: Kostendeckel = Depends(kostendeckel),
                 k: Kunde = Depends(kunde), e: Einstellungen = Depends(einstellungen)) -> AuftragAntwort:
@@ -199,8 +218,12 @@ async def lesen(anfrage: LesenV1, kon: Konstrukteur = Depends(konstrukteur), dec
 
     async def arbeit() -> dict:
         teil = ba.ausschnitt(entwurf, maske.resize(entwurf.size) if maske.size != entwurf.size else maske)
-        graph = await kon.lesen(ba.als_data_url(ba.jpeg(teil, 90), "image/jpeg"), anfrage.bereich, anfrage.demo_index)
-        return {"demo": kon.demo, "graph": graph}
+        teil_url = ba.als_data_url(ba.jpeg(teil, 90), "image/jpeg")
+        graph = await kon.lesen(teil_url, anfrage.bereich, anfrage.demo_index)
+        pruefung = None
+        if not kon.demo and e.selbstkontrolle:
+            graph, pruefung = await _selbstkontrolle(kon, teil_url, graph, anfrage.bereich, e.sortiment)
+        return {"demo": kon.demo, "graph": graph, "pruefung": pruefung}
 
     aid = await starten(db, k.geraet, "lesen", arbeit, "fehler.lesen", lambda: erstatten(deckel, eintrag))
     return AuftragAntwort(auftrag=aid)

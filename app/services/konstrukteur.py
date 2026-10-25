@@ -17,7 +17,15 @@ from ..i18n import name, t
 from ..models.bauteilgraph import JSON_SCHEMA, bereinigen, json_aus_text
 from .fehler import DienstFehler, NichtVerfuegbar
 from .prompts import (KONTEXT_REGELN, anpass_prompt, bearbeitung_anweisung, bearbeitung_prompt, bildprompt_anweisung,
-                      inpaint_prompt, inpaint_prompt_aus, lese_prompt)
+                      inpaint_prompt, inpaint_prompt_aus, lese_prompt, pruef_prompt)
+
+# Antwort der Selbstkontrolle: passt es, was ist falsch, korrigierter Graph
+PRUEF_SCHEMA = {
+    "type": "object",
+    "properties": {"passt": {"type": "boolean"}, "maengel": {"type": "array", "items": {"type": "string"}}, "graph": JSON_SCHEMA},
+    "required": ["passt", "maengel", "graph"],
+    "additionalProperties": False,
+}
 
 
 class Konstrukteur(Protocol):
@@ -28,6 +36,8 @@ class Konstrukteur(Protocol):
     async def anpassen(self, graph: dict, wunsch: str) -> dict: ...
 
     async def bild_prompt(self, wunsch: str, foto: str | None, maske: str | None) -> str: ...
+
+    async def pruefen(self, entwurf: str, modell: str, graph: dict, bereich: list[float]) -> dict: ...
 
     async def bearbeitungs_prompt(self, wunsch: str, anpassung: str, bild: str) -> str: ...
 
@@ -84,6 +94,17 @@ class ClaudeKonstrukteur:
     async def lesen(self, bild: str | None, bereich: list[float], demo_index: int | None = None) -> dict:
         return await self._graph(lese_prompt(bereich), bild)
 
+    async def pruefen(self, entwurf: str, modell: str, graph: dict, bereich: list[float]) -> dict:
+        """Selbstkontrolle: Entwurf (Bild 1) gegen berechnetes Modell (Bild 2). Gibt passt, maengel und graph zurück."""
+        j = await self._senden(pruef_prompt(graph, bereich), [entwurf, modell], 9000, PRUEF_SCHEMA)
+        texte = "\n".join(c.get("text", "") for c in j.get("content", []) if c.get("type") == "text")
+        antwort = json_aus_text(texte)
+        if not isinstance(antwort, dict):
+            raise DienstFehler(t("fehler.keine_anweisung"))
+        maengel = [str(m) for m in antwort.get("maengel") or [] if str(m).strip()][:8]
+        passt = bool(antwort.get("passt")) or not maengel
+        return {"passt": passt, "maengel": maengel, "graph": graph if passt else bereinigen(antwort.get("graph"))}
+
     async def anpassen(self, graph: dict, wunsch: str) -> dict:
         return await self._graph(anpass_prompt(graph, wunsch))
 
@@ -127,6 +148,9 @@ class DemoKonstrukteur:
 
     async def bild_prompt(self, wunsch: str, foto: str | None, maske: str | None) -> str:
         return inpaint_prompt(wunsch)
+
+    async def pruefen(self, entwurf: str, modell: str, graph: dict, bereich: list[float]) -> dict:
+        return {"passt": True, "maengel": [], "graph": graph}
 
     async def bearbeitungs_prompt(self, wunsch: str, anpassung: str, bild: str) -> str:
         return bearbeitung_prompt(anpassung)

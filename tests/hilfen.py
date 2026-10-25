@@ -25,6 +25,8 @@ def _alte() -> list[dict]:
 def alte_graphen() -> list[dict]:
     """Die früheren vier Beispielgraphen. Auf ihnen beruhen die Referenzwerte der Engine-Tests (Kopie)."""
     return json.loads(json.dumps(_alte()))
+
+
 GERAET = {"X-Geraet": "testgeraet-0001"}
 
 
@@ -55,6 +57,16 @@ class KonstrukteurAttrappe:
     async def lesen(self, bild, bereich, demo_index=None):
         assert bild.startswith("data:image/")
         return alte_graphen()[2]
+
+    async def pruefen(self, entwurf, modell, graph, bereich):
+        """Selbstkontrolle: meldet einen Mangel und benennt den Graph um, damit man die Korrektur erkennt."""
+        assert entwurf.startswith("data:image/jpeg") and modell.startswith("data:image/png")
+        self.pruefungen = getattr(self, "pruefungen", 0) + 1
+        if getattr(self, "pruefung_kaputt", False):
+            raise DienstFehler("Claude nicht erreichbar")
+        neu = json.loads(json.dumps(graph))
+        neu["name"] += " (geprüft)"
+        return {"passt": False, "maengel": ["Die Lehne fehlt."], "graph": neu}
 
     async def anpassen(self, graph, wunsch):
         self.wuensche.append(wunsch)

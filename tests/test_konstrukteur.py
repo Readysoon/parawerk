@@ -67,3 +67,21 @@ def test_abgeschnittene_antwort(claude):
     claude["antwort"] = {"stop_reason": "max_tokens", "content": [{"type": "text", "text": '{"name": "Ba'}]}
     with pytest.raises(DienstFehler, match="zu lang"):
         asyncio.run(ClaudeKonstrukteur("k", "m").lesen(FOTO, [2000, 1000, 1000]))
+
+
+def test_pruefen_korrigiert_graph(claude):
+    """Selbstkontrolle: zwei Bilder, Schema mit passt/maengel/graph; bei Mängeln kommt der korrigierte Graph zurück."""
+    alt = demo_graphen()[0]
+    neu = json.loads(json.dumps(alt))
+    neu["name"] = "Korrigiert"
+    claude["antwort"] = {"stop_reason": "end_turn", "content": [{"type": "text", "text": json.dumps(
+        {"passt": False, "maengel": ["Lehnenlatten stehen senkrecht."], "graph": neu}, ensure_ascii=False)}]}
+    p = asyncio.run(ClaudeKonstrukteur("k", "m").pruefen(FOTO, "data:image/png;base64,AAAA", alt, [2000, 1000, 1000]))
+    assert not p["passt"] and p["maengel"] == ["Lehnenlatten stehen senkrecht."] and p["graph"]["name"] == "Korrigiert"
+    anfrage = claude["anfragen"][-1]
+    bilder = [c for c in anfrage["messages"][0]["content"] if c["type"] == "image"]
+    assert len(bilder) == 2 and _ohne_unerlaubtes(anfrage["output_config"]["format"]["schema"])
+
+    claude["antwort"]["content"][0]["text"] = json.dumps({"passt": True, "maengel": [], "graph": neu})
+    p = asyncio.run(ClaudeKonstrukteur("k", "m").pruefen(FOTO, "data:image/png;base64,AAAA", alt, [2000, 1000, 1000]))
+    assert p["passt"] and p["graph"]["name"] == alt["name"]  # passt: erste Lesung bleibt

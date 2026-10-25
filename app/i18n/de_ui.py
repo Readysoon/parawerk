@@ -78,6 +78,8 @@ TEXTE = {
     "ui.st_nachjustieren": "Die Bild-KI passt den Entwurf an. Das dauert meist 20–40 Sekunden …",
     "ui.st_lesen": "Claude liest die Konstruktion aus dem Entwurf. Das dauert meist 20–60 Sekunden …",
     "ui.st_anpassen": "Claude ändert die Konstruktion …",
+    "ui.geprueft_ok": "Selbstkontrolle: Claude hat das berechnete Modell mit dem Entwurf verglichen, es passt.",
+    "ui.geprueft": "Selbstkontrolle: Claude hat das berechnete Modell mit dem Entwurf verglichen und korrigiert: {liste}",
     "ui.geaendert": "Konstruktion geändert, alles neu berechnet und geprüft.",
     "ui.zurueckgenommen": "Letzte Änderung rückgängig gemacht.",
     # ---------- Bauplan ----------
@@ -152,5 +154,6 @@ TEXTE = {
     "ui.frei_nj_1": "Noch 1 Gratis-Änderung",
     "ui.frei_nj": "Noch {n} Gratis-Änderungen",
     # ---------- Claude: Sprache der Namen ----------
+    "prompt.maengel_sprache": "auf Deutsch",
     "prompt.namen": "",  # deutsche Namen sind ohnehin Standard
 }

@@ -26,6 +26,7 @@ class Einstellungen(BaseSettings):
     ip_runden_pro_tag: int = 3
     lesen_pro_tag: int = 5  # je Gerät
     anpassen_pro_tag: int = 10  # je Gerät
+    selbstkontrolle: bool = True  # Claude vergleicht das berechnete Modell mit dem Entwurf und korrigiert einmal
     tagesbudget_usd: float = 5.0  # alle zusammen, Notbremse
     admin_schluessel: str = ""  # ?schluessel=… auf der Startseite hebt die Kontingente für diesen Browser auf
 

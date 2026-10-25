@@ -89,18 +89,19 @@ class _EntwuerfeSeiteState extends State<EntwuerfeSeite> {
     if (_gewaehlt < 0) return;
     final entwurf = _s.entwuerfe[_gewaehlt];
     final ergebnis = await mitWarten(context, tr('st_lesen'), () async {
-      final graph = await _s.api.lesen(
+      final gelesen = await _s.api.lesen(
         entwurfId: entwurf.id,
         maskeId: _s.maskeId!,
         bereich: _s.bereich,
         demoIndex: _s.demo ? _gewaehlt : null,
       );
-      final plan = await _s.api.berechnen(graph, _s.bereich);
-      return (graph: graph, plan: plan);
+      final plan = await _s.api.berechnen(gelesen.graph, _s.bereich);
+      return (graph: gelesen.graph, plan: plan, maengel: gelesen.maengel);
     });
     if (ergebnis == null || !mounted) return;
     Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => BauplanSeite(sitzung: _s, entwurf: entwurf, graph: ergebnis.graph, plan: ergebnis.plan),
+      builder: (_) =>
+          BauplanSeite(sitzung: _s, entwurf: entwurf, graph: ergebnis.graph, plan: ergebnis.plan, maengel: ergebnis.maengel),
     ));
   }
 

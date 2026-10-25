@@ -45,14 +45,37 @@ class Kostendeckel:
     def __init__(self, db: Engine, e: Einstellungen) -> None:
         self.db, self.e = db, e
 
+    def _bonus(self, k: Kunde) -> int:
+        """Zusätzliche Runden aus eingelösten Testcodes (nur Codes, die es in den Einstellungen noch gibt)."""
+        codes = self.e.codes
+        return sum(codes[c][0] for c in v.codes_von(self.db, k.geraet) if c in codes)
+
+    def _grenzen(self, k: Kunde) -> tuple[int, int, bool]:
+        """Runden und Änderungen insgesamt für dieses Gerät, und ob es einen Testcode hat."""
+        bonus = self._bonus(k)
+        return self.e.gratis_runden + bonus, self.e.gratis_nachjustieren + 2 * bonus, bonus > 0
+
     def stand(self, k: Kunde) -> dict:
         """Was dieses Gerät noch gratis hat (für die Anzeige)."""
         if k.admin:
             return {"runden": None, "nachjustieren": None}
+        runden, nachjustieren, _ = self._grenzen(k)
         return {
-            "runden": max(0, self.e.gratis_runden - v.anzahl(self.db, "runde", geraet=k.geraet)),
-            "nachjustieren": max(0, self.e.gratis_nachjustieren - v.anzahl(self.db, "nachjustieren", geraet=k.geraet)),
+            "runden": max(0, runden - v.anzahl(self.db, "runde", geraet=k.geraet)),
+            "nachjustieren": max(0, nachjustieren - v.anzahl(self.db, "nachjustieren", geraet=k.geraet)),
         }
+
+    def code_einloesen(self, code: str, k: Kunde) -> dict:
+        """Testcode für dieses Gerät einlösen. Wirft ``Gesperrt``, wenn es den Code nicht gibt oder er voll ist."""
+        code = code.strip().upper()
+        codes = self.e.codes
+        if code not in codes:
+            raise Gesperrt(404, t("fehler.code_unbekannt"))
+        if code not in v.codes_von(self.db, k.geraet):
+            if v.geraete_mit_code(self.db, code) >= codes[code][1]:
+                raise Gesperrt(409, t("fehler.code_voll"))
+            v.code_einloesen(self.db, code, k.geraet)
+        return self.stand(k)
 
     def _pruefen(self, art: str, k: Kunde) -> None:
         heute = v.heute_beginn()
@@ -61,13 +84,16 @@ class Kostendeckel:
         if k.admin:
             return
         if art == "runde":
-            if v.anzahl(self.db, "runde", geraet=k.geraet) >= self.e.gratis_runden:
+            runden, _, hat_code = self._grenzen(k)
+            if v.anzahl(self.db, "runde", geraet=k.geraet) >= runden:
                 raise Gesperrt(402, t("fehler.gratis_runde"))
-            if v.anzahl(self.db, "runde", ip=k.ip, seit=heute) >= self.e.ip_runden_pro_tag:
+            # Tester mit Code teilen sich oft ein WLAN mit anderen: für sie gilt das IP-Limit nicht
+            if not hat_code and v.anzahl(self.db, "runde", ip=k.ip, seit=heute) >= self.e.ip_runden_pro_tag:
                 raise Gesperrt(429, t("fehler.ip_limit"))
         elif art == "nachjustieren":
-            if v.anzahl(self.db, "nachjustieren", geraet=k.geraet) >= self.e.gratis_nachjustieren:
-                raise Gesperrt(402, t("fehler.gratis_nj", n=self.e.gratis_nachjustieren))
+            _, nachjustieren, _ = self._grenzen(k)
+            if v.anzahl(self.db, "nachjustieren", geraet=k.geraet) >= nachjustieren:
+                raise Gesperrt(402, t("fehler.gratis_nj", n=nachjustieren))
         elif art == "lesen":
             if v.anzahl(self.db, "lesen", geraet=k.geraet, seit=heute) >= self.e.lesen_pro_tag:
                 raise Gesperrt(429, t("fehler.tageslimit"))

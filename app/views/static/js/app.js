@@ -66,6 +66,16 @@ async function kontingentLaden() {
   } catch { /* Anzeige ist nur ein Hinweis */ }
 }
 
+async function codeEinloesen() {
+  const code = $('code-text').value.trim(); if (!code) return;
+  try {
+    await api('/code', { code }); $('code-text').value = ''; fehler('');
+    await kontingentLaden(); $('frei-runden').textContent += ` · ${tx('code_ok')}`;
+  } catch (e) { fehler(e.message); }
+}
+$('code-los').addEventListener('click', codeEinloesen);
+$('code-text').addEventListener('keydown', e => { if (e.key === 'Enter') codeEinloesen(); });
+
 // ---------- 1. Foto ----------
 async function fotoSetzen(src, istDemo) {
   const img = await bildLaden(src);

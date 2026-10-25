@@ -48,6 +48,36 @@ class _WunschSeiteState extends State<WunschSeite> {
     }
   }
 
+  Future<void> _code() async {
+    final eingabe = TextEditingController();
+    final code = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(tr('code_frage')),
+        content: TextField(
+          controller: eingabe,
+          autofocus: true,
+          textCapitalization: TextCapitalization.characters,
+          onSubmitted: (v) => Navigator.of(context).pop(v),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(tr('abbrechen'))),
+          FilledButton(onPressed: () => Navigator.of(context).pop(eingabe.text), child: Text(tr('code_los'))),
+        ],
+      ),
+    );
+    // eingabe nicht sofort freigeben: Der Dialog baut beim Ausblenden noch einmal auf
+    if (code == null || code.trim().isEmpty || !mounted) return;
+    final hinweise = ScaffoldMessenger.of(context);
+    try {
+      final k = await widget.sitzung.api.codeEinloesen(code.trim());
+      if (mounted) setState(() => _frei = frei('frei_runden', k.runden));
+      hinweise.showSnackBar(SnackBar(content: Text(tr('code_ok'))));
+    } catch (e) {
+      hinweise.showSnackBar(SnackBar(content: Text(fehlerText(e))));
+    }
+  }
+
   Future<void> _entwerfen() async {
     final s = widget.sitzung;
     s.wunsch = _wunsch.text.trim();
@@ -99,6 +129,7 @@ class _WunschSeiteState extends State<WunschSeite> {
             child: Text(tr('entwerfen')),
           ),
           FreiHinweis(_frei),
+          Align(alignment: Alignment.centerLeft, child: TextButton(onPressed: _code, child: Text(tr('code_frage')))),
         ]),
       ),
     );

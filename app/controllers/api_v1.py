@@ -40,7 +40,7 @@ from ..services.prompts import bearbeitung_prompt, inpaint_prompt
 from ..views import STATIC, templates
 from ..views.praesentation import bauplan_ansicht, modell_3d
 from .abhaengigkeiten import bild_ki, konstrukteur, kostendeckel, kunde
-from .schemas import (AnpassenAnfrage, AuftragAntwort, AuftragStand, BauplanAntwort, BerechnenV1, EntwuerfeV1, LesenV1,
+from .schemas import (AnpassenAnfrage, CodeAnfrage, AuftragAntwort, AuftragStand, BauplanAntwort, BerechnenV1, EntwuerfeV1, LesenV1,
                       NachjustierenV1)
 
 router = APIRouter(prefix="/api/v1", tags=["API v1"])
@@ -105,6 +105,15 @@ def _quelle(src: str) -> Image.Image:
             raise DienstFehler(t("fehler.bild_kaputt"))
         return ba.aus_bytes(Path(datei).read_bytes())
     return ba.aus_data_url(src)
+
+
+@router.post("/code")
+async def code(anfrage: CodeAnfrage, k: Kunde = Depends(kunde), deckel: Kostendeckel = Depends(kostendeckel)) -> dict:
+    """Testcode einlösen: mehr Gratis-Runden für dieses Gerät. Antwort wie ``/kontingent``."""
+    try:
+        return await run_in_threadpool(deckel.code_einloesen, anfrage.code, k)
+    except Gesperrt as g:
+        raise HTTPException(g.status, str(g)) from g
 
 
 @router.get("/bilder/{bid}")

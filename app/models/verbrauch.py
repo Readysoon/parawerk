@@ -10,8 +10,9 @@ from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
 
-from sqlalchemy import (Column, DateTime, Engine, Float, Index, Integer, MetaData, String, Table, create_engine, delete,
-                        func, insert, select)
+from sqlalchemy import (Column, DateTime, Engine, Float, Index, Integer, MetaData, String, Table, UniqueConstraint,
+                        create_engine, delete, func, insert, select)
+from sqlalchemy.exc import IntegrityError
 
 metadata = MetaData()
 
@@ -25,6 +26,16 @@ verbrauch = Table(
     Column("kosten_usd", Float, nullable=False),
     Index("ix_verbrauch_geraet_art", "geraet", "art"),
     Index("ix_verbrauch_zeit", "zeit"),
+)
+
+# Eingelöste Testcodes: welches Gerät hat welchen Code (je Code und Gerät nur einmal)
+einloesungen = Table(
+    "einloesungen", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("code", String(64), nullable=False),
+    Column("geraet", String(64), nullable=False),
+    Column("zeit", DateTime(timezone=True), nullable=False),
+    UniqueConstraint("code", "geraet", name="uq_einloesung"),
 )
 
 STANDARD_URL = f"sqlite:///{Path(tempfile.gettempdir()) / 'parawerk.db'}"
@@ -81,3 +92,22 @@ def kosten_seit(db: Engine, seit: datetime) -> float:
     with db.connect() as c:
         return float(c.execute(select(func.coalesce(func.sum(verbrauch.c.kosten_usd), 0.0))
                                .where(verbrauch.c.zeit >= seit)).scalar_one())
+
+
+def code_einloesen(db: Engine, code: str, geraet: str) -> None:
+    """Trägt die Einlösung ein; hat das Gerät den Code schon, passiert nichts."""
+    try:
+        with db.begin() as c:
+            c.execute(insert(einloesungen).values(code=code, geraet=geraet, zeit=jetzt()))
+    except IntegrityError:
+        pass
+
+
+def codes_von(db: Engine, geraet: str) -> list[str]:
+    with db.connect() as c:
+        return [z.code for z in c.execute(select(einloesungen.c.code).where(einloesungen.c.geraet == geraet))]
+
+
+def geraete_mit_code(db: Engine, code: str) -> int:
+    with db.connect() as c:
+        return c.execute(select(func.count()).select_from(einloesungen).where(einloesungen.c.code == code)).scalar_one()

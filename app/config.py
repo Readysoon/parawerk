@@ -29,7 +29,19 @@ class Einstellungen(BaseSettings):
     selbstkontrolle: bool = True  # Claude vergleicht das berechnete Modell mit dem Entwurf und korrigiert
     kontrollrunden: int = 2  # weitere Runden nur, solange die Endkontrolle der Engine noch etwas meldet
     tagesbudget_usd: float = 5.0  # alle zusammen, Notbremse
+    # Testcodes für Tester: "KUMPEL:10,FREUNDE:5:3" = Code:Runden[:Geräte]; ohne Geräte-Angabe genau ein Gerät
+    testcodes: str = ""
     admin_schluessel: str = ""  # ?schluessel=… auf der Startseite hebt die Kontingente für diesen Browser auf
+
+    @property
+    def codes(self) -> dict[str, tuple[int, int]]:
+        """Testcodes als {CODE: (Runden, Geräte)}; Groß-/Kleinschreibung egal, kaputte Einträge werden übersprungen."""
+        out: dict[str, tuple[int, int]] = {}
+        for eintrag in self.testcodes.split(","):
+            teile = [x.strip() for x in eintrag.split(":")]
+            if len(teile) in (2, 3) and teile[0] and all(x.isdigit() for x in teile[1:]):
+                out[teile[0].upper()] = (int(teile[1]), int(teile[2]) if len(teile) == 3 else 1)
+        return out
 
     @property
     def bild_ki_aktiv(self) -> bool:

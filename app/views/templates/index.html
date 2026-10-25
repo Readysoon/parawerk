@@ -63,6 +63,9 @@
       <p class="hint">{{ t("ui.wunsch_hinweis") }}</p>
       <div class="btns"><button class="b primary" id="entwerfen">{{ t("ui.entwuerfe_erzeugen", n=anzahl_entwuerfe) }}</button></div>
       <p class="hint frei" id="frei-runden" hidden></p>
+      <details class="code"><summary>{{ t("ui.code_frage") }}</summary>
+        <div class="btns"><input id="code-text" placeholder="{{ t('ui.code_platzhalter') }}" aria-label="{{ t('ui.code_frage') }}" autocapitalize="characters"><button class="b" id="code-los">{{ t("ui.code_los") }}</button></div>
+      </details>
     </div>
     <div class="side"><div class="panel"><h3>{{ t("ui.s1") }}</h3><dl class="kv"><dt>{{ t("ui.btH") }}</dt><dd id="bereich-text"></dd></dl></div></div>
   </section>

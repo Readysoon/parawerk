@@ -144,3 +144,23 @@ def test_browser_bekommt_geraete_cookie():
 def test_postgres_url_von_fly():
     assert _url("postgres://u:p@host:5432/db") == "postgresql+psycopg://u:p@host:5432/db"
     assert _url("sqlite:///x.db") == "sqlite:///x.db"
+
+
+def test_testcode_gibt_mehr_runden(einrichten):
+    geraet = einrichten(testcodes="KUMPEL:2, FREUNDE:1:2, kaputt", ip_runden_pro_tag=1)
+    c = geraet()
+    assert c.post("/api/v1/code", json={"code": "gibtsnicht"}).status_code == 404
+    r = c.post("/api/v1/code", json={"code": " kumpel "})  # Groß-/Kleinschreibung und Leerzeichen egal
+    assert r.status_code == 200 and r.json() == {"runden": 3, "nachjustieren": 6}
+    assert c.post("/api/v1/code", json={"code": "KUMPEL"}).json()["runden"] == 3  # zweimal einlösen zählt einmal
+    # 3 Runden trotz IP-Limit 1: Tester mit Code sind davon ausgenommen
+    assert [runde(c) for _ in range(4)] == [202, 202, 202, 402]
+    # KUMPEL gilt nur für ein Gerät, FREUNDE für zwei
+    assert geraet().post("/api/v1/code", json={"code": "KUMPEL"}).status_code == 409
+    assert [geraet().post("/api/v1/code", json={"code": "FREUNDE"}).status_code for _ in range(3)] == [200, 200, 409]
+
+
+def test_testcodes_einstellung():
+    from app.config import Einstellungen
+    e = Einstellungen(_env_file=None, testcodes="a:3,B:2:5,:4,c:x,d")
+    assert e.codes == {"A": (3, 1), "B": (2, 5)}

@@ -73,6 +73,10 @@ class BauplanAntwort(BaseModel):
     html: str | None = Field(None, description="Nur mit mit_html=true: fertiger Bauplan-Ausschnitt für die Website")
 
 
+class CodeAnfrage(BaseModel):
+    code: str = Field(min_length=1, max_length=64)
+
+
 class AnpassenAnfrage(BaseModel):
     graph: dict
     wunsch: str = Field(min_length=1, max_length=500)

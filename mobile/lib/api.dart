@@ -111,6 +111,12 @@ class Api {
     return (runden: j['runden'] as int?, nachjustieren: j['nachjustieren'] as int?);
   }
 
+  /// Testcode einlösen: mehr Gratis-Runden für dieses Gerät. Antwort wie [kontingent].
+  Future<({int? runden, int? nachjustieren})> codeEinloesen(String code) async {
+    final j = await _post('/api/v1/code', {'code': code});
+    return (runden: j['runden'] as int?, nachjustieren: j['nachjustieren'] as int?);
+  }
+
   /// Foto (JPEG) und Maske (PNG, deckend gemalt = hier soll das Möbel hin) → 4 fertig eingesetzte Entwürfe.
   /// Ist [fotoId] gesetzt (neue Runde mit demselben Foto), wird das Foto nicht noch einmal hochgeladen.
   Future<EntwuerfeErgebnis> entwerfen({

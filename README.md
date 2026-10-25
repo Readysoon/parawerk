@@ -159,6 +159,8 @@ Jeder bezahlte KI-Aufruf wird vorher in der Tabelle `verbrauch` eingetragen (`se
 | Lesungen / Anpassungen je Gerät und Tag | 5 / 10 | `LESEN_PRO_TAG`, `ANPASSEN_PRO_TAG` |
 | Tagesbudget für alle zusammen, gilt auch für Admin | 5 $ | `TAGESBUDGET_USD` |
 
+**Testcodes:** `TESTCODES="KUMPEL:10,FREUNDE:5:3"` (Code:Runden[:Geräte], ohne Geräte-Angabe genau eins). Eingelöst wird auf der Website unter „Testcode eingeben“ bzw. in der App (`POST /api/v1/code`). Ein Code gibt die Runden zusätzlich (und doppelt so viele Änderungen), für Geräte mit Code gilt das IP-Limit nicht; das Tagesbudget bleibt. Entfernt man einen Code aus `TESTCODES`, fällt sein Bonus weg.
+
 Die Geräte-ID ist ein Cookie, das die Startseite vergibt. Mit `ADMIN_SCHLUESSEL` gesetzt hebt `/?schluessel=…` die Kontingente für diesen Browser auf (nicht das Tagesbudget). `GET /api/v1/kontingent` zeigt, was das Gerät noch gratis hat.
 
 Datenbank: ohne `DATABASE_URL` eine SQLite-Datei im Temp-Ordner. Auf fly.io eine SQLite-Datei auf dem Volume `/data` (siehe `fly.toml`). Für Postgres genügt `DATABASE_URL=postgres://…`; Tabellen legt die App selbst an.

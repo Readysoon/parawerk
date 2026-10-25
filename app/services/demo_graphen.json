@@ -1,35 +1,350 @@
 [
  {
-  "name": "Palettensofa",
-  "bild": 1,
-  "kategorie": "sofa",
+  "name": "Gartenbank mit Armlehnen",
+  "kategorie": "bank",
   "masse": {
-   "breite": 2000,
-   "tiefe": 850,
-   "hoehe": 700
+   "breite": 1200,
+   "tiefe": 620,
+   "hoehe": 820
   },
   "funktion": {
-   "sitzhoehe": 290,
-   "polster": 180
+   "sitzhoehe": 450,
+   "polster": 50
   },
   "anker": {
-   "sitz_oben": 0.16
+   "sitz_oben": 0.488
   },
   "teile": [
    {
-    "id": "kufen",
-    "name": "Kufen",
+    "id": "bf",
+    "name": "Vorderbeine",
     "typ": "kantholz",
-    "rolle": "kufe",
+    "rolle": "bein",
+    "box": [
+     0,
+     1,
+     0,
+     0.12,
+     0,
+     0.7
+    ],
+    "anzahl": 2,
+    "achse": "x",
+    "querschnitt": [
+     44,
+     74
+    ]
+   },
+   {
+    "id": "bh",
+    "name": "Hinterpfosten mit Lehne",
+    "typ": "kantholz",
+    "rolle": "pfosten",
+    "box": [
+     0,
+     1,
+     0.88,
+     1,
+     0,
+     1
+    ],
+    "anzahl": 2,
+    "achse": "x",
+    "querschnitt": [
+     44,
+     74
+    ]
+   },
+   {
+    "id": "zs",
+    "name": "Seitenzargen",
+    "typ": "kantholz",
+    "rolle": "zarge",
+    "box": [
+     0,
+     1,
+     0.12,
+     0.88,
+     0.344,
+     0.454
+    ],
+    "anzahl": 2,
+    "achse": "x",
+    "querschnitt": [
+     44,
+     94
+    ]
+   },
+   {
+    "id": "zq",
+    "name": "Zargen vorne und hinten",
+    "typ": "kantholz",
+    "rolle": "zarge",
+    "box": [
+     0.062,
+     0.938,
+     0,
+     1,
+     0.344,
+     0.454
+    ],
+    "anzahl": 2,
+    "achse": "y",
+    "querschnitt": [
+     44,
+     94
+    ]
+   },
+   {
+    "id": "us",
+    "name": "Untere Seitenriegel",
+    "typ": "kantholz",
+    "rolle": "rahmen",
+    "box": [
+     0,
+     1,
+     0.12,
+     0.88,
+     0.15,
+     0.23
+    ],
+    "anzahl": 2,
+    "achse": "x",
+    "querschnitt": [
+     44,
+     74
+    ]
+   },
+   {
+    "id": "sl",
+    "name": "Sitzlatten",
+    "typ": "brett",
+    "rolle": "sitzflaeche",
+    "box": [
+     0.062,
+     0.938,
+     0.05,
+     0.95,
+     0.454,
+     0.488
+    ],
+    "anzahl": 7,
+    "achse": "y",
+    "querschnitt": [
+     28,
+     70
+    ]
+   },
+   {
+    "id": "lr",
+    "name": "Lehnenlatten",
+    "typ": "brett",
+    "rolle": "lehne",
+    "box": [
+     0.062,
+     0.938,
+     0.85,
+     0.9,
+     0.56,
+     0.97
+    ],
+    "anzahl": 3,
+    "achse": "z",
+    "querschnitt": [
+     18,
+     90
+    ]
+   },
+   {
+    "id": "ar",
+    "name": "Armlehnen",
+    "typ": "brett",
+    "rolle": "auflage",
     "box": [
      0,
      1,
      0,
      1,
-     0,
-     0.13
+     0.7,
+     0.734
     ],
-    "anzahl": 4,
+    "anzahl": 2,
+    "achse": "x",
+    "querschnitt": [
+     28,
+     100
+    ]
+   }
+  ]
+ },
+ {
+  "name": "Lattenbank",
+  "kategorie": "bank",
+  "masse": {
+   "breite": 900,
+   "tiefe": 330,
+   "hoehe": 450
+  },
+  "funktion": {
+   "sitzhoehe": 450,
+   "polster": 0
+  },
+  "anker": {
+   "sitz_oben": 1
+  },
+  "teile": [
+   {
+    "id": "sitzlatten",
+    "name": "Sitzlatten",
+    "typ": "latte",
+    "rolle": "sitzflaeche",
+    "box": [
+     0,
+     1,
+     0,
+     1,
+     0.9,
+     1
+    ],
+    "anzahl": 11,
+    "achse": "y",
+    "querschnitt": [
+     24,
+     44
+    ]
+   },
+   {
+    "id": "beine_vorn",
+    "name": "Vorderbeine",
+    "typ": "kantholz",
+    "rolle": "bein",
+    "box": [
+     0.05,
+     0.95,
+     0.05,
+     0.2,
+     0,
+     0.9
+    ],
+    "anzahl": 2,
+    "achse": "x",
+    "querschnitt": [
+     34,
+     54
+    ]
+   },
+   {
+    "id": "beine_hinten",
+    "name": "Hinterbeine",
+    "typ": "kantholz",
+    "rolle": "bein",
+    "box": [
+     0.05,
+     0.95,
+     0.8,
+     0.95,
+     0,
+     0.9
+    ],
+    "anzahl": 2,
+    "achse": "x",
+    "querschnitt": [
+     34,
+     54
+    ]
+   },
+   {
+    "id": "zargen",
+    "name": "Obere Seitenzargen",
+    "typ": "kantholz",
+    "rolle": "zarge",
+    "box": [
+     0.05,
+     0.95,
+     0.1,
+     0.9,
+     0.78,
+     0.9
+    ],
+    "anzahl": 2,
+    "achse": "x",
+    "querschnitt": [
+     34,
+     54
+    ]
+   },
+   {
+    "id": "querriegel",
+    "name": "Untere Seitenriegel",
+    "typ": "kantholz",
+    "rolle": "riegel",
+    "box": [
+     0.1,
+     0.9,
+     0.1,
+     0.9,
+     0.2,
+     0.3
+    ],
+    "anzahl": 2,
+    "achse": "x",
+    "querschnitt": [
+     34,
+     54
+    ]
+   }
+  ]
+ },
+ {
+  "name": "Lattenbank mit Lehne",
+  "kategorie": "bank",
+  "masse": {
+   "breite": 1200,
+   "tiefe": 550,
+   "hoehe": 850
+  },
+  "funktion": {
+   "sitzhoehe": 450,
+   "polster": 50
+  },
+  "anker": {
+   "sitz_oben": 0.47
+  },
+  "teile": [
+   {
+    "id": "seitenA_vorn",
+    "name": "Vorderbeine der Seitenteile",
+    "typ": "kantholz",
+    "rolle": "bein",
+    "box": [
+     0,
+     0.07,
+     0,
+     0.2,
+     0,
+     0.55
+    ],
+    "anzahl": 2,
+    "achse": "x",
+    "querschnitt": [
+     44,
+     94
+    ]
+   },
+   {
+    "id": "seitenA_hinten",
+    "name": "Hintere Pfosten mit Lehne",
+    "typ": "kantholz",
+    "rolle": "pfosten",
+    "box": [
+     0,
+     1,
+     0.65,
+     1,
+     0,
+     1
+    ],
+    "anzahl": 2,
     "achse": "x",
     "querschnitt": [
      44,
@@ -38,261 +353,42 @@
    },
    {
     "id": "sitz",
-    "name": "Sitzbretter",
-    "typ": "brett",
+    "name": "Sitzlatten",
+    "typ": "latte",
     "rolle": "sitzflaeche",
     "box": [
      0,
      1,
-     0,
-     0.93,
-     0.13,
-     0.16
+     0.05,
+     0.95,
+     0.44,
+     0.47
     ],
-    "anzahl": 7,
+    "anzahl": 8,
     "achse": "y",
     "querschnitt": [
-     18,
-     96
-    ]
-   },
-   {
-    "id": "pfosten",
-    "name": "Lehnenpfosten",
-    "typ": "kantholz",
-    "rolle": "pfosten",
-    "box": [
-     0,
-     1,
-     0.95,
-     1,
-     0.13,
-     1
-    ],
-    "anzahl": 4,
-    "achse": "x",
-    "querschnitt": [
-     44,
+     24,
      44
     ]
    },
    {
-    "id": "lehne",
-    "name": "Lehnenbretter",
-    "typ": "brett",
-    "rolle": "lehne",
-    "box": [
-     0,
-     1,
-     0.93,
-     0.95,
-     0.47,
-     1
-    ],
-    "anzahl": 3,
-    "achse": "z",
-    "querschnitt": [
-     18,
-     96
-    ]
-   }
-  ]
- },
- {
-  "name": "Bett mit Rückenlehne",
-  "bild": 2,
-  "kategorie": "bett",
-  "masse": {
-   "breite": 2100,
-   "tiefe": 1550,
-   "hoehe": 750
-  },
-  "funktion": {
-   "matratze": [
-    1400,
-    2000
-   ],
-   "luft": 10
-  },
-  "anker": {
-   "liegeflaeche": [
-    0.02,
-    0.98,
-    0.03,
-    0.94
-   ]
-  },
-  "teile": [
-   {
-    "id": "rahmen-v",
-    "name": "Rahmen vorne",
+    "id": "sitzzarge",
+    "name": "Sitzzargen",
     "typ": "kantholz",
-    "rolle": "rahmen",
-    "box": [
-     0,
-     1,
-     0,
-     0.03,
-     0.21,
-     0.33
-    ],
-    "querschnitt": [
-     44,
-     94
-    ]
-   },
-   {
-    "id": "rahmen-h",
-    "name": "Rahmen hinten",
-    "typ": "kantholz",
-    "rolle": "rahmen",
-    "box": [
-     0,
-     1,
-     0.94,
-     0.97,
-     0.21,
-     0.33
-    ],
-    "querschnitt": [
-     44,
-     94
-    ]
-   },
-   {
-    "id": "rahmen-s",
-    "name": "Kopf- und Fußteil",
-    "typ": "kantholz",
-    "rolle": "rahmen",
-    "box": [
-     0,
-     1,
-     0.03,
-     0.94,
-     0.21,
-     0.33
-    ],
-    "anzahl": 2,
-    "achse": "x",
-    "querschnitt": [
-     44,
-     94
-    ]
-   },
-   {
-    "id": "beine-v",
-    "name": "Beine vorne",
-    "typ": "kantholz",
-    "rolle": "bein",
+    "rolle": "zarge",
     "box": [
      0.02,
      0.98,
-     0.03,
-     0.06,
-     0,
-     0.33
+     0.1,
+     0.9,
+     0.36,
+     0.43
     ],
     "anzahl": 2,
     "achse": "x",
     "querschnitt": [
-     44,
-     44
-    ]
-   },
-   {
-    "id": "beine-h",
-    "name": "Beine hinten",
-    "typ": "kantholz",
-    "rolle": "bein",
-    "box": [
-     0.02,
-     0.98,
-     0.91,
-     0.94,
-     0,
-     0.33
-    ],
-    "anzahl": 2,
-    "achse": "x",
-    "querschnitt": [
-     44,
-     44
-    ]
-   },
-   {
-    "id": "leiste-v",
-    "name": "Auflageleiste vorne",
-    "typ": "latte",
-    "rolle": "auflage",
-    "box": [
-     0.04,
-     0.96,
-     0.03,
-     0.04,
-     0.22,
-     0.27
-    ],
-    "querschnitt": [
-     24,
-     44
-    ]
-   },
-   {
-    "id": "leiste-h",
-    "name": "Auflageleiste hinten",
-    "typ": "latte",
-    "rolle": "auflage",
-    "box": [
-     0.04,
-     0.96,
-     0.92,
-     0.94,
-     0.22,
-     0.27
-    ],
-    "querschnitt": [
-     24,
-     44
-    ]
-   },
-   {
-    "id": "rost",
-    "name": "Lattenrost",
-    "typ": "latte",
-    "rolle": "lattenrost",
-    "box": [
-     0.04,
-     0.96,
-     0.03,
-     0.94,
-     0.27,
-     0.31
-    ],
-    "anzahl": 18,
-    "achse": "x",
-    "querschnitt": [
-     24,
-     44
-    ]
-   },
-   {
-    "id": "lpfosten",
-    "name": "Lehnenpfosten",
-    "typ": "kantholz",
-    "rolle": "pfosten",
-    "box": [
-     0,
-     1,
-     0.97,
-     0.99,
-     0,
-     1
-    ],
-    "anzahl": 3,
-    "achse": "x",
-    "querschnitt": [
-     44,
-     44
+     34,
+     54
     ]
    },
    {
@@ -301,51 +397,70 @@
     "typ": "latte",
     "rolle": "lehne",
     "box": [
-     0,
-     1,
-     0.95,
-     0.97,
-     0.4,
-     1
+     0.04,
+     0.96,
+     0.72,
+     0.8,
+     0.55,
+     0.98
     ],
-    "anzahl": 6,
+    "anzahl": 9,
     "achse": "z",
     "querschnitt": [
      24,
      44
     ]
+   },
+   {
+    "id": "lehnenholm",
+    "name": "Lehnenholm",
+    "typ": "kantholz",
+    "rolle": "rahmen",
+    "box": [
+     0,
+     1,
+     0.65,
+     0.85,
+     0.94,
+     1
+    ],
+    "anzahl": 1,
+    "achse": "x",
+    "querschnitt": [
+     34,
+     54
+    ]
    }
   ]
  },
  {
-  "name": "Lattenbank",
-  "bild": 3,
+  "name": "Gartenbank mit Stablehne",
   "kategorie": "bank",
   "masse": {
-   "breite": 1500,
-   "tiefe": 450,
-   "hoehe": 800
+   "breite": 1200,
+   "tiefe": 550,
+   "hoehe": 880
   },
   "funktion": {
    "sitzhoehe": 450,
-   "polster": 80
+   "polster": 0
   },
   "anker": {
-   "sitz_oben": 0.46
+   "sitz_oben": 0.51
   },
   "teile": [
    {
-    "id": "beine-v",
-    "name": "Beine vorne",
+    "id": "bv",
+    "name": "Vorderbeine",
     "typ": "kantholz",
     "rolle": "bein",
     "box": [
      0,
      1,
      0,
-     0.1,
+     0.08,
      0,
-     0.44
+     0.71
     ],
     "anzahl": 2,
     "achse": "x",
@@ -355,14 +470,14 @@
     ]
    },
    {
-    "id": "beine-h",
-    "name": "Beine hinten",
+    "id": "bh",
+    "name": "Hinterpfosten",
     "typ": "kantholz",
     "rolle": "pfosten",
     "box": [
      0,
      1,
-     0.9,
+     0.92,
      1,
      0,
      1
@@ -375,53 +490,17 @@
     ]
    },
    {
-    "id": "zarge-v",
-    "name": "Zarge vorne",
-    "typ": "kantholz",
-    "rolle": "zarge",
-    "box": [
-     0.03,
-     0.97,
-     0,
-     0.1,
-     0.35,
-     0.44
-    ],
-    "querschnitt": [
-     44,
-     74
-    ]
-   },
-   {
-    "id": "zarge-h",
-    "name": "Zarge hinten",
-    "typ": "kantholz",
-    "rolle": "zarge",
-    "box": [
-     0.03,
-     0.97,
-     0.9,
-     1,
-     0.35,
-     0.44
-    ],
-    "querschnitt": [
-     44,
-     74
-    ]
-   },
-   {
-    "id": "zarge-s",
+    "id": "zs",
     "name": "Seitenzargen",
     "typ": "kantholz",
     "rolle": "zarge",
     "box": [
      0,
      1,
-     0.1,
-     0.9,
-     0.35,
-     0.44
+     0,
+     1,
+     0.4,
+     0.48
     ],
     "anzahl": 2,
     "achse": "x",
@@ -431,172 +510,59 @@
     ]
    },
    {
-    "id": "sitz",
-    "name": "Sitzbretter",
-    "typ": "brett",
-    "rolle": "sitzflaeche",
+    "id": "zq",
+    "name": "Zargen vorne und hinten",
+    "typ": "kantholz",
+    "rolle": "zarge",
     "box": [
+     0.04,
+     0.96,
      0,
      1,
-     0,
-     0.9,
-     0.44,
-     0.46
+     0.4,
+     0.48
     ],
-    "anzahl": 4,
+    "anzahl": 2,
     "achse": "y",
     "querschnitt": [
-     18,
-     96
+     44,
+     74
     ]
    },
    {
-    "id": "lehnholm",
-    "name": "Lehnenholm",
+    "id": "rs",
+    "name": "Untere Seitenriegel",
     "typ": "kantholz",
-    "rolle": "rahmen",
+    "rolle": "riegel",
     "box": [
-     0.03,
-     0.97,
-     0.9,
+     0,
      1,
-     0.95,
-     1
-    ],
-    "querschnitt": [
-     44,
-     44
-    ]
-   },
-   {
-    "id": "staebe",
-    "name": "Lehnenstäbe",
-    "typ": "latte",
-    "rolle": "lehne",
-    "box": [
-     0.03,
-     0.97,
-     0.85,
-     0.9,
-     0.46,
-     0.99
-    ],
-    "anzahl": 16,
-    "achse": "x",
-    "querschnitt": [
-     24,
-     44
-    ]
-   }
-  ]
- },
- {
-  "name": "Daybed mit Lattenkorb",
-  "bild": 4,
-  "kategorie": "daybed",
-  "masse": {
-   "breite": 1750,
-   "tiefe": 850,
-   "hoehe": 560
-  },
-  "funktion": {
-   "sitzhoehe": 420,
-   "polster": 150
-  },
-  "anker": {
-   "sitz_oben": 0.48
-  },
-  "teile": [
-   {
-    "id": "pfosten-v",
-    "name": "Eckpfosten vorne",
-    "typ": "kantholz",
-    "rolle": "pfosten",
-    "box": [
-     0.01,
-     0.99,
-     0.02,
-     0.07,
      0,
-     1
+     1,
+     0.14,
+     0.2
     ],
     "anzahl": 2,
     "achse": "x",
     "querschnitt": [
-     44,
-     44
+     34,
+     54
     ]
    },
    {
-    "id": "pfosten-h",
-    "name": "Eckpfosten hinten",
-    "typ": "kantholz",
-    "rolle": "pfosten",
-    "box": [
-     0.01,
-     0.99,
-     0.93,
-     0.98,
-     0,
-     1
-    ],
-    "anzahl": 2,
-    "achse": "x",
-    "querschnitt": [
-     44,
-     44
-    ]
-   },
-   {
-    "id": "rahmen-v",
-    "name": "Rahmen vorne",
-    "typ": "kantholz",
-    "rolle": "rahmen",
-    "box": [
-     0.04,
-     0.96,
-     0.02,
-     0.07,
-     0.27,
-     0.44
-    ],
-    "querschnitt": [
-     44,
-     94
-    ]
-   },
-   {
-    "id": "rahmen-h",
-    "name": "Rahmen hinten",
-    "typ": "kantholz",
-    "rolle": "rahmen",
-    "box": [
-     0.04,
-     0.96,
-     0.93,
-     0.98,
-     0.27,
-     0.44
-    ],
-    "querschnitt": [
-     44,
-     94
-    ]
-   },
-   {
-    "id": "rost",
+    "id": "sl",
     "name": "Sitzlatten",
     "typ": "latte",
     "rolle": "sitzflaeche",
     "box": [
      0.04,
      0.96,
-     0.02,
-     0.98,
-     0.44,
-     0.48
+     0,
+     1,
+     0.48,
+     0.51
     ],
-    "anzahl": 16,
+    "anzahl": 20,
     "achse": "x",
     "querschnitt": [
      24,
@@ -604,82 +570,62 @@
     ]
    },
    {
-    "id": "verk-v",
-    "name": "Verkleidung vorne",
-    "typ": "brett",
-    "rolle": "verkleidung",
+    "id": "sp",
+    "name": "Lehnenstäbe",
+    "typ": "latte",
+    "rolle": "lehne",
     "box": [
-     0,
+     0.05,
+     0.95,
+     0.92,
      1,
-     0,
-     0.02,
-     0.11,
-     1
+     0.48,
+     0.89
     ],
-    "anzahl": 6,
-    "achse": "z",
+    "anzahl": 14,
+    "achse": "x",
     "querschnitt": [
-     18,
-     70
+     24,
+     44
     ]
    },
    {
-    "id": "verk-h",
-    "name": "Verkleidung hinten",
+    "id": "or",
+    "name": "Lehnenholm",
     "typ": "brett",
-    "rolle": "verkleidung",
+    "rolle": "riegel",
     "box": [
      0,
      1,
-     0.98,
+     0.92,
      1,
-     0.11,
+     0.89,
      1
     ],
-    "anzahl": 6,
-    "achse": "z",
+    "anzahl": 1,
+    "achse": "x",
     "querschnitt": [
-     18,
-     70
+     28,
+     94
     ]
    },
    {
-    "id": "verk-l",
-    "name": "Verkleidung links",
+    "id": "ar",
+    "name": "Armlehnen",
     "typ": "brett",
-    "rolle": "verkleidung",
+    "rolle": "auflage",
     "box": [
      0,
-     0.01,
-     0.02,
-     0.98,
-     0.11,
-     1
-    ],
-    "anzahl": 6,
-    "achse": "z",
-    "querschnitt": [
-     18,
-     70
-    ]
-   },
-   {
-    "id": "verk-r",
-    "name": "Verkleidung rechts",
-    "typ": "brett",
-    "rolle": "verkleidung",
-    "box": [
-     0.99,
      1,
-     0.02,
-     0.98,
-     0.11,
-     1
+     0,
+     1,
+     0.71,
+     0.75
     ],
-    "anzahl": 6,
-    "achse": "z",
+    "anzahl": 2,
+    "achse": "x",
     "querschnitt": [
-     18,
+     28,
      70
     ]
    }

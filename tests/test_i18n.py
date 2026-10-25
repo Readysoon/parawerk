@@ -7,8 +7,7 @@ from fastapi.testclient import TestClient
 
 from app.i18n import KATALOG, aus_header, holz, in_sprache, t
 from app.main import app
-from app.services.konstrukteur import demo_graphen
-from tests.hilfen import FOTO, GERAET, MASKE, warten
+from tests.hilfen import FOTO, GERAET, MASKE, warten, alte_graphen as demo_graphen
 
 BEREICH = [1800, 900, 900]
 

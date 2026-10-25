@@ -2,6 +2,7 @@
 
 TEXTE = {
     # ---------- Seite ----------
+    "ui.foto_credit": 'Beispielzimmer: Foto <a href="https://commons.wikimedia.org/wiki/File:Argentr%C3%A9-du-Plessis_-_M%C3%A9diath%C3%A8que_-_20230203_(3).jpg">Médiathèque Argentré-du-Plessis</a> von <a href="https://commons.wikimedia.org/wiki/User:Olybrius">Olybrius</a>, <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.de">CC BY-SA 4.0</a>, Wikimedia Commons. Verkleinert; die Beispielentwürfe sind daraus bearbeitet und stehen ebenfalls unter CC BY-SA 4.0.',
     "ui.beschreibung": "Vom Foto deiner Wohnung zum Bauplan für den Baumarkt",
     "ui.untertitel": "Foto deiner Wohnung, Bereich markieren, Wunsch eingeben: Du bekommst Entwürfe und für den gewählten "
                      "einen Bauplan, mit dem du in den Baumarkt gehen kannst.",

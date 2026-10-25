@@ -3,15 +3,28 @@ from __future__ import annotations
 
 import base64
 import io
+import json
 import time
+from functools import lru_cache
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 from PIL import Image, ImageDraw
 
 from app.services.fehler import DienstFehler
-from app.services.konstrukteur import demo_graphen
 
 BEREICH = [2000, 1000, 1000]
+REFERENZ = Path(__file__).parent / "referenz"
+
+
+@lru_cache
+def _alte() -> list[dict]:
+    return json.loads((REFERENZ / "demo_graphen_alt.json").read_text(encoding="utf-8"))
+
+
+def alte_graphen() -> list[dict]:
+    """Die früheren vier Beispielgraphen. Auf ihnen beruhen die Referenzwerte der Engine-Tests (Kopie)."""
+    return json.loads(json.dumps(_alte()))
 GERAET = {"X-Geraet": "testgeraet-0001"}
 
 
@@ -41,7 +54,7 @@ class KonstrukteurAttrappe:
 
     async def lesen(self, bild, bereich, demo_index=None):
         assert bild.startswith("data:image/")
-        return demo_graphen()[2]
+        return alte_graphen()[2]
 
     async def anpassen(self, graph, wunsch):
         self.wuensche.append(wunsch)

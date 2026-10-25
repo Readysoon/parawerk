@@ -2,6 +2,7 @@
 
 TEXTE = {
     # ---------- Page ----------
+    "ui.foto_credit": 'Sample room: photo <a href="https://commons.wikimedia.org/wiki/File:Argentr%C3%A9-du-Plessis_-_M%C3%A9diath%C3%A8que_-_20230203_(3).jpg">Médiathèque Argentré-du-Plessis</a> by <a href="https://commons.wikimedia.org/wiki/User:Olybrius">Olybrius</a>, <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>, Wikimedia Commons. Resized; the sample designs are edited from it and are also licensed CC BY-SA 4.0.',
     "ui.beschreibung": "From a photo of your home to a build plan for the hardware store",
     "ui.untertitel": "Photo of your home, mark the spot, describe what you want: you get designs, and for the one you pick "
                      "a build plan you can take to the hardware store.",
@@ -155,16 +156,24 @@ TEXTE = {
     "prompt.namen": "Write the furniture \"name\" and every part \"name\" in English (e.g. \"Front legs\", \"Slats\", "
                     "\"Backrest battens\"). All other field values stay exactly as specified.",
     # ---------- Names in the sample constructions ----------
-    "name.Auflageleiste hinten": "Rear support cleat", "name.Auflageleiste vorne": "Front support cleat",
-    "name.Beine hinten": "Rear legs", "name.Beine vorne": "Front legs",
-    "name.Bett mit Rückenlehne": "Bed with backrest", "name.Daybed mit Lattenkorb": "Daybed with slatted frame",
-    "name.Eckpfosten hinten": "Rear corner posts", "name.Eckpfosten vorne": "Front corner posts",
-    "name.Kopf- und Fußteil": "Head and foot boards", "name.Kufen": "Runners", "name.Lattenbank": "Slatted bench",
-    "name.Lattenrost": "Slats", "name.Lehnenbretter": "Backrest boards", "name.Lehnenholm": "Backrest rail",
-    "name.Lehnenlatten": "Backrest battens", "name.Lehnenpfosten": "Backrest posts", "name.Lehnenstäbe": "Backrest bars",
-    "name.Palettensofa": "Pallet-style sofa", "name.Rahmen hinten": "Rear frame", "name.Rahmen vorne": "Front frame",
-    "name.Seitenzargen": "Side aprons", "name.Sitzbretter": "Seat boards", "name.Sitzlatten": "Seat battens",
-    "name.Verkleidung hinten": "Rear cladding", "name.Verkleidung links": "Left cladding",
-    "name.Verkleidung rechts": "Right cladding", "name.Verkleidung vorne": "Front cladding",
-    "name.Zarge hinten": "Rear apron", "name.Zarge vorne": "Front apron",
+    "name.Armlehnen": "Armrests",
+    "name.Gartenbank mit Armlehnen": "Garden bench with armrests",
+    "name.Gartenbank mit Stablehne": "Garden bench with spindle backrest",
+    "name.Hinterbeine": "Rear legs",
+    "name.Hintere Pfosten mit Lehne": "Rear uprights with backrest",
+    "name.Hinterpfosten": "Back posts",
+    "name.Hinterpfosten mit Lehne": "Rear posts with backrest",
+    "name.Lattenbank": "Slatted bench",
+    "name.Lattenbank mit Lehne": "Slatted bench with backrest",
+    "name.Lehnenholm": "Top backrest rail",
+    "name.Lehnenlatten": "Backrest battens",
+    "name.Lehnenstäbe": "Backrest spindles",
+    "name.Obere Seitenzargen": "Top side rails",
+    "name.Seitenzargen": "Side seat rails",
+    "name.Sitzlatten": "Seat slats",
+    "name.Sitzzargen": "Seat support rails",
+    "name.Untere Seitenriegel": "Lower side stretchers",
+    "name.Vorderbeine": "Front legs",
+    "name.Vorderbeine der Seitenteile": "Front legs of the side frames",
+    "name.Zargen vorne und hinten": "Front and back seat rails",
 }

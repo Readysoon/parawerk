@@ -14,7 +14,7 @@ import pytest
 
 from app.models.dxf import teile_als_dxf
 from app.models.engine import berechnen
-from app.services.konstrukteur import demo_graphen
+from tests.hilfen import alte_graphen as demo_graphen
 
 REFERENZ = Path(__file__).parent / "referenz" / "engine_faelle.json.gz"
 FAELLE = json.loads(gzip.open(REFERENZ, "rt", encoding="utf-8").read())

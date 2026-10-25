@@ -117,7 +117,7 @@ def test_demo_modus():
             r = c.post("/api/v1/bauplan/lesen", headers=GERAET, json={
                 "entwurf_id": stand["ergebnis"]["entwuerfe"][3]["id"], "maske_id": ids["maske_id"], "bereich": BEREICH,
                 "demo_index": 3})
-            assert warten(c, r.json()["auftrag"])["ergebnis"]["graph"]["name"] == "Daybed mit Lattenkorb"
+            assert warten(c, r.json()["auftrag"])["ergebnis"]["graph"]["name"] == "Gartenbank mit Stablehne"
             assert c.post("/api/v1/bauplan/anpassen", json={"graph": {"teile": [{}]}, "wunsch": "x"}).status_code == 501
     finally:
         app.dependency_overrides.clear()

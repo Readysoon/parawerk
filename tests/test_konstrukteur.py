@@ -9,7 +9,8 @@ import pytest
 
 import app.services.konstrukteur as modul
 from app.services.fehler import DienstFehler
-from app.services.konstrukteur import ClaudeKonstrukteur, demo_graphen
+from app.services.konstrukteur import ClaudeKonstrukteur
+from tests.hilfen import alte_graphen as demo_graphen
 
 FOTO = "data:image/jpeg;base64,AAAA"
 

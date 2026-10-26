@@ -24,6 +24,15 @@ class MarkierenSeite extends StatefulWidget {
 class _MarkierenSeiteState extends State<MarkierenSeite> {
   final _mal = MalSteuerung();
 
+  late final Future<Hochgeladen?> _hochgeladen;
+
+  @override
+  void initState() {
+    super.initState();
+    // Foto gleich hochladen: Während du markierst, schätzt der Server die Tiefe fürs Messen
+    _hochgeladen = widget.api.fotoHochladen(widget.foto).then<Hochgeladen?>((h) => h).catchError((Object _) => null);
+  }
+
   @override
   void dispose() {
     _mal.dispose();
@@ -38,7 +47,16 @@ class _MarkierenSeiteState extends State<MarkierenSeite> {
     final maske = await _mal.maskePng(widget.bildBreite, widget.bildHoehe);
     if (!mounted) return;
     Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => WunschSeite(sitzung: Sitzung(api: widget.api, foto: widget.foto, maske: maske)),
+      builder: (_) => WunschSeite(
+        sitzung: Sitzung(
+          api: widget.api,
+          foto: widget.foto,
+          maske: maske,
+          bildBreite: widget.bildBreite,
+          bildHoehe: widget.bildHoehe,
+          hochgeladen: _hochgeladen,
+        ),
+      ),
     ));
   }
 

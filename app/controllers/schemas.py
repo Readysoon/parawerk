@@ -43,6 +43,40 @@ class LesenV1(BaseModel):
     demo_index: int | None = Field(None, description="Nur im Demo-Modus: Nummer des Beispielentwurfs (0–3)")
 
 
+class FotoV1(BaseModel):
+    foto: DataUrl
+
+
+Relativ = Annotated[float, Field(ge=0, le=1)]
+
+
+class MessungV1(BaseModel):
+    """Eine Strecke im Foto: zwei Punkte relativ zur Bildgröße (0–1, links oben = 0,0) und ihre echte Länge."""
+    a: Annotated[list[Relativ], Field(min_length=2, max_length=2)]
+    b: Annotated[list[Relativ], Field(min_length=2, max_length=2)]
+    mm: Mass
+
+
+class MasseV1(BaseModel):
+    tiefe_id: BildId = Field(max_length=32, description="aus dem Ergebnis von POST /fotos")
+    maske: DataUrl | None = None
+    maske_id: BildId | None = Field(None, max_length=32)
+    messungen: list[MessungV1] = Field(min_length=1, max_length=3)
+
+    @model_validator(mode="after")
+    def _maske(self):
+        if not (self.maske or self.maske_id):
+            raise ValueError("maske/maske_id")
+        return self
+
+
+class MasseAntwort(BaseModel):
+    bereich: list[int | None] = Field(description="Breite × Tiefe × Höhe in mm; null = nicht messbar, selbst eintragen")
+    abweichung: float | None = Field(None, description="bei 2+ Messungen: Unterschied der Maßstäbe (0.05 = 5 %)")
+    nachmessen: bool = False
+    hinweise: list[str] = Field(default_factory=list, description="in der Sprache der Anfrage")
+
+
 class BerechnenV1(BaseModel):
     graph: dict
     bereich: Bereich

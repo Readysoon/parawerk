@@ -7,6 +7,9 @@ Ablauf:
 4. ``POST /api/v1/bauplan/berechnen`` → sofort: Bauplan als Daten und 3D-Modell (glb) als Bild-URL
 5. ``POST /api/v1/bauplan/anpassen`` → Auftrag; Ergebnis: geänderter Bauteilgraph
 
+Messen (optional, vor Schritt 1): ``POST /api/v1/fotos`` lädt das Foto hoch und schätzt im Hintergrund die Tiefe;
+``POST /api/v1/masse`` rechnet aus einer gemessenen Strecke Breite, Tiefe und Höhe des markierten Bereichs.
+
 Aufträge fragt die App mit ``GET /api/v1/auftraege/{id}`` ab (``laeuft`` → ``fertig`` oder ``fehler``).
 Die Geräte-ID schickt die App im Header ``X-Geraet``, die Sprache in ``X-Sprache``.
 """
@@ -19,6 +22,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response
+import numpy as np
 from PIL import Image
 
 from ..config import Einstellungen, einstellungen
@@ -29,6 +33,7 @@ from ..models.dxf import teile_als_dxf
 from ..models.engine import Ergebnis, berechnen as engine_berechnen
 from ..models.ansicht import modellbild
 from ..models.gltf import als_glb
+from ..models.raum import Messung, Tiefe, bereich_messen, flach
 from ..models.verbrauch import datenbank
 from ..services import bildarbeit as ba
 from ..services.auftraege import starten
@@ -37,13 +42,15 @@ from ..services.fehler import DienstFehler
 from ..services.konstrukteur import Konstrukteur
 from ..services.kostendeckel import Gesperrt, Kostendeckel, Kunde
 from ..services.prompts import bearbeitung_prompt, inpaint_prompt
+from ..services.tiefe import TiefenKI
 from ..views import STATIC, templates
 from ..views.praesentation import bauplan_ansicht, modell_3d
-from .abhaengigkeiten import bild_ki, konstrukteur, kostendeckel, kunde
-from .schemas import (AnpassenAnfrage, CodeAnfrage, AuftragAntwort, AuftragStand, BauplanAntwort, BerechnenV1, EntwuerfeV1, LesenV1,
-                      NachjustierenV1)
+from .abhaengigkeiten import bild_ki, konstrukteur, kostendeckel, kunde, tiefen_ki
+from .schemas import (AnpassenAnfrage, CodeAnfrage, AuftragAntwort, AuftragStand, BauplanAntwort, BerechnenV1, EntwuerfeV1,
+                      FotoV1, LesenV1, MasseAntwort, MasseV1, NachjustierenV1)
 
 router = APIRouter(prefix="/api/v1", tags=["API v1"])
+MIME_TIEFE = "application/x-parawerk-tiefe"  # Tiefenkarte (npz) in der Bilder-Tabelle
 log = logging.getLogger("parawerk.api")
 
 
@@ -132,6 +139,69 @@ async def auftrag(aid: str, k: Kunde = Depends(kunde), e: Einstellungen = Depend
     if not a or not secrets.compare_digest(a["geraet"], k.geraet):
         raise HTTPException(404, t("fehler.auftrag_fehlt"))
     return AuftragStand(id=a["id"], art=a["art"], status=a["status"], ergebnis=a["ergebnis"], fehler=a["fehler"])
+
+
+@router.post("/fotos", response_model=AuftragAntwort, status_code=202)
+async def fotos(anfrage: FotoV1, tki: TiefenKI = Depends(tiefen_ki), deckel: Kostendeckel = Depends(kostendeckel),
+                k: Kunde = Depends(kunde), e: Einstellungen = Depends(einstellungen)) -> AuftragAntwort:
+    """Foto hochladen (``foto_id`` gilt dann für ``/entwuerfe``). Im Hintergrund schätzt die Tiefen-KI die Entfernungen.
+
+    Ergebnis des Auftrags: ``tiefe_id`` für ``/masse`` und ``flach``. ``flach=true`` heißt: keine echte Tiefe (Demo,
+    Limit oder Fehler), gemessen wird dann nur in der Ebene der Messung, wie mit einem Lineal auf dem Foto.
+    """
+    db = _db(e)
+    await run_in_threadpool(speicher.aufraeumen, db)
+    try:
+        foto = ba.foto_vorbereiten(ba.aus_data_url(anfrage.foto))
+    except DienstFehler as err:
+        raise HTTPException(400, str(err)) from err
+    foto_id = await run_in_threadpool(speicher.bild_speichern, db, k.geraet, ba.jpeg(foto), "image/jpeg")
+    eintrag, mit_ki = None, not tki.demo
+    if mit_ki:
+        try:
+            eintrag = await reservieren(deckel, "tiefe", k)
+        except HTTPException:
+            mit_ki = False  # Limit oder Budget: Messen geht trotzdem, nur ohne Tiefe
+
+    async def arbeit() -> dict:
+        tiefe = None
+        if mit_ki:
+            try:
+                tiefe = await tki.schaetzen(foto)
+            except DienstFehler as err:
+                log.warning("Tiefe nicht geschätzt: %s", err)
+                await erstatten(deckel, eintrag)
+        if tiefe is None:  # Demo: Ersatz des Demo-Dienstes; sonst bei Limit oder Fehler: flach
+            tiefe = await tki.schaetzen(foto) if tki.demo else flach(*foto.size)
+        tid = await run_in_threadpool(speicher.bild_speichern, db, k.geraet, tiefe.als_bytes(), MIME_TIEFE)
+        return {"tiefe_id": tid, "flach": tiefe.flach}
+
+    aid = await starten(db, k.geraet, "tiefe", arbeit, "fehler.tiefe", lambda: erstatten(deckel, eintrag))
+    return AuftragAntwort(auftrag=aid, foto_id=foto_id)
+
+
+@router.post("/masse", response_model=MasseAntwort)
+async def masse(anfrage: MasseV1, e: Einstellungen = Depends(einstellungen)) -> MasseAntwort:
+    """Breite, Tiefe und Höhe des markierten Bereichs aus der Tiefenkarte und 1–3 gemessenen Strecken.
+
+    Kostet nichts (rechnet nur). Werte, die sich nicht messen lassen, sind ``null``: dann bleibt das Eingabefeld, wie es ist.
+    """
+    db = _db(e)
+    gefunden = await run_in_threadpool(speicher.bild_laden, db, anfrage.tiefe_id)
+    if not gefunden or gefunden[1] != MIME_TIEFE:
+        raise HTTPException(404, t("fehler.bild_fehlt"))
+    try:
+        tiefe = Tiefe.aus_bytes(gefunden[0])
+        roh = ba.aus_data_url(anfrage.maske) if anfrage.maske else _bild(db, anfrage.maske_id)
+    except DienstFehler as err:
+        raise HTTPException(400, str(err)) from err
+    maske = np.asarray(ba.maske_vorbereiten(roh, roh.size))
+    if not (maske > 127).any():
+        raise HTTPException(400, t("fehler.nichts_markiert"))
+    messungen = [Messung((m.a[0], m.a[1]), (m.b[0], m.b[1]), m.mm) for m in anfrage.messungen]
+    ergebnis = await run_in_threadpool(bereich_messen, tiefe, maske, messungen)
+    return MasseAntwort(bereich=ergebnis.bereich, abweichung=ergebnis.abweichung,
+                        nachmessen="masse.nachmessen" in ergebnis.hinweise, hinweise=[t(h) for h in ergebnis.hinweise])
 
 
 @router.post("/entwuerfe", response_model=AuftragAntwort, status_code=202)

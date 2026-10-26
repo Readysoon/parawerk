@@ -1,10 +1,12 @@
 // Wunsch und Maße eingeben, dann Entwürfe malen lassen.
 import 'package:flutter/material.dart';
 
+import '../api.dart';
 import '../hilfen.dart';
 import '../sitzung.dart';
 import '../texte.dart';
 import 'entwuerfe.dart';
+import 'messen.dart';
 
 class WunschSeite extends StatefulWidget {
   const WunschSeite({super.key, required this.sitzung});
@@ -18,6 +20,7 @@ class _WunschSeiteState extends State<WunschSeite> {
   late final _wunsch = TextEditingController(text: widget.sitzung.wunsch);
   late final _masse = [for (final v in widget.sitzung.bereich) TextEditingController(text: '$v')];
   String? _frei;
+  String? _messHinweis; // Ergebnis der Messung im Foto
 
   static const _vorschlaege = {
     'de': ['Daybed aus Latten mit Polstern', 'Regal bis unter die Decke', 'Sitzbank mit Stauraum', 'niedriges Sideboard'],
@@ -78,6 +81,20 @@ class _WunschSeiteState extends State<WunschSeite> {
     }
   }
 
+  Future<void> _messen() async {
+    final ergebnis = await Navigator.of(context).push<MassErgebnis>(
+      MaterialPageRoute(builder: (_) => MessenSeite(sitzung: widget.sitzung)),
+    );
+    if (ergebnis == null || !mounted) return;
+    setState(() {
+      for (var i = 0; i < 3; i++) {
+        final v = ergebnis.bereich[i];
+        if (v != null) _masse[i].text = '$v';
+      }
+      _messHinweis = [tr('gemessen'), ...ergebnis.hinweise].join(' ');
+    });
+  }
+
   Future<void> _entwerfen() async {
     final s = widget.sitzung;
     s.wunsch = _wunsch.text.trim();
@@ -109,7 +126,10 @@ class _WunschSeiteState extends State<WunschSeite> {
             for (final v in _vorschlaege[sprache] ?? _vorschlaege['en']!)
               ActionChip(label: Text(v), onPressed: () => setState(() => _wunsch.text = v)),
           ]),
-          Abschnitt(tr('masse')),
+          Row(children: [
+            Expanded(child: Abschnitt(tr('masse'))),
+            TextButton.icon(onPressed: _messen, icon: const Icon(Icons.straighten), label: Text(tr('im_foto_messen'))),
+          ]),
           Row(children: [
             for (final (i, key) in const ['breite', 'tiefe', 'hoehe'].indexed) ...[
               if (i > 0) const SizedBox(width: 8),
@@ -122,6 +142,11 @@ class _WunschSeiteState extends State<WunschSeite> {
               ),
             ],
           ]),
+          if (_messHinweis != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(_messHinweis!, style: const TextStyle(color: Colors.black54, fontSize: 13)),
+            ),
           const SizedBox(height: 24),
           FilledButton(
             onPressed: _entwerfen,

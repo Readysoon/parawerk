@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
+import 'dart:ui' show Offset;
 
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -36,6 +37,34 @@ class EntwuerfeErgebnis {
   final List<Entwurf> entwuerfe;
   final bool demo;
   final String prompt;
+}
+
+class Hochgeladen {
+  Hochgeladen(this.fotoId, this.tiefeId, this.flach);
+  final String fotoId;
+  final String tiefeId;
+  final bool flach;
+}
+
+/// Eine Strecke im Foto: zwei Punkte relativ zur Bildgröße (0–1) und ihre echte Länge in mm.
+class Messung {
+  Messung(this.a, this.b, this.mm);
+  final Offset a;
+  final Offset b;
+  final double mm;
+
+  Map<String, Object> alsJson() => {
+        'a': [a.dx.clamp(0.0, 1.0), a.dy.clamp(0.0, 1.0)],
+        'b': [b.dx.clamp(0.0, 1.0), b.dy.clamp(0.0, 1.0)],
+        'mm': mm,
+      };
+}
+
+class MassErgebnis {
+  MassErgebnis(this.bereich, this.nachmessen, this.hinweise);
+  final List<int?> bereich; // Breite, Tiefe, Höhe in mm
+  final bool nachmessen;
+  final List<String> hinweise;
 }
 
 class Api {
@@ -115,6 +144,31 @@ class Api {
   Future<({int? runden, int? nachjustieren})> codeEinloesen(String code) async {
     final j = await _post('/api/v1/code', {'code': code});
     return (runden: j['runden'] as int?, nachjustieren: j['nachjustieren'] as int?);
+  }
+
+  /// Foto hochladen. Der Server schätzt dabei die Tiefe (Entfernung jedes Bildpunkts) fürs Messen.
+  /// [flach] = keine echte Tiefe (Demo, Limit oder Fehler): Messen geht dann nur wie mit einem Lineal auf dem Foto.
+  Future<Hochgeladen> fotoHochladen(Uint8List foto) async {
+    final j = await _auftrag('/api/v1/fotos', {'foto': _dataUrl(foto, 'image/jpeg')});
+    return Hochgeladen(j['foto_id'] as String, j['tiefe_id'] as String, j['flach'] == true);
+  }
+
+  /// Breite, Tiefe, Höhe des markierten Bereichs aus 1–2 gemessenen Strecken. null = nicht messbar.
+  Future<MassErgebnis> masse({
+    required String tiefeId,
+    required Uint8List maske,
+    required List<Messung> messungen,
+  }) async {
+    final j = await _post('/api/v1/masse', {
+      'tiefe_id': tiefeId,
+      'maske': _dataUrl(maske, 'image/png'),
+      'messungen': [for (final m in messungen) m.alsJson()],
+    });
+    return MassErgebnis(
+      [for (final v in j['bereich'] as List) (v as num?)?.round()],
+      j['nachmessen'] == true,
+      [for (final h in (j['hinweise'] as List? ?? const [])) '$h'],
+    );
   }
 
   /// Foto (JPEG) und Maske (PNG, deckend gemalt = hier soll das Möbel hin) → 4 fertig eingesetzte Entwürfe.

@@ -44,8 +44,9 @@
         <label class="f">{{ t("ui.pinsel") }}<input type="number" min="3" max="120" value="18" id="pinsel"></label>
         <div class="btns"><button class="b" id="radierer" aria-pressed="false">{{ t("ui.radierer") }}</button><button class="b" id="maske-loeschen">{{ t("ui.alles_loeschen") }}</button><button class="b" id="anderes-foto">{{ t("ui.anderes_foto") }}</button></div>
         <h3>{{ t("ui.massstab") }}</h3>
-        <div class="btns"><button class="b" id="a4-start" aria-pressed="false">{{ t("ui.a4_start") }}</button><button class="b" id="a4-reset" hidden>{{ t("ui.zuruecksetzen") }}</button></div>
-        <p class="hint" id="a4-hinweis">{{ t("ui.a4_hinweis") }}</p>
+        <p class="hint" id="mess-hinweis">{{ t("ui.mess_hinweis") }}</p>
+        <div class="btns"><button class="b" id="mess-start" aria-pressed="false">{{ t("ui.mess_start") }}</button><button class="b" id="mess-reset" hidden>{{ t("ui.zuruecksetzen") }}</button></div>
+        <div class="btns" id="mess-eingabe" hidden><input type="number" id="mess-cm" min="1" max="2000" step="0.5" inputmode="decimal" placeholder="{{ t('ui.mess_laenge') }}" aria-label="{{ t('ui.mess_laenge') }}"><button class="b primary" id="mess-ok">{{ t("ui.mess_ok") }}</button></div>
         <h3>{{ t("ui.masse") }}</h3>
         <p class="hint" id="mass-hinweis">{{ t("ui.mass_hinweis") }}</p>
         {% include "teile/bereich.html" %}

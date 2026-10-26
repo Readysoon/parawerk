@@ -1,7 +1,5 @@
 // Oberfläche: Foto, Maske malen, Entwürfe und Bauplan anzeigen.
 // Alles Rechnen und die Bildarbeit macht der Server (/api/v1, dieselbe API wie die App); hier nur Foto, Maske, Anzeige.
-import { a4Homography, messeMm } from './geometrie.js';
-
 const MAXPX = 1024;
 const $ = id => document.getElementById(id);
 // Texte in der Sprache der Seite (vom Server eingebettet); {name} wird ersetzt
@@ -9,11 +7,11 @@ const TEXTE = JSON.parse(document.getElementById('texte')?.textContent || '{}');
 const tx = (k, w = {}) => (TEXTE[`ui.${k}`] ?? k).replace(/\{(\w+)\}/g, (_, n) => w[n] ?? '');
 
 const z = {
-  schritt: 0, foto: null, a4: [], a4Modus: false, radierer: false, cursor: null, bereich: [1800, 900, 900],
+  schritt: 0, foto: null, messungen: [], messPunkte: [], messModus: false, tiefe: null, radierer: false, cursor: null, bereich: [1800, 900, 900],
   entwuerfe: [], njVerlauf: [], demo: false, fotoId: null, maskeId: null, gewaehlt: -1, graph: null, verlauf: [], beschaeftigt: false, ergebnis: null,
 };
 const maske = document.createElement('canvas');
-let bild = null, viewer = null, malt = false;
+let bild = null, viewer = null, malt = false, fotoNr = 0;
 
 const bildLaden = src => new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = src; });
 
@@ -85,9 +83,15 @@ async function fotoSetzen(src, istDemo) {
   const url = c.toDataURL('image/jpeg', 0.88);
   bild = await bildLaden(url);
   maske.width = c.width; maske.height = c.height; toenung = null;
-  Object.assign(z, { foto: { url, w: c.width, h: c.height, demo: istDemo }, a4: [], entwuerfe: [], graph: null, gewaehlt: -1, fotoId: null });
+  Object.assign(z, { foto: { url, w: c.width, h: c.height, demo: istDemo }, messungen: [], messPunkte: [], messModus: false,
+    entwuerfe: [], graph: null, gewaehlt: -1, fotoId: null });
+  // Foto gleich hochladen: Während du markierst, schätzt der Server die Tiefe fürs Messen
+  const nr = ++fotoNr;
+  z.tiefe = auftrag('/fotos', { foto: url })
+    .then(j => { if (nr === fotoNr) z.fotoId = j.foto_id; return j; })
+    .catch(() => null);  // ohne Tiefe: Maße eben von Hand
   $('arbeitsflaeche').hidden = false; $('kein-foto').hidden = true;
-  fehler(''); a4Anzeigen(); zeigeSchritt(1);  // direkt markieren
+  fehler(''); messAnzeigen(); zeigeSchritt(1);  // direkt markieren
 }
 $('foto-datei').addEventListener('change', e => {
   const f = e.target.files?.[0]; if (!f) return;
@@ -99,15 +103,30 @@ $('foto-datei').addEventListener('change', e => {
 $('beispielzimmer').addEventListener('click', () => fotoSetzen('/static/demo/zimmer.jpg', true));
 $('anderes-foto').addEventListener('click', () => $('foto-datei').click());
 
-function a4Anzeigen() {
-  $('a4-start').setAttribute('aria-pressed', z.a4Modus);
-  $('a4-reset').hidden = !z.a4.length;
-  $('a4-hinweis').textContent = z.a4Modus ? tx('a4_ecke', { n: z.a4.length + 1 })
-    : z.a4.length === 4 ? tx('a4_ok') : tx('a4_hinweis');
+// ---------- Im Foto messen: Strecke antippen, echte Länge eingeben; der Server rechnet die Maße ----------
+function messAnzeigen() {
+  $('mess-start').setAttribute('aria-pressed', z.messModus);
+  $('mess-start').textContent = tx(z.messungen.length ? 'mess_zweite' : 'mess_start');
+  $('mess-start').hidden = z.messungen.length >= 2;
+  $('mess-reset').hidden = !z.messungen.length && !z.messPunkte.length;
+  $('mess-eingabe').hidden = z.messPunkte.length !== 2;
+  if (z.messModus) $('mess-hinweis').textContent = tx('mess_punkt', { n: z.messPunkte.length + 1 });
+  else if (!z.messungen.length) $('mess-hinweis').textContent = tx('mess_hinweis');
   zeichnen();
 }
-$('a4-start').addEventListener('click', () => { z.a4 = []; z.a4Modus = true; a4Anzeigen(); });
-$('a4-reset').addEventListener('click', () => { z.a4 = []; z.a4Modus = false; a4Anzeigen(); });
+$('mess-start').addEventListener('click', () => { z.messPunkte = []; z.messModus = true; messAnzeigen(); });
+$('mess-reset').addEventListener('click', () => {
+  Object.assign(z, { messungen: [], messPunkte: [], messModus: false }); $('mass-hinweis').textContent = tx('mass_hinweis'); messAnzeigen();
+});
+function messungUebernehmen() {
+  const cm = parseFloat($('mess-cm').value.replace(',', '.'));
+  if (!(cm > 0) || z.messPunkte.length !== 2) return;
+  z.messungen.push({ a: z.messPunkte[0], b: z.messPunkte[1], mm: cm * 10 });
+  z.messPunkte = []; $('mess-cm').value = '';
+  messAnzeigen(); messen();
+}
+$('mess-ok').addEventListener('click', messungUebernehmen);
+$('mess-cm').addEventListener('keydown', e => { if (e.key === 'Enter') messungUebernehmen(); });
 
 // ---------- 2. Bereich ----------
 function zeichnen() {
@@ -117,15 +136,23 @@ function zeichnen() {
   g.drawImage(bild, 0, 0);
   if (!toenung || toenung.width !== cv.width) toenungNeu();
   g.drawImage(toenung, 0, 0);
-  if (z.a4.length) {
-    g.strokeStyle = '#e8b400'; g.lineWidth = 3; g.beginPath();
-    z.a4.forEach((p, i) => (i ? g.lineTo(...p) : g.moveTo(...p))); if (z.a4.length === 4) g.closePath(); g.stroke();
-    z.a4.forEach((p, i) => {
-      g.fillStyle = '#e8b400'; g.beginPath(); g.arc(p[0], p[1], 9, 0, 7); g.fill();
-      g.fillStyle = '#2a2100'; g.font = '600 12px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(i + 1, p[0], p[1]);
-    });
+  // Messstrecken wie ein Zollstock: dunkle Linie mit gelbem Kern, Länge in der Mitte
+  for (const m of [...z.messungen, { a: z.messPunkte[0], b: z.messPunkte[1] }]) {
+    if (!m.a) continue;
+    if (m.b) {
+      g.lineCap = 'round';
+      g.strokeStyle = 'rgba(0,0,0,.6)'; g.lineWidth = 6; g.beginPath(); g.moveTo(...m.a); g.lineTo(...m.b); g.stroke();
+      g.strokeStyle = '#e8b400'; g.lineWidth = 3; g.beginPath(); g.moveTo(...m.a); g.lineTo(...m.b); g.stroke();
+    }
+    for (const p of [m.a, m.b]) if (p) { g.fillStyle = '#e8b400'; g.strokeStyle = '#000'; g.lineWidth = 2; g.beginPath(); g.arc(p[0], p[1], 7, 0, 7); g.fill(); g.stroke(); }
+    if (m.mm && m.b) {
+      const text = `${(m.mm / 10).toLocaleString()} cm`, x = (m.a[0] + m.b[0]) / 2, y = (m.a[1] + m.b[1]) / 2;
+      g.font = '600 14px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      const w = g.measureText(text).width + 10;
+      g.fillStyle = '#1c2530'; g.fillRect(x - w / 2, y - 11, w, 22); g.fillStyle = '#fff'; g.fillText(text, x, y);
+    }
   }
-  if (z.cursor && z.schritt === 1 && !z.a4Modus) {  // Pinsel-Vorschau: Kreis in Pinselgröße, gestrichelt beim Radieren
+  if (z.cursor && z.schritt === 1 && !z.messModus) {  // Pinsel-Vorschau: Kreis in Pinselgröße, gestrichelt beim Radieren
     const [x, y] = z.cursor, r = pinselRadius();
     g.setLineDash(z.radierer ? [6, 4] : []);
     g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,.55)'; g.beginPath(); g.arc(x, y, r, 0, 7); g.stroke();
@@ -153,16 +180,16 @@ function malen(e) {
 const cv = $('arbeitsflaeche');
 cv.addEventListener('pointerdown', e => {
   if (!z.foto) return;
-  if (z.a4Modus) {  // Ecken setzen statt malen
-    if (z.a4.length < 4) z.a4.push(pos(e));
-    if (z.a4.length === 4) { z.a4Modus = false; messen(); }
-    a4Anzeigen(); return;
+  if (z.messModus) {  // Enden der Strecke setzen statt malen
+    z.messPunkte.push(pos(e));
+    if (z.messPunkte.length === 2) { z.messModus = false; messAnzeigen(); $('mess-cm').focus(); } else messAnzeigen();
+    return;
   }
   if (z.schritt === 1) { malt = true; cv.setPointerCapture(e.pointerId); malen(e); }
 });
 cv.addEventListener('pointermove', e => {
   z.cursor = pos(e);
-  cv.style.cursor = z.schritt === 1 && !z.a4Modus ? 'none' : z.a4Modus ? 'crosshair' : 'default';
+  cv.style.cursor = z.messModus ? 'crosshair' : z.schritt === 1 ? 'none' : 'default';
   if (malt) malen(e); else spaeterZeichnen();
 });
 cv.addEventListener('pointerleave', () => { z.cursor = null; spaeterZeichnen(); });
@@ -177,14 +204,23 @@ function maskenRahmen() {
   }
   return x1 < 0 ? null : { x0, y0, x1, y1 };
 }
-function messen() {
-  const b = maskenRahmen();
-  const H = b && z.a4.length === 4 ? a4Homography(z.a4) : null;
-  if (!H) { $('mass-hinweis').textContent = tx('mass_hinweis'); return; }
-  const w = Math.round(messeMm(H, [b.x0, b.y1], [b.x1, b.y1]));
-  const h = Math.round(messeMm(H, [(b.x0 + b.x1) / 2, b.y0], [(b.x0 + b.x1) / 2, b.y1]));
-  $('mass-hinweis').textContent = tx('gemessen', { w, h });
-  bereichSetzen([w, z.bereich[1], h]);
+let messNr = 0;
+async function messen() {
+  if (!z.messungen.length || !maskenRahmen()) return;
+  const nr = ++messNr;  // nur die letzte Rechnung zählt (Maske kann sich inzwischen geändert haben)
+  $('mass-hinweis').textContent = tx('mess_warten');
+  const tiefe = await z.tiefe;
+  if (nr !== messNr) return;
+  if (!tiefe) { $('mass-hinweis').textContent = tx('mass_hinweis'); return; }
+  const rel = p => [p[0] / maske.width, p[1] / maske.height];
+  try {
+    const j = await api('/masse', {
+      tiefe_id: tiefe.tiefe_id, maske: maske.toDataURL('image/png'),
+      messungen: z.messungen.map(m => ({ a: rel(m.a), b: rel(m.b), mm: m.mm })) });
+    if (nr !== messNr) return;
+    bereichSetzen(z.bereich.map((v, i) => j.bereich[i] ?? v));
+    $('mass-hinweis').textContent = [tx('gemessen'), ...j.hinweise].join(' ');
+  } catch (e) { if (nr === messNr) $('mass-hinweis').textContent = e.message; }
 }
 $('radierer').addEventListener('click', () => {
   z.radierer = !z.radierer;

@@ -14,6 +14,7 @@ from ..services.bild_ki import BildKI, DemoBildKI, ReplicateFluxFill
 from ..models.verbrauch import datenbank
 from ..services.konstrukteur import ClaudeKonstrukteur, DemoKonstrukteur, Konstrukteur
 from ..services.kostendeckel import Kostendeckel, Kunde
+from ..services.tiefe import DemoTiefe, ReplicateTiefe, TiefenKI
 
 GERAET = "geraet"  # Cookie mit der Geräte-ID
 ADMIN = "admin"  # Cookie mit dem Admin-Schlüssel
@@ -22,6 +23,10 @@ JAHR = 365 * 24 * 3600
 
 def bild_ki(e: Einstellungen = Depends(einstellungen)) -> BildKI:
     return ReplicateFluxFill(e.replicate_api_token, e.replicate_model, e.replicate_edit_model) if e.bild_ki_aktiv else DemoBildKI()
+
+
+def tiefen_ki(e: Einstellungen = Depends(einstellungen)) -> TiefenKI:
+    return ReplicateTiefe(e.replicate_api_token, e.replicate_tiefe_model) if e.bild_ki_aktiv else DemoTiefe()
 
 
 def konstrukteur(e: Einstellungen = Depends(einstellungen)) -> Konstrukteur:

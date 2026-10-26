@@ -6,3 +6,4 @@ pydantic-settings==2.6.1
 sqlalchemy==2.0.36
 psycopg[binary]==3.2.3
 pillow==11.3.0
+numpy==2.1.3

@@ -2,7 +2,7 @@
 
 Vom Foto deiner Wohnung zum Bauplan für den Baumarkt.
 
-1. **Foto** hochladen, optional mit einem A4-Blatt an der Wand für echte Maße.
+1. **Foto** hochladen. Optional eine Strecke mit dem Zollstock messen und im Foto antippen: Daraus berechnet Parawerk Breite, Tiefe und Höhe des Bereichs.
 2. **Bereich** markieren (auch wo schon etwas steht) und seine Maße eintragen.
 3. **Wunsch** eingeben, z. B. „Daybed aus Latten mit Polstern“.
 4. **Entwürfe**: Die Bild-KI malt nur in den markierten Bereich. Zurück ins Foto kommt genau dieser Ausschnitt.
@@ -75,7 +75,7 @@ mobile/                    Flutter-App (iPhone, Android), spricht /api/v1; siehe
 
 **Sprachen:** Deutsch und Englisch. Die Sprache kommt aus `?sprache=de|en` (Umschalter oben rechts, wird als Cookie gemerkt), sonst aus dem Cookie, dem Header `X-Sprache` oder der Browsersprache. Alles läuft über `app/i18n`: Oberfläche, Fehlermeldungen, Rechenweg, Prüfung, Einkaufsliste und Montage. Claude schreibt die Bauteilnamen in der gewählten Sprache. Intern bleiben die Schlüssel deutsch (Sortiment, Rollen), übersetzt wird erst bei der Anzeige. Neue Texte kommen in beide Kataloge; `tests/test_i18n.py` prüft, dass keiner fehlt.
 
-Website und App sprechen dieselbe API (`/api/v1`). Im Browser passiert nur, was Foto und Maske brauchen: Maske malen, A4-Maßstab, 3D drehen. Bildarbeit, Rechnen und Bauplan macht der Server.
+Website und App sprechen dieselbe API (`/api/v1`). Im Browser passiert nur, was Foto und Maske brauchen: Maske malen, Messstrecke antippen, 3D drehen. Bildarbeit, Rechnen und Bauplan macht der Server.
 
 ## Ablauf und Schnittstellen
 
@@ -133,7 +133,9 @@ Unter `/api/v1` gibt es alles als JSON; Bildarbeit (Entwurf einsetzen, Ausschnit
 
 | Schritt | Aufruf | Antwort |
 |---|---|---|
-| Entwürfe | `POST /api/v1/entwuerfe` `{foto, maske, wunsch}` | Auftrag, `foto_id`, `maske_id` |
+| Foto hochladen | `POST /api/v1/fotos` `{foto}` | Auftrag (Tiefe schätzen), `foto_id`; Ergebnis `tiefe_id`, `flach` |
+| Maße messen | `POST /api/v1/masse` `{tiefe_id, maske, messungen: [{a, b, mm}]}` | sofort: `bereich`, `nachmessen`, `hinweise` |
+| Entwürfe | `POST /api/v1/entwuerfe` `{foto oder foto_id, maske, wunsch}` | Auftrag, `foto_id`, `maske_id` |
 | Nachjustieren | `POST /api/v1/entwuerfe/nachjustieren` `{foto_id, maske_id, entwurf_id, anpassung}` | Auftrag |
 | Konstruktion lesen | `POST /api/v1/bauplan/lesen` `{entwurf_id, maske_id, bereich}` | Auftrag |
 | Bauplan | `POST /api/v1/bauplan/berechnen` `{graph, bereich}` | sofort: Bauplan, `modell_glb` |
@@ -142,6 +144,16 @@ Unter `/api/v1` gibt es alles als JSON; Bildarbeit (Entwurf einsetzen, Ausschnit
 | Bilder, 3D | `GET /api/v1/bilder/{id}` | JPEG, PNG oder glb |
 
 Foto und Maske kommen als data-URL; die Maske ist ein PNG, weiß (oder bei transparentem PNG: deckend gemalt) = hier soll das Möbel hin. Header: `X-Geraet` (Geräte-ID, 8–64 Zeichen, von der App einmal erzeugt), `X-Sprache` (`de`/`en`). Im Browser ersetzt das Cookie `geraet` den Header. Bilder und Aufträge werden nach 7 Tagen gelöscht. `berechnen?mit_html=true` liefert zusätzlich den fertigen Bauplan-Ausschnitt für die Website.
+
+## Maße aus dem Foto
+
+Beim Hochladen schätzt Apples Depth Pro (auf Replicate, ca. 0,2–0,4 Cent je Foto, wenige Sekunden) für jeden Bildpunkt die Entfernung. Den genauen Maßstab liefert eine Messung des Nutzers: zwei Punkte im Foto und ihre echte Länge. Damit wird die Tiefenkarte skaliert (`app/models/raum.py`):
+- Der Boden wird als Ebene gesucht (gibt „oben“ und die Bodenhöhe).
+- Reicht die Markierung bis auf den Boden, ist ihre Unterkante die Vorderkante des Möbels: daraus Breite und Abstand zur Wand dahinter (Tiefe); die Oberkante wird auf die Vorder- bzw. Rückseite projiziert (Höhe).
+- Sonst (Wandregal) gelten Breite und Höhe auf der Wand.
+- Zwei Messungen werden verglichen; weichen sie mehr als 8 % ab, heißt es „nachmessen“.
+
+Ohne Replicate-Schlüssel, bei Fehlern oder über dem Limit (`FOTOS_PRO_TAG`, Standard 20) wird „flach“ gemessen, wie mit einem Lineal auf dem Foto. Getestet an einem gerechneten Zimmer mit bekannten Maßen (`tests/test_raum.py`), auch mit verrauschter Tiefe.
 
 ## Selbstkontrolle beim Lesen
 
@@ -157,6 +169,7 @@ Jeder bezahlte KI-Aufruf wird vorher in der Tabelle `verbrauch` eingetragen (`se
 | Gratis-Nachjustieren je Gerät (≈ 0,045 $) | 2 | `GRATIS_NACHJUSTIEREN` |
 | Runden je IP und Tag (gegen gelöschte Cookies) | 3 | `IP_RUNDEN_PRO_TAG` |
 | Lesungen / Anpassungen je Gerät und Tag | 5 / 10 | `LESEN_PRO_TAG`, `ANPASSEN_PRO_TAG` |
+| Fotos mit Tiefe je Gerät und Tag (≈ 0,004 $; darüber wird flach gemessen) | 20 | `FOTOS_PRO_TAG` |
 | Tagesbudget für alle zusammen, gilt auch für Admin | 5 $ | `TAGESBUDGET_USD` |
 
 **Testcodes:** `TESTCODES="KUMPEL:10,FREUNDE:5:3"` (Code:Runden[:Geräte], ohne Geräte-Angabe genau eins). Eingelöst wird auf der Website unter „Testcode eingeben“ bzw. in der App (`POST /api/v1/code`). Ein Code gibt die Runden zusätzlich (und doppelt so viele Änderungen), für Geräte mit Code gilt das IP-Limit nicht; das Tagesbudget bleibt. Entfernt man einen Code aus `TESTCODES`, fällt sein Bonus weg.
@@ -174,7 +187,7 @@ Eine Bild-KI ist jede Klasse mit `entwerfen(foto, maske, prompt, seeds)` (siehe 
 - Statik nach Faustregeln (Spannweite aus Holzstärke), keine Ingenieursberechnung.
 - Nur achsparallele Teile, keine Schrägen und Rundungen.
 - Sortiment nach deutschen Baumarkt-Angeboten (OBI, toom, Hornbach, Okt. 2026); im eigenen Markt prüfen.
-- Ohne A4-Blatt kommen die Maße aus deiner Eingabe.
+- Ohne Messung kommen die Maße aus deiner Eingabe. Gemessen wird ein Vorschlag (meist auf wenige Prozent genau), der Bereich gilt als Umriss des Möbels: Unterkante = Vorderkante am Boden.
 
 ## Verbesserungsideen
 

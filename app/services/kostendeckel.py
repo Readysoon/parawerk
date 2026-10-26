@@ -23,7 +23,8 @@ from ..models import verbrauch as v
 # geschätzte Kosten je Aufruf in US-Dollar (Okt. 2026): FLUX Fill Pro 0,05 $/Bild, FLUX Kontext Pro 0,04 $/Bild,
 # Claude Sonnet 5.5 2 $ / 10 $ je Million Tokens Ein-/Ausgabe
 # lesen inkl. einer Runde Selbstkontrolle; jede weitere Runde ist eine „kontrolle“ (zählt nur fürs Tagesbudget)
-KOSTEN = {"runde": 0.21, "nachjustieren": 0.045, "lesen": 0.09, "anpassen": 0.04, "kontrolle": 0.05}
+# Depth Pro auf Replicate: ca. 0,002–0,004 $ je Foto
+KOSTEN = {"runde": 0.21, "nachjustieren": 0.045, "lesen": 0.09, "anpassen": 0.04, "kontrolle": 0.05, "tiefe": 0.004}
 
 
 @dataclass(frozen=True)
@@ -99,6 +100,9 @@ class Kostendeckel:
                 raise Gesperrt(429, t("fehler.tageslimit"))
         elif art == "anpassen":
             if v.anzahl(self.db, "anpassen", geraet=k.geraet, seit=heute) >= self.e.anpassen_pro_tag:
+                raise Gesperrt(429, t("fehler.tageslimit"))
+        elif art == "tiefe":
+            if v.anzahl(self.db, "tiefe", geraet=k.geraet, seit=heute) >= self.e.fotos_pro_tag:
                 raise Gesperrt(429, t("fehler.tageslimit"))
 
     def reservieren(self, art: str, k: Kunde) -> int:

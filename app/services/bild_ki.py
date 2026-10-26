@@ -30,22 +30,19 @@ class BildKI(Protocol):
         ...
 
 
-class ReplicateFluxFill:
-    """FLUX Fill Pro über Replicate.
+class ReplicateBasis:
+    """Gemeinsames für alle Modelle auf Replicate: Dateien hochladen, Auftrag starten, auf das Ergebnis warten.
 
-    Replicate liefert je Auftrag (prediction) ein Bild. Die Aufträge werden nacheinander gestartet, weil
-    Replicate neue Konten bremst (unter 5 $ Guthaben: 1 gleichzeitig, 6 pro Minute). Bei 429 wartet die App
-    die angegebene Zeit und versucht es erneut. Gerechnet wird danach parallel.
+    Bei 429 (Replicate bremst neue Konten: unter 5 $ Guthaben 1 gleichzeitig, 6 pro Minute) wartet die App die
+    angegebene Zeit und versucht es erneut.
     """
 
-    demo = False
     API = "https://api.replicate.com/v1"
     MAX_DATA_URL = 250_000  # größere Dateien nimmt Replicate nicht als data-URL, sie gehen über die Files-API
     MAX_VERSUCHE = 8
 
-    def __init__(self, token: str, model: str, edit_model: str = "black-forest-labs/flux-kontext-pro",
-                 transport: httpx.AsyncBaseTransport | None = None, schlafen=asyncio.sleep) -> None:
-        self.token, self.model, self.edit_model = token, model, edit_model
+    def __init__(self, token: str, transport: httpx.AsyncBaseTransport | None = None, schlafen=asyncio.sleep) -> None:
+        self.token = token
         self._transport, self._schlafen = transport, schlafen
 
     @property
@@ -76,10 +73,13 @@ class ReplicateFluxFill:
                 sek = 10
         return min(max(sek, 1), 30) + 0.5
 
-    async def _starten(self, client: httpx.AsyncClient, eingabe: dict, model: str | None = None) -> dict:
+    async def _starten(self, client: httpx.AsyncClient, eingabe: dict, model: str) -> dict:
+        """``model`` ist ``besitzer/name`` (offizielle Modelle) oder ``besitzer/name:version`` (alle anderen)."""
+        name, _, version = model.partition(":")
+        url, daten = (f"{self.API}/predictions", {"version": version, "input": eingabe}) if version else \
+            (f"{self.API}/models/{name}/predictions", {"input": eingabe})
         for _ in range(self.MAX_VERSUCHE):
-            res = await client.post(f"{self.API}/models/{model or self.model}/predictions",
-                                    headers={**self._auth, "Content-Type": "application/json"}, json={"input": eingabe})
+            res = await client.post(url, headers={**self._auth, "Content-Type": "application/json"}, json=daten)
             if res.status_code == 429:
                 await self._schlafen(self._wartezeit(res))
                 continue
@@ -103,6 +103,21 @@ class ReplicateFluxFill:
         out = pred["output"]
         return out[0] if isinstance(out, list) else out
 
+
+class ReplicateFluxFill(ReplicateBasis):
+    """FLUX Fill Pro über Replicate.
+
+    Replicate liefert je Auftrag (prediction) ein Bild. Die Aufträge werden nacheinander gestartet (Ratenlimit),
+    gerechnet wird danach parallel.
+    """
+
+    demo = False
+
+    def __init__(self, token: str, model: str, edit_model: str = "black-forest-labs/flux-kontext-pro",
+                 transport: httpx.AsyncBaseTransport | None = None, schlafen=asyncio.sleep) -> None:
+        super().__init__(token, transport, schlafen)
+        self.model, self.edit_model = model, edit_model
+
     async def _fertigstellen(self, client: httpx.AsyncClient, pred: dict) -> str:
         url = await self._warten(client, pred)
         bild = await client.get(url)
@@ -119,7 +134,7 @@ class ReplicateFluxFill:
                 auftraege = []
                 for seed in seeds:  # nacheinander starten (Ratenlimit) …
                     eingabe = {"image": f, "mask": m, "prompt": prompt, "seed": seed, "output_format": "jpg"}
-                    auftraege.append(await self._starten(client, eingabe))
+                    auftraege.append(await self._starten(client, eingabe, self.model))
                 return list(await asyncio.gather(*(self._fertigstellen(client, p) for p in auftraege)))  # … parallel rechnen
         except httpx.HTTPError as err:
             raise DienstFehler(t("fehler.replicate_weg", art=type(err).__name__)) from err

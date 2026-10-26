@@ -13,6 +13,8 @@ class Einstellungen(BaseSettings):
     replicate_api_token: str = ""
     replicate_model: str = "black-forest-labs/flux-fill-pro"
     replicate_edit_model: str = "black-forest-labs/flux-kontext-pro"  # Nachjustieren eines Entwurfs per Text
+    # Tiefe aus dem Foto (für Raummaße): Apple Depth Pro; kein offizielles Modell, darum mit Version
+    replicate_tiefe_model: str = "ibrahimpenekli/depth-pro:8bee17f621ab23567c836703be980b3aa1552127b252b7ef9f6ce6db6c4619ef"
     # Konstruktion lesen und anpassen über die Claude-API
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-sonnet-5-5"
@@ -26,6 +28,7 @@ class Einstellungen(BaseSettings):
     ip_runden_pro_tag: int = 3
     lesen_pro_tag: int = 5  # je Gerät
     anpassen_pro_tag: int = 10  # je Gerät
+    fotos_pro_tag: int = 20  # je Gerät: Tiefe schätzen (sehr billig, nur gegen Missbrauch)
     selbstkontrolle: bool = True  # Claude vergleicht das berechnete Modell mit dem Entwurf und korrigiert
     kontrollrunden: int = 2  # weitere Runden nur, solange die Endkontrolle der Engine noch etwas meldet
     tagesbudget_usd: float = 5.0  # alle zusammen, Notbremse

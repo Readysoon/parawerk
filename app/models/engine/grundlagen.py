@@ -85,7 +85,9 @@ def ext(m: Bauteil, a: int) -> float:
 
 def ov(a: Bauteil, b: Bauteil, ax: int) -> float:
     """Überlappung zweier Quader entlang einer Achse (negativ = Abstand)."""
-    return min(a.max[ax], b.max[ax]) - max(a.min[ax], b.min[ax])
+    hi, lo = a.max[ax], a.min[ax]
+    bhi, blo = b.max[ax], b.min[ax]
+    return (hi if hi < bhi else bhi) - (lo if lo > blo else blo)  # wie min/max, aber schneller (sehr oft aufgerufen)
 
 
 def cen(m: Bauteil, a: int) -> float:
@@ -98,8 +100,15 @@ def others(a: int) -> list[int]:
 
 def depth(a: Bauteil, b: Bauteil) -> float:
     """Eindringtiefe: kleinste Überlappung, wenn sich die Quader in allen drei Achsen schneiden."""
-    p = [ov(a, b, ax) for ax in (0, 1, 2)]
-    return min(p) if all(v > 0.5 for v in p) else 0
+    amin, amax, bmin, bmax = a.min, a.max, b.min, b.max
+    kleinste = None
+    for ax in (0, 1, 2):
+        v = (amax[ax] if amax[ax] < bmax[ax] else bmax[ax]) - (amin[ax] if amin[ax] > bmin[ax] else bmin[ax])
+        if v <= 0.5:
+            return 0  # früh aufhören: die meisten Paare berühren sich gar nicht
+        if kleinste is None or v < kleinste:
+            kleinste = v
+    return kleinste
 
 
 def pen_sum(m: Bauteil, ms: list[Bauteil]) -> float:

@@ -155,6 +155,17 @@ Beim Hochladen schätzt Apples Depth Pro (auf Replicate, ca. 0,2–0,4 Cent je F
 
 Ohne Replicate-Schlüssel, bei Fehlern oder über dem Limit (`FOTOS_PRO_TAG`, Standard 20) wird „flach“ gemessen, wie mit einem Lineal auf dem Foto. Getestet an einem gerechneten Zimmer mit bekannten Maßen (`tests/test_raum.py`), auch mit verrauschter Tiefe.
 
+## Strecken und Stauchen
+
+Unter dem 3D-Modell gibt es Regler für Breite, Tiefe und Höhe. Der Graph bekommt dann `ziel: [B, T, H]` (mm), und die Engine baut dasselbe Design in dieser Größe (`app/models/engine/aufbau.py`, `engine/__init__.py`):
+- Holzstärken bleiben wie im Design, Bretter werden nur breiter oder schmaler.
+- Reihen (Latten, Stäbe, Lattenrost, Verkleidung, ab 3 Stück) behalten ihren Abstand: Es kommen Teile dazu oder fallen weg. Ein Paar an den Enden (z. B. zwei Beine) bleibt ein Paar; zu lange Spannweiten bekommen Stützen bzw. mehrere Mittelstege.
+- Kanten nah am Rand (bis 150 mm) behalten ihren Abstand zum Rand, der Rest wird anteilig gestreckt. Hat das Ergebnis offene Punkte, wird zusätzlich rein anteilig probiert und das bessere genommen.
+- Beim Bett springen Breite und Länge auf handelsübliche Matratzen, beim Sitzmöbel wandert die Sitzhöhe mit.
+- Das gebaute Außenmaß wird nachgestellt, bis es auf ±5 mm passt.
+
+Website: während des Ziehens schnelle Vorschau (`?schnell=true`, nur 3D und Teilezahl), kurz nach dem Loslassen der ganze Bauplan. App: neu gerechnet beim Loslassen.
+
 ## Selbstkontrolle beim Lesen
 
 Nach dem Lesen rechnet der Server das Modell einmal durch und zeichnet es (`models/ansicht.py`, Schrägansicht von vorne links oben). Claude bekommt Entwurf und Modellbild nebeneinander, prüft wie ein Schreiner (Form, Lehne, Lattenrichtung, Proportionen, schwebende oder fehlende Teile) und liefert bei Mängeln einen korrigierten Bauteilgraph (`pruef_prompt`). Meldet die Endkontrolle der Engine danach noch Fehler (z. B. Teile ohne Verbindung), gibt es eine zweite Runde, in der Claude diese Meldungen mitbekommt (`KONTROLLRUNDEN`, Standard 2). Je Runde ca. 5 Cent; scheitert die Kontrolle, bleibt der letzte gute Stand. Die Korrekturen stehen im Ergebnis des Auftrags unter `pruefung` und erscheinen auf Website und in der App. Abschalten mit `SELBSTKONTROLLE=false`.

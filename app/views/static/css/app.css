@@ -108,3 +108,6 @@ td.n{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums}
 ol.montage{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px;font-size:13.5px}
 pre.graph{overflow:auto;max-height:240px;font-size:11.5px}
 .datei{cursor:pointer}
+.regler{display:grid;grid-template-columns:1fr auto;gap:2px 8px;font-size:14px;margin:6px 0}
+.regler output{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.regler input{grid-column:1/-1;width:100%;accent-color:var(--mark)}

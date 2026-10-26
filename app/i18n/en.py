@@ -17,6 +17,9 @@ TEXTE = {
     "log.keine_funktion": "No functional dimensions: image estimate {W} × {D} × {H} mm is used.",
     "log.gelesen": "{name}: read approx. {gelesen} mm → {profil} ({bekommen}){stueck}",
     "log.stueck": ", {n} pieces along {achse}",
+    "log.reihe": "{name}: stretched, spacing {abstand} mm stays, {alt} → {neu} pieces",
+    "log.ziel": "Stretched/squashed as requested: design for {rw} × {rd} × {rh} mm, built for {w} × {d} × {h} mm. Wood sizes stay, rows keep their spacing.",
+    "log.ziel_matratze": "Mattress matching the requested size: {mat} mm.",
     "log.verschoben": "{n} of {gesamt} parts moved or trimmed so they meet their neighbours (largest correction {max} mm).",
     "log.konflikt": "Conflict: {a} and {b} overlap heavily. Unclear in the design, please check.",
     "log.keine_reparatur": "No repairs needed.",
@@ -36,6 +39,8 @@ TEXTE = {
     "rep.auflage": "{name} rests on nothing: {n} support cleats ({holz}) added to the frame parts.",
     "rep.mittelsteg": "{rolle}: free span {len} mm, about {lm} mm allowed at {h} mm thickness. {steg} ({holz}) added underneath "
                       "in the middle.",
+    "rep.mittelstege": "{rolle}: free span {len} mm, about {lm} mm allowed at {h} mm thickness. {n}× {steg} ({holz}) added "
+                       "underneath, evenly spaced.",
     "rep.stuetze": "{name}: free span {len} mm, about {lm} mm allowed at {h} mm height. Support post down to the floor added.",
     "rep.wackelt": "Frame wobbles {richtung}: {why}. {n} foot rails ({holz}) added.",
     "rep.wackelt_x": "sideways (seen from the front)",

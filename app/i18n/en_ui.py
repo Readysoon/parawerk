@@ -72,6 +72,11 @@ TEXTE = {
     "ui.anpassen": "Adjust",
     "ui.anpassen_platzhalter": "e.g. backrest 10 cm higher, no runners, bed 160 wide",
     "ui.anpassen_aria": "Requested change",
+    "ui.groesse": "Size of the furniture",
+    "ui.groesse_hinweis": "Drag to stretch or squash. The design stays: wood sizes stay the same, battens and bars keep their "
+                          "spacing, so pieces are added or removed.",
+    "ui.groesse_zurueck": "As designed",
+    "ui.teile_live": "{n} parts",
     "ui.bereich_aendern": "Change area",
     # ---------- Browser messages ----------
     "ui.serverfehler": "Server error {n}",

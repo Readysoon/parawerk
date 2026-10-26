@@ -307,7 +307,7 @@ async function bauplanErstellen() {
   try {
     const e = z.entwuerfe[z.gewaehlt];  // den Ausschnitt um den Bereich schneidet der Server
     const j = await auftrag('/bauplan/lesen', { entwurf_id: e.id, maske_id: z.maskeId, bereich: z.bereich, demo_index: z.demo ? z.gewaehlt : null });
-    z.graph = j.graph; z.verlauf = []; $('verlauf').replaceChildren(); $('rueckgaengig').disabled = true;
+    z.graph = j.graph; z.verlauf = []; z.designMasse = null; $('verlauf').replaceChildren(); $('rueckgaengig').disabled = true;
     if (j.pruefung) verlauf('ai', j.pruefung.passt ? tx('geprueft_ok') : tx('geprueft', { liste: j.pruefung.maengel.join(' · ') }));
     $('gewaehlt').src = e.url;
     await berechnen();
@@ -320,6 +320,8 @@ async function berechnen() {
   try {
     const j = await api('/bauplan/berechnen?mit_html=true&mit_glb=false', { graph: z.graph, bereich: z.bereich });
     z.ergebnis = j;
+    if (!z.graph.ziel) z.designMasse = j.modell.dims;  // Maße wie im Entwurf: Ausgangspunkt der Regler
+    reglerSetzen(j.modell.dims, j.modell.teile.length);
     $('bauplan').innerHTML = j.html;
     const vorlage = $('bauplan').querySelector('#ergebnis-vorlage');
     $('ergebnis').replaceChildren(vorlage.content.cloneNode(true));
@@ -329,6 +331,55 @@ async function berechnen() {
   } catch (e) { fehler(e.message); }
 }
 
+// ---------- Größe: Strecken und Stauchen, live ----------
+// Während des Ziehens nur 3D und Zahlen (schnell), beim Loslassen der ganze Bauplan. Läuft schon eine Rechnung,
+// wird danach nur der neueste Stand gerechnet.
+const regler = [...document.querySelectorAll('[data-ziel]')];
+function reglerSetzen(dims, teile) {
+  const d = z.designMasse || dims;
+  const grenzen = [[300, 4000], [250, 2500], [250, 2500]];
+  regler.forEach((r, i) => {
+    if (!zieht) {  // während des Ziehens Grenzen und Wert nicht anfassen
+      r.min = Math.max(grenzen[i][0], Math.round(d[i] * 0.5 / 10) * 10);
+      r.max = Math.min(grenzen[i][1], Math.round(d[i] * 2 / 10) * 10);
+      r.value = dims[i];
+    }
+    document.querySelector(`[data-ziel-wert="${i}"]`).textContent = `${dims[i]} mm`;
+  });
+  $('ziel-teile').textContent = tx('teile_live', { n: teile });
+  $('ziel-zurueck').disabled = !z.graph?.ziel;
+}
+let zielLaeuft = false, zielWartet = false, zieht = false, fertigRechnen = null;
+async function zielRechnen() {
+  if (zielLaeuft) { zielWartet = true; return; }
+  zielLaeuft = true;
+  try {
+    const j = await api('/bauplan/berechnen?mit_html=false&mit_glb=false&schnell=true', { graph: z.graph, bereich: z.bereich });
+    viewer?.zeigen(j.modell, { kameraHalten: true });
+    reglerSetzen(j.modell.dims, j.modell.teile.length);
+  } catch (e) { fehler(e.message); } finally {
+    zielLaeuft = false;
+    if (zielWartet) { zielWartet = false; zielRechnen(); }
+  }
+}
+regler.forEach((r, i) => {
+  r.addEventListener('input', () => {
+    if (!z.graph) return;
+    zieht = true;
+    const ziel = [...(z.graph.ziel || z.ergebnis.modell.dims)]; ziel[i] = +r.value;
+    z.graph = { ...z.graph, ziel };
+    document.querySelector(`[data-ziel-wert="${i}"]`).textContent = `${r.value} mm`;
+    zielRechnen();
+    // kurz nach dem letzten Ziehen den ganzen Bauplan (Einkaufsliste, Zuschnitt) neu rechnen
+    clearTimeout(fertigRechnen);
+    fertigRechnen = setTimeout(async () => { zieht = false; await berechnen(); }, 700);
+  });
+});
+$('ziel-zurueck').addEventListener('click', () => {
+  if (!z.graph?.ziel) return;
+  const { ziel, ...ohne } = z.graph; z.graph = ohne; berechnen();
+});
+
 function verlauf(cls, text) {
   const li = document.createElement('li'); li.className = cls; li.textContent = text; $('verlauf').prepend(li);
 }
@@ -337,7 +388,7 @@ async function anpassen() {
   verlauf('me', text); $('anpassen-text').value = ''; status(tx('st_anpassen'));
   try {
     const j = await auftrag('/bauplan/anpassen', { graph: z.graph, wunsch: text });
-    z.verlauf.push(z.graph); z.graph = j.graph; $('rueckgaengig').disabled = false;
+    z.verlauf.push(z.graph); z.graph = z.graph.ziel ? { ...j.graph, ziel: z.graph.ziel } : j.graph; $('rueckgaengig').disabled = false;
     await berechnen();
     verlauf('ai', tx('geaendert'));
   } catch (e) { verlauf('err', e.message); } finally { status(''); }

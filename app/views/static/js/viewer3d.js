@@ -26,7 +26,8 @@ export class Viewer3D {
     window.addEventListener('resize', () => this.zeichnen());
   }
 
-  zeigen(modell) {
+  zeigen(modell, { kameraHalten = false } = {}) {
+    this.halten = kameraHalten;
     if (this.grp) { this.scene.remove(this.grp); this.grp.traverse(o => { o.geometry?.dispose(); o.material?.dispose(); }); }
     this.grp = new THREE.Group(); this.scene.add(this.grp);
     this.dims = modell.dims;
@@ -52,7 +53,10 @@ export class Viewer3D {
     const w = this.el.clientWidth || 600, h = Math.round(w / 1.5);
     this.r.setSize(w, h, false); this.cam.aspect = w / h; this.cam.updateProjectionMatrix();
     this.grp.rotation.set(this.rot.rx, this.rot.ry, 0);
-    this.cam.position.set(0, 0, Math.max(...this.dims) * 2.4); this.cam.lookAt(0, 0, 0);
+    // Beim Strecken die Kamera nicht mitzoomen, sonst sieht man das Möbel nicht wachsen
+    const weite = Math.max(...this.dims) * 2.4;
+    this.weite = this.halten && this.weite ? Math.max(this.weite, weite) : weite;
+    this.cam.position.set(0, 0, this.weite); this.cam.lookAt(0, 0, 0);
     this.r.render(this.scene, this.cam);
   }
 }

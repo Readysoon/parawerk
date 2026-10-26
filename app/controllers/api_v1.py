@@ -66,9 +66,9 @@ def _graph(roh: dict) -> dict:
         raise HTTPException(422, str(err)) from err
 
 
-def _rechnen(graph: dict, bereich: list[float], sortiment: str) -> Ergebnis:
+def _rechnen(graph: dict, bereich: list[float], sortiment: str, schnell: bool = False) -> Ergebnis:
     try:
-        return engine_berechnen(graph, bereich, sortiment)
+        return engine_berechnen(graph, bereich, sortiment, schnell)
     except (ValueError, KeyError, IndexError, ZeroDivisionError) as err:
         raise HTTPException(422, t("fehler.modell", art=type(err).__name__)) from err
 
@@ -357,15 +357,16 @@ async def anpassen(anfrage: AnpassenAnfrage, kon: Konstrukteur = Depends(konstru
 
 
 @router.post("/bauplan/berechnen", response_model=BauplanAntwort, response_model_exclude_none=True)
-async def berechnen(anfrage: BerechnenV1, mit_glb: bool = True, mit_html: bool = False, k: Kunde = Depends(kunde),
-                    e: Einstellungen = Depends(einstellungen)) -> BauplanAntwort:
+async def berechnen(anfrage: BerechnenV1, mit_glb: bool = True, mit_html: bool = False, schnell: bool = False,
+                    k: Kunde = Depends(kunde), e: Einstellungen = Depends(einstellungen)) -> BauplanAntwort:
     """Bauteilgraph → baubarer Bauplan als Daten, dazu das 3D-Modell als glb-Datei (URL).
 
     ``mit_html=true`` liefert zusätzlich den fertigen Bauplan-Ausschnitt für die Website,
     ``mit_glb=false`` spart die glb-Datei, wenn die Anzeige die Quader selbst zeichnet.
+    ``schnell=true``: Vorschau beim Strecken mit einem Regler (``graph.ziel``), etwas weniger genau, dafür flüssig.
     """
     graph = _graph(anfrage.graph)
-    ergebnis = await run_in_threadpool(_rechnen, graph, anfrage.bereich, anfrage.sortiment or e.sortiment)
+    ergebnis = await run_in_threadpool(_rechnen, graph, anfrage.bereich, anfrage.sortiment or e.sortiment, schnell)
     ansicht = bauplan_ansicht(ergebnis, graph, anfrage.bereich)
     html = templates.get_template("teile/bauplan.html").render(**ansicht) if mit_html else None
     ansicht.pop("graph_json", None)

@@ -17,6 +17,9 @@ TEXTE = {
     "log.keine_funktion": "Keine Funktionsmaße: Bild-Schätzung {W} × {D} × {H} mm wird übernommen.",
     "log.gelesen": "{name}: gelesen ca. {gelesen} mm → {profil} ({bekommen}){stueck}",
     "log.stueck": ", {n} Stück entlang {achse}",
+    "log.reihe": "{name}: gestreckt, Abstand {abstand} mm bleibt, {alt} → {neu} Stück",
+    "log.ziel": "Auf Wunsch gestreckt/gestaucht: Design für {rw} × {rd} × {rh} mm, gebaut für {w} × {d} × {h} mm. Holzstärken bleiben, Reihen behalten ihren Abstand.",
+    "log.ziel_matratze": "Matratze passend zur Wunschgröße: {mat} mm.",
     "log.verschoben": "{n} von {gesamt} Teilen verschoben oder auf Länge gebracht, damit sie an ihren Nachbarn anliegen "
                       "(größte Korrektur {max} mm).",
     "log.konflikt": "Konflikt: {a} und {b} überschneiden sich stark. Im Entwurf unklar, bitte prüfen.",
@@ -37,6 +40,8 @@ TEXTE = {
     "rep.auflage": "{name} liegt nirgends auf: {n} Auflageleisten ({holz}) an den Rahmenteilen ergänzt.",
     "rep.mittelsteg": "{rolle}: freie Spannweite {len} mm, erlaubt ca. {lm} mm bei {h} mm Stärke. {steg} ({holz}) in der Mitte "
                       "darunter eingefügt.",
+    "rep.mittelstege": "{rolle}: freie Spannweite {len} mm, erlaubt ca. {lm} mm bei {h} mm Stärke. {n}× {steg} ({holz}) "
+                       "gleichmäßig verteilt darunter eingefügt.",
     "rep.stuetze": "{name}: freie Spannweite {len} mm, erlaubt ca. {lm} mm bei {h} mm Höhe. Stütze bis zum Boden eingefügt.",
     "rep.wackelt": "Gestell wackelt {richtung}: {why}. {n} Fußriegel ({holz}) eingefügt.",
     "rep.wackelt_x": "seitlich (von vorne gesehen)",

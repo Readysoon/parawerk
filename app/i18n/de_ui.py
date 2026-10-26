@@ -73,6 +73,11 @@ TEXTE = {
     "ui.anpassen_platzhalter": "z. B. Lehne 10 cm höher, ohne Kufen, Bett 160 breit",
     "ui.anpassen_aria": "Änderungswunsch",
     "ui.bereich_aendern": "Bereich ändern",
+    "ui.groesse": "Größe des Möbels",
+    "ui.groesse_hinweis": "Ziehen zum Strecken oder Stauchen. Das Design bleibt: Holzstärken bleiben gleich, Latten und Stäbe "
+                          "behalten ihren Abstand, es kommen welche dazu oder fallen weg.",
+    "ui.groesse_zurueck": "Wie im Entwurf",
+    "ui.teile_live": "{n} Teile",
     # ---------- Meldungen im Browser ----------
     "ui.serverfehler": "Serverfehler {n}",
     "ui.bild_fehler": "Das Bild konnte nicht geladen werden. Bitte ein JPG oder PNG wählen.",

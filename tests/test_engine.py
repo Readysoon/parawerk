@@ -1,7 +1,7 @@
 """Engine: Referenzfälle bleiben stabil, Demo-Möbel und echte Claude-Lesungen werden baubar und stabil.
 
 Die Referenzfälle stammen ursprünglich aus der JS-Engine (identisch bis Commit e27f2f2). Seitdem rechnet die Engine
-bewusst anders (Sitzteile, Nachführen auf den Bereich, Stütze je Teil); die Werte sind auf den neuen Stand gesetzt.
+bewusst anders (Sitzteile, Nachführen auf den Bereich, Stütze je Teil, mehrere Mittelstege bei langen Spannweiten); die Werte sind auf den neuen Stand gesetzt.
 """
 from __future__ import annotations
 

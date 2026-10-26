@@ -107,6 +107,7 @@ def endkontrolle(ms: list[Bauteil], g: dict, bereich: list[float] | None, J: lis
         extra["seat"] = sh
         lounge = f["sitzhoehe"] < 360
         ok = 260 <= sh <= 360 if lounge else 400 <= sh <= 480
+        extra["seat_ok"] = ok
         out.append({"ok": ok, "t": t("chk.sitz", polster=zahl(polster), sh=sh, ziel=zahl(f["sitzhoehe"]),
                                      bereich=t("wort.lounge") if lounge else t("wort.stuhl"))})
     if bereich is not None:

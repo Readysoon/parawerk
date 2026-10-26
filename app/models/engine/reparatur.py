@@ -380,16 +380,23 @@ def pruefen_und_reparieren(S: Sortiment, ms: list[Bauteil], groups: dict, g: dic
                 dax = groups[m.part]["dax"]
                 prof = naechstes_kantholz(S, 44, 74)
                 rost = m.rolle == "lattenrost"
-                s = Bauteil(id=name, part=name, name=t("teil.mittelsteg") if rost else t("teil.querriegel"), typ="kantholz",
-                            rolle="mittelsteg" if rost else "querriegel",
-                            prof={"label": prof["label"], "a": prof["a"], "b": prof["b"]}, long=dax, dax=-1,
-                            origin="reparatur", min=[0, 0, 0], max=[0, 0, 0])
-                s.min[dax], s.max[dax] = min(p.min[dax] for p in ps), max(p.max[dax] for p in ps)
-                s.min[L], s.max[L] = si["worst"]["at"] - prof["a"] / 2, si["worst"]["at"] + prof["a"] / 2
-                s.max[2], s.min[2] = m.min[2], m.min[2] - prof["b"]
-                ms.append(s)
-                repairs.append(t("rep.mittelsteg", rolle=rollenname(m.rolle), len=mm(si["worst"]["len"]), lm=mm(lm),
-                                 h=mm(ext(m, 2)), steg=s.name, holz=holz(prof["label"])))
+                # so viele Stege, dass jedes Feld kürzer als erlaubt ist (lange, gestreckte Möbel brauchen mehrere)
+                laenge = si["worst"]["len"]
+                k = max(1, min(8, math.ceil(laenge / lm) - 1))
+                anfang = si["worst"]["at"] - laenge / 2
+                for i in range(k):
+                    at = si["worst"]["at"] if k == 1 else anfang + (i + 1) * laenge / (k + 1)
+                    s = Bauteil(id=name if i == 0 else f"{name} {i + 1}", part=name,
+                                name=t("teil.mittelsteg") if rost else t("teil.querriegel"), typ="kantholz",
+                                rolle="mittelsteg" if rost else "querriegel",
+                                prof={"label": prof["label"], "a": prof["a"], "b": prof["b"]}, long=dax, dax=-1,
+                                origin="reparatur", min=[0, 0, 0], max=[0, 0, 0])
+                    s.min[dax], s.max[dax] = min(p.min[dax] for p in ps), max(p.max[dax] for p in ps)
+                    s.min[L], s.max[L] = at - prof["a"] / 2, at + prof["a"] / 2
+                    s.max[2], s.min[2] = m.min[2], m.min[2] - prof["b"]
+                    ms.append(s)
+                repairs.append(t("rep.mittelsteg" if k == 1 else "rep.mittelstege", rolle=rollenname(m.rolle),
+                                 len=mm(laenge), lm=mm(lm), h=mm(ext(m, 2)), steg=s.name, holz=holz(prof["label"]), n=k))
                 fixed = True
                 break
             if m.min[2] > 30:

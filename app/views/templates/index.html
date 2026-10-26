@@ -105,6 +105,14 @@
     </div>
     <div class="side">
       <div class="panel" id="ergebnis"></div>
+      <div class="panel noprint" id="groesse">
+        <h3>{{ t("ui.groesse") }}</h3>
+        <p class="hint">{{ t("ui.groesse_hinweis") }}</p>
+        {% for i, k in [(0, "ui.breite_mm"), (1, "ui.tiefe_mm"), (2, "ui.hoehe_mm")] %}
+        <label class="regler">{{ t(k) }} <output data-ziel-wert="{{ i }}"></output><input type="range" data-ziel="{{ i }}" step="10"></label>
+        {% endfor %}
+        <div class="btns"><button class="b" id="ziel-zurueck" disabled>{{ t("ui.groesse_zurueck") }}</button><span class="hint" id="ziel-teile"></span></div>
+      </div>
       <div class="panel noprint">
         <h3>{{ t("ui.anpassen") }}</h3>
         <textarea id="anpassen-text" placeholder="{{ t('ui.anpassen_platzhalter') }}" aria-label="{{ t('ui.anpassen_aria') }}"></textarea>

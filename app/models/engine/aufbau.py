@@ -67,18 +67,50 @@ def querschnitt_einrasten(S: Sortiment, typ: str, tgt: dict, cross: list[int], h
     return {"sz": {t_ax: staerke, w_ax: w}, "prof": {"t": staerke, "w": w}, "t_ax": t_ax, "w_ax": w_ax}
 
 
-def aufbauen(S: Sortiment, g: dict, dims: list[int], log: list[str]) -> tuple[list[Bauteil], dict]:
-    """Jede Teilgruppe des Graphen in einzelne Bauteile mit Sortiments-Querschnitt umsetzen."""
+MAX_STUECK = 60  # je Teilgruppe beim Strecken
+REIHEN = {"lattenrost", "sitzflaeche", "liegeflaeche", "lehne", "verkleidung", "regalboden"}  # Rollen, die Reihen bilden
+RAND_MM = 150  # beim Strecken: Kanten so nah am Rand behalten ihren Abstand zum Rand (Einrückungen, Beinstärken)
+
+
+def _strecken(b: float, ref: float, neu: float, rand: float = RAND_MM) -> float:
+    """Relative Kante ``b`` (0–1) auf das neue Maß abbilden.
+
+    Nah am Rand bleibt der Abstand in mm gleich (z. B. eine Zarge zwischen 44 mm dicken Beinen), dazwischen wird
+    anteilig gestreckt. So passen Teile, deren Stärke gleich bleibt, auch nach dem Strecken zusammen.
+    """
+    grenze = min(rand, 0.2 * ref, 0.2 * neu)
+    vorne, hinten = b * ref, (1 - b) * ref
+    if vorne <= grenze:
+        return vorne
+    if hinten <= grenze:
+        return neu - hinten
+    return b * neu
+
+
+def aufbauen(S: Sortiment, g: dict, dims: list[int], log: list[str],
+             referenz: list[int] | None = None, rand: float = RAND_MM) -> tuple[list[Bauteil], dict]:
+    """Jede Teilgruppe des Graphen in einzelne Bauteile mit Sortiments-Querschnitt umsetzen.
+
+    ``referenz``: Maße, für die das Design gedacht ist (wie aus dem Entwurf gelesen). Weichen ``dims`` davon ab, wird
+    gestreckt bzw. gestaucht: Querschnitte bleiben wie bei der Referenz (Bretter werden nur breiter oder schmaler),
+    und Reihen gleicher Teile (Latten, Stäbe, Beine) behalten ihren Abstand, es kommen also Teile dazu oder weg.
+    """
     W, D, H = dims
+    R = referenz or dims
     members: list[Bauteil] = []
     groups: dict = {}
     for p in g["teile"]:
         box = p["box"]
-        rmin = [box[0] * W, box[2] * D, box[4] * H]
-        rmax = [box[1] * W, box[3] * D, box[5] * H]
+        if referenz:
+            rmin = [_strecken(box[2 * a], R[a], dims[a], rand) for a in (0, 1, 2)]
+            rmax = [max(rmin[a] + 1, _strecken(box[2 * a + 1], R[a], dims[a], rand)) for a in (0, 1, 2)]
+        else:
+            rmin = [box[0] * W, box[2] * D, box[4] * H]
+            rmax = [box[1] * W, box[3] * D, box[5] * H]
+        ref_exts = [box[2 * a + 1] * R[a] - box[2 * a] * R[a] for a in (0, 1, 2)]  # wie rmax - rmin ohne Streckung
         n = max(1, mm(oder(p.get("anzahl"), 1)))
         dax = AXI.get(p.get("achse"), 0) if n > 1 else -1
-        exts = [rmax[a] - rmin[a] for a in (0, 1, 2)]
+        exts = ref_exts  # Lage der Längsachse und Querschnitt kommen aus dem Design, nicht aus der Streckung
         cand = [a for a in (0, 1, 2) if a != dax]
         long = cand[0]
         for b in cand[1:]:
@@ -94,6 +126,22 @@ def aufbauen(S: Sortiment, g: dict, dims: list[int], log: list[str]) -> tuple[li
         if dax >= 0 and tgt.get(dax) is None:
             tgt[dax] = exts[dax] / n * 0.85
         sn = querschnitt_einrasten(S, p["typ"], tgt, cross, hint)
+        neu_exts = [rmax[a] - rmin[a] for a in (0, 1, 2)]
+        w_ax = sn.get("w_ax")
+        if w_ax is not None and w_ax != dax and abs(neu_exts[w_ax] - ref_exts[w_ax]) > 0.5:
+            # Brett: Stärke bleibt, Breite folgt der Streckung
+            sn["sz"][w_ax] = mm(neu_exts[w_ax])
+            sn["prof"] = {**sn["prof"], "w": mm(neu_exts[w_ax])}
+        if (n >= 3 or p.get("rolle") in REIHEN) and n > 1 and abs(neu_exts[dax] - ref_exts[dax]) > 0.5:
+            # Reihe: Abstand wie im Design, Anzahl passt sich an. Paare an den Enden (z. B. zwei Beine) bleiben ein
+            # Paar; wird die Spannweite zu lang, setzt die Reparatur eine Stütze, die zur Konstruktion passt.
+            s_dax = sn["sz"][dax]
+            teilung = (ref_exts[dax] - s_dax) / (n - 1)
+            if teilung > 0:
+                n_neu = max(2, min(MAX_STUECK, round((neu_exts[dax] - s_dax) / teilung) + 1))
+                if n_neu != n:
+                    log.append(t("log.reihe", name=oder(p.get("name"), p["id"]), alt=n, neu=n_neu, abstand=mm(teilung - s_dax)))
+                n = n_neu
         typ = "brett" if p["typ"] == "platte" else p["typ"]
         name = oder(p.get("name"), p["id"])
         gelesen = "×".join(str(mm(tgt[c])) for c in cross)

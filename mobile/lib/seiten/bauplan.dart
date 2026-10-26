@@ -36,6 +36,41 @@ class _BauplanSeiteState extends State<BauplanSeite> {
   late Map<String, dynamic> _plan = widget.plan;
   final _wunsch = TextEditingController();
 
+  // Strecken/Stauchen: Maße wie im Entwurf (Ausgangspunkt der Regler) und die gerade eingestellten
+  late final List<int> _design = _masse(widget.plan);
+  late List<double> _regler = [for (final v in _masse(widget.plan)) v.toDouble()];
+  bool _rechnet = false;
+
+  static List<int> _masse(Map<String, dynamic> plan) =>
+      [for (final v in ((plan['modell'] as Map<String, dynamic>)['dims'] as List)) (v as num).round()];
+
+  /// Regler losgelassen: mit den neuen Maßen neu rechnen. Das Design bleibt, Holzstärken auch;
+  /// Latten und Stäbe behalten ihren Abstand, es kommen welche dazu oder fallen weg.
+  Future<void> _strecken({bool zurueck = false}) async {
+    final s = widget.sitzung;
+    final hinweise = ScaffoldMessenger.of(context);
+    final graph = Map<String, dynamic>.of(_graph);
+    if (zurueck) {
+      graph.remove('ziel');
+    } else {
+      graph['ziel'] = [for (final v in _regler) v.round()];
+    }
+    setState(() => _rechnet = true);
+    try {
+      final plan = await s.api.berechnen(graph, s.bereich);
+      if (!mounted) return;
+      setState(() {
+        _graph = graph;
+        _plan = plan;
+        _regler = [for (final v in _masse(plan)) v.toDouble()];
+      });
+    } catch (e) {
+      hinweise.showSnackBar(SnackBar(content: Text(fehlerText(e))));
+    } finally {
+      if (mounted) setState(() => _rechnet = false);
+    }
+  }
+
   @override
   void dispose() {
     _wunsch.dispose();
@@ -46,8 +81,10 @@ class _BauplanSeiteState extends State<BauplanSeite> {
     final text = _wunsch.text.trim();
     if (text.isEmpty) return;
     final s = widget.sitzung;
+    final ziel = _graph['ziel'];
     final neu = await mitWarten(context, tr('st_anpassen'), () async {
       final graph = await s.api.anpassen(_graph, text);
+      if (ziel != null) graph['ziel'] = ziel; // gestreckte Größe beibehalten
       final plan = await s.api.berechnen(graph, s.bereich);
       return (graph: graph, plan: plan);
     });
@@ -126,6 +163,32 @@ class _BauplanSeiteState extends State<BauplanSeite> {
               ),
             ],
           ],
+
+          // Größe: Strecken und Stauchen
+          Abschnitt(tr('groesse')),
+          Text(tr('groesse_hinweis'), style: stil.bodySmall),
+          for (final (i, key) in const ['breite', 'tiefe', 'hoehe'].indexed) ...[
+            Row(children: [
+              Expanded(child: Text(tr(key))),
+              Text('${_regler[i].round()} mm', style: const TextStyle(fontFeatures: [FontFeature.tabularFigures()])),
+            ]),
+            Slider(
+              min: (_design[i] * 0.5).clamp(250, 4000).toDouble(),
+              max: (_design[i] * 2.0).clamp(500, 4000).toDouble(),
+              divisions: 100,
+              value: _regler[i].clamp((_design[i] * 0.5).clamp(250, 4000), (_design[i] * 2.0).clamp(500, 4000)).toDouble(),
+              onChanged: _rechnet ? null : (v) => setState(() => _regler[i] = (v / 10).round() * 10.0),
+              onChangeEnd: (_) => _strecken(),
+            ),
+          ],
+          Row(children: [
+            TextButton(
+              onPressed: _rechnet || _graph['ziel'] == null ? null : () => _strecken(zurueck: true),
+              child: Text(tr('groesse_zurueck')),
+            ),
+            const Spacer(),
+            if (_rechnet) const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+          ]),
 
           if (widget.maengel.isNotEmpty) ...[
             Abschnitt(tr('selbstkontrolle')),

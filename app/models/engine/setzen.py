@@ -234,6 +234,9 @@ def kontakte(ms: list[Bauteil]) -> list[dict]:
     for i in range(len(ms)):
         for j in range(i + 1, len(ms)):
             a, b = ms[i], ms[j]
+            # schnell aussortieren: in einer Achse mehr als 1,5 mm auseinander → keine Berührung möglich
+            if any(b.min[k] - a.max[k] > 1.5 or a.min[k] - b.max[k] > 1.5 for k in (0, 1, 2)):
+                continue
             for ax in (0, 1, 2):
                 g1, g2 = b.min[ax] - a.max[ax], a.min[ax] - b.max[ax]
                 g = g1 if abs(g1) < abs(g2) else g2

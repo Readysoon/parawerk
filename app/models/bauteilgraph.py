@@ -193,5 +193,10 @@ def bereinigen(j: Any) -> dict:
     elif _positiv(f.get("sitzhoehe"), 0) and (_zahl(a.get("sitz_oben")) or 0) > 0:
         funktion = {"sitzhoehe": _int_wenn_ganz(_zahl(f["sitzhoehe"])), "polster": _positiv(f.get("polster"), 0)}
         anker = {"sitz_oben": _int_wenn_ganz(_zahl(a["sitz_oben"]))}
-    return {"name": str(j.get("name") or "Möbel")[:40], "kategorie": str(j.get("kategorie") or "sonstiges"),
-            "masse": masse, "funktion": funktion, "anker": anker, "teile": teile}
+    out = {"name": str(j.get("name") or "Möbel")[:40], "kategorie": str(j.get("kategorie") or "sonstiges"),
+           "masse": masse, "funktion": funktion, "anker": anker, "teile": teile}
+    # Wunschmaße zum Strecken/Stauchen (vom Nutzer, nicht von Claude): Breite, Tiefe, Höhe in mm
+    ziel = j.get("ziel")
+    if isinstance(ziel, list) and len(ziel) == 3 and all((_zahl(v) or 0) > 0 for v in ziel):
+        out["ziel"] = [max(200, min(6000, mm(_zahl(v)))) for v in ziel]
+    return out

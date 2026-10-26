@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 
 from ..sortiment import SORTIMENTE, Sortiment
 from ...i18n import t
-from .aufbau import aufbauen, skalieren
+from .aufbau import RAND_MM, _strecken, aufbauen, skalieren
 from .bauplan import bauplan, polster
 from .grundlagen import Bauteil, einmalig, gesetzt, mm, zahl
 from .pruefung import endkontrolle
@@ -50,10 +50,45 @@ class Ergebnis:
         }
 
 
-def _durchlauf(S: Sortiment, g: dict, bereich, dims: list[int], l1: list[str]) -> Ergebnis:
+# Handelsübliche Matratzen (mm): Breiten und Längen
+MATRATZE_BREITEN = [800, 900, 1000, 1200, 1400, 1600, 1800, 2000]
+MATRATZE_LAENGEN = [1900, 2000, 2100, 2200]
+
+
+def _naechste(werte: list[int], ziel: float) -> int:
+    return min(werte, key=lambda v: abs(v - ziel))
+
+
+def _ziel_anwenden(g: dict, ziel: list[float], referenz: list[int], log: list[str], rand: float = RAND_MM) -> list[int]:
+    """Wunschmaße (Strecken/Stauchen) in den Graph übernehmen und die zu bauenden Gesamtmaße liefern.
+
+    Beim Bett springt die Liegefläche auf eine handelsübliche Matratze; beim Sitzmöbel wächst die Sitzhöhe mit.
+    """
+    f, a = g.get("funktion") or {}, g.get("anker") or {}
+    dims = [mm(v) for v in ziel]
+    if gesetzt(f.get("matratze")) and gesetzt(a.get("liegeflaeche")):
+        x0, x1, y0, y1 = a["liegeflaeche"]
+        luft = 10 if f.get("luft") is None else f["luft"]
+        lx, ly = (x1 - x0) * dims[0] - luft, (y1 - y0) * dims[1] - luft  # Liegefläche bei den Wunschmaßen
+        lang_x = (x1 - x0) * referenz[0] >= (y1 - y0) * referenz[1]  # Liegerichtung bleibt wie im Design
+        lang, kurz = (lx, ly) if lang_x else (ly, lx)
+        mat = [_naechste(MATRATZE_BREITEN, kurz), _naechste(MATRATZE_LAENGEN, lang)]
+        f["matratze"] = mat
+        log.append(t("log.ziel_matratze", mat=" × ".join(map(str, mat))))
+        dims[0] = mm(((mat[1] if lang_x else mat[0]) + luft) / (x1 - x0))
+        dims[1] = mm(((mat[0] if lang_x else mat[1]) + luft) / (y1 - y0))
+    if gesetzt(f.get("sitzhoehe")) and a.get("sitz_oben") is not None:
+        # Sitzhöhe so, wie die Sitzfläche beim Strecken tatsächlich wandert (nah am Boden bleibt sie, wo sie ist)
+        f["sitzhoehe"] = mm(_strecken(a["sitz_oben"], referenz[2], dims[2], rand) + (f.get("polster") or 0))
+    log.append(t("log.ziel", rw=referenz[0], rd=referenz[1], rh=referenz[2], w=dims[0], d=dims[1], h=dims[2]))
+    return dims
+
+
+def _durchlauf(S: Sortiment, g: dict, bereich, dims: list[int], l1: list[str],
+               referenz: list[int] | None = None, rand: float = RAND_MM) -> Ergebnis:
     steps = [{"key": "skalieren", "title": t("schritt.skalieren"), "log": l1}]
     l2: list[str] = []
-    members, groups = aufbauen(S, g, dims, l2)
+    members, groups = aufbauen(S, g, dims, l2, referenz, rand)
     steps.append({"key": "einrasten", "title": t("schritt.einrasten"), "log": l2})
 
     l3: list[str] = []
@@ -80,10 +115,12 @@ def _durchlauf(S: Sortiment, g: dict, bereich, dims: list[int], l1: list[str]) -
     return Ergebnis(steps=steps, members=members, dims=fc["dims"], joints=J, repairs=repairs, fc=fc)
 
 
-def berechnen(graph: dict, bereich: list[float] | None = None, sortiment: str = "DE") -> Ergebnis:
+def berechnen(graph: dict, bereich: list[float] | None = None, sortiment: str = "DE", schnell: bool = False) -> Ergebnis:
     """Bauteilgraph in ein baubares Modell mit Bauplan umrechnen.
 
     ``bereich``: verfügbarer Platz Breite × Tiefe × Höhe in mm. ``sortiment``: "DE" (Baumarkt) oder "US" (Bauholz).
+    Hat der Graph ``ziel`` (Wunschmaße), wird das Design gestreckt bzw. gestaucht, bis das gebaute Außenmaß passt.
+    ``schnell``: für die Vorschau beim Ziehen eines Reglers (weniger Nachstellen, keine zweite Streckart).
     """
     S = SORTIMENTE["US" if sortiment == "US" else "DE"]
     g = copy.deepcopy(graph)
@@ -91,9 +128,50 @@ def berechnen(graph: dict, bereich: list[float] | None = None, sortiment: str = 
         for teil in g["teile"]:
             if teil.get("typ") == "brett" and not teil.get("platte"):
                 teil["typ"] = "latte"
+    ziel = g.get("ziel")
+    if not gesetzt(ziel):
+        out = _rechnen(S, g, bereich, None)
+    else:
+        # Das gebaute Außenmaß ist etwas größer als das Rastermaß (Holzstärken stehen über): nachstellen, bis es passt
+        # Zwei Arten zu strecken: Kanten nah am Rand behalten ihren Abstand (meist besser), oder alles anteilig.
+        # Die zweite wird nur probiert, wenn die erste offene Punkte hat; es gilt die mit weniger offenen Punkten.
+        out = _strecken_bis_passt(S, g, bereich, ziel, RAND_MM, 2 if schnell else 3)
+        if _probleme(out) and not schnell:
+            anteilig = _strecken_bis_passt(S, g, bereich, ziel, 0)
+            if _probleme(anteilig) < _probleme(out):
+                out = anteilig
+    out.graph = graph
+    return out
+
+
+def _probleme(e: Ergebnis) -> int:
+    """Offene Punkte, die das Strecken verursacht haben kann (eine Sitzhöhe außerhalb der Norm ist gewollt)."""
+    return e.offene_punkte - (1 if e.fc.get("seat_ok") is False else 0)
+
+
+def _strecken_bis_passt(S: Sortiment, g: dict, bereich, ziel: list[float], rand: float, versuche: int = 3) -> Ergebnis:
+    """Das gebaute Außenmaß ist etwas größer als das Rastermaß (Holzstärken stehen über): nachstellen, bis es passt."""
+    bett = gesetzt((g.get("funktion") or {}).get("matratze"))
+    soll = [float(v) for v in ziel]
+    for _ in range(versuche):
+        out = _rechnen(S, copy.deepcopy(g), bereich, soll, rand)
+        diff = [ziel[a] - out.dims[a] for a in (0, 1, 2)]
+        if bett:  # Breite und Tiefe springen auf Matratzengrößen
+            diff[0] = diff[1] = 0
+        if all(abs(d) <= 5 for d in diff):
+            break
+        soll = [max(100.0, soll[a] + diff[a]) for a in (0, 1, 2)]
+    return out
+
+
+def _rechnen(S: Sortiment, g: dict, bereich, soll: list[float] | None, rand: float = RAND_MM) -> Ergebnis:
     l1: list[str] = []
     dims = skalieren(g, l1)
-    out = _durchlauf(S, g, bereich, dims, l1)
+    referenz = None
+    if soll is not None:  # Strecken/Stauchen: das Design gilt für die gelesenen Maße, gebaut wird in Wunschgröße
+        referenz = dims
+        dims = _ziel_anwenden(g, soll, referenz, l1, rand)
+    out = _durchlauf(S, g, bereich, dims, l1, referenz, rand)
 
     # Nachführen: liegt die Funktionsfläche nach dem Bauen daneben, Gesamtmaß korrigieren und neu rechnen
     for durchgang in range(2):
@@ -116,7 +194,8 @@ def berechnen(graph: dict, bereich: list[float] | None = None, sortiment: str = 
             if abs(seat - f["sitzhoehe"]) < 0.25 * f["sitzhoehe"]:
                 d[2] = d[2] * (f["sitzhoehe"] / seat)
                 notes.append(t("nach.sitz", ist=seat, soll=zahl(f["sitzhoehe"])))
-        if bereich is not None and not gesetzt(f.get("matratze")):  # beim Bett bestimmt die Matratze Breite und Tiefe
+        # beim Bett bestimmt die Matratze Breite und Tiefe; Wunschmaße gehen vor dem Bereich
+        if bereich is not None and not gesetzt(f.get("matratze")) and referenz is None:
             for ax, wort in ((0, t("wort.breite")), (1, t("wort.tiefe"))):
                 over = out.dims[ax] - bereich[ax]
                 if 0 < over < 0.25 * bereich[ax]:
@@ -125,14 +204,14 @@ def berechnen(graph: dict, bereich: list[float] | None = None, sortiment: str = 
         if not notes:
             break
         neue_dims = [mm(v) for v in d]
-        neu = _durchlauf(S, g, bereich, neue_dims, [*l1, t("nach.durchlauf", n=durchgang + 2, notes="; ".join(notes))])
+        neu = _durchlauf(S, g, bereich, neue_dims, [*l1, t("nach.durchlauf", n=durchgang + 2, notes="; ".join(notes))],
+                         referenz, rand)
         if neu.offene_punkte > out.offene_punkte:
             break  # die Korrektur hätte mehr Probleme gemacht als gelöst: beim vorigen Stand bleiben
         dims, out = neue_dims, neu
 
     out.plan = bauplan(S, out.members, out.joints)
     out.soft = polster(g, out.members, out.dims)
-    out.graph = graph
     return out
 
 

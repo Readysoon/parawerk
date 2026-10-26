@@ -33,6 +33,7 @@ from ..models.dxf import teile_als_dxf
 from ..models.engine import Ergebnis, berechnen as engine_berechnen
 from ..models.ansicht import modellbild
 from ..models.gltf import als_glb
+from ..models.usdz import als_usdz
 from ..models.raum import Messung, Tiefe, bereich_messen, flach
 from ..models.verbrauch import datenbank
 from ..services import bildarbeit as ba
@@ -124,8 +125,12 @@ async def code(anfrage: CodeAnfrage, k: Kunde = Depends(kunde), deckel: Kostende
 
 
 @router.get("/bilder/{bid}")
+@router.get("/bilder/{bid}/{dateiname}")
 async def bild(bid: str, e: Einstellungen = Depends(einstellungen)) -> Response:
-    """Gespeichertes Bild (Foto, Maske, Entwurf) oder 3D-Modell. Die ID ist zufällig und nicht erratbar."""
+    """Gespeichertes Bild (Foto, Maske, Entwurf) oder 3D-Modell. Die ID ist zufällig und nicht erratbar.
+
+    Der Dateiname ist egal (z. B. ``…/parawerk.usdz``); manche Viewer erkennen das Format nur an der Endung.
+    """
     gefunden = await run_in_threadpool(speicher.bild_laden, _db(e), bid)
     if not gefunden:
         raise HTTPException(404, t("fehler.bild_fehlt"))
@@ -365,11 +370,13 @@ async def berechnen(anfrage: BerechnenV1, mit_glb: bool = True, mit_html: bool =
     html = templates.get_template("teile/bauplan.html").render(**ansicht) if mit_html else None
     ansicht.pop("graph_json", None)
     modell = modell_3d(ergebnis)
-    glb = None
-    if mit_glb:
+    glb = usdz = None
+    if mit_glb:  # dazu USDZ für die AR-Ansicht auf dem iPhone (das Möbel in echter Größe im Zimmer)
         glb = _url(await run_in_threadpool(speicher.bild_speichern, _db(e), k.geraet, als_glb(modell), "model/gltf-binary"))
+        usdz = _url(await run_in_threadpool(speicher.bild_speichern, _db(e), k.geraet, als_usdz(modell),
+                                            "model/vnd.usdz+zip")) + "/parawerk.usdz"
     return BauplanAntwort(name=graph["name"], offene_punkte=ergebnis.offene_punkte, bauplan=ansicht,
-                          modell=modell, modell_glb=glb, plan=ergebnis.plan, html=html)
+                          modell=modell, modell_glb=glb, modell_usdz=usdz, plan=ergebnis.plan, html=html)
 
 
 @router.post("/bauplan/dxf")

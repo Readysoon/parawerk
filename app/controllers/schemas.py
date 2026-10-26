@@ -103,6 +103,7 @@ class BauplanAntwort(BaseModel):
     bauplan: dict[str, Any] = Field(description="Prüfungen, Rechenweg, Einkauf, Zuschnitt, Montage, in der Sprache der Anfrage")
     modell: dict[str, Any] = Field(description="Teile als Quader in mm, für eigene 3D-Anzeige")
     modell_glb: str | None = Field(None, description="URL des 3D-Modells als glTF-Binärdatei")
+    modell_usdz: str | None = Field(None, description="URL des 3D-Modells als USDZ (AR Quick Look auf dem iPhone, echte Größe)")
     plan: dict[str, Any] = Field(description="Rohdaten des Bauplans")
     html: str | None = Field(None, description="Nur mit mit_html=true: fertiger Bauplan-Ausschnitt für die Website")
 

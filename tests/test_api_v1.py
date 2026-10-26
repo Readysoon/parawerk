@@ -69,6 +69,9 @@ def test_ganzer_ablauf(echt):
     glb = c.get(plan["modell_glb"])
     assert glb.headers["content-type"] == "model/gltf-binary"
     pruefe_glb(glb.content, len(plan["modell"]["teile"]))
+    usdz = c.get(plan["modell_usdz"])
+    assert plan["modell_usdz"].endswith(".usdz") and usdz.headers["content-type"] == "model/vnd.usdz+zip"
+    assert usdz.content[:2] == b"PK" and b"#usda 1.0" in usdz.content
 
     # Anpassen
     r = c.post("/api/v1/bauplan/anpassen", json={"graph": graph, "wunsch": "breiter"}, headers=GERAET)

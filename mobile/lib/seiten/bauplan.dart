@@ -1,7 +1,10 @@
 // Bauplan: 3D-Modell, Prüfung, Einkaufsliste, Montage, Zuschnitt. Per Text anpassen.
 // Alle Texte des Bauplans kommen fertig übersetzt vom Server.
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:model_viewer_plus/model_viewer_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
 import '../hilfen.dart';
@@ -57,6 +60,20 @@ class _BauplanSeiteState extends State<BauplanSeite> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('geaendert'))));
   }
 
+  Future<void> _imRaumAnsehen(String usdz) async {
+    final hinweise = ScaffoldMessenger.of(context);
+    // Größe festhalten: Es soll in echter Größe im Zimmer stehen, nicht per Fingerzug skaliert werden
+    final url = Uri.parse('$apiBasis$usdz#allowsContentScaling=0');
+    try {
+      if (!await launchUrl(url, mode: LaunchMode.inAppBrowserView) &&
+          !await launchUrl(url, mode: LaunchMode.externalApplication)) {
+        hinweise.showSnackBar(SnackBar(content: Text(tr('ar_geht_nicht'))));
+      }
+    } catch (_) {
+      hinweise.showSnackBar(SnackBar(content: Text(tr('ar_geht_nicht'))));
+    }
+  }
+
   List<Map<String, dynamic>> _liste(Map<String, dynamic> b, String key) =>
       ((b[key] as List?) ?? const []).cast<Map<String, dynamic>>();
 
@@ -65,6 +82,7 @@ class _BauplanSeiteState extends State<BauplanSeite> {
     final b = _plan['bauplan'] as Map<String, dynamic>;
     final offen = (_plan['offene_punkte'] as num?)?.toInt() ?? 0;
     final glb = _plan['modell_glb'] as String?;
+    final usdz = _plan['modell_usdz'] as String?;
     final stil = Theme.of(context).textTheme;
 
     return Scaffold(
@@ -97,6 +115,16 @@ class _BauplanSeiteState extends State<BauplanSeite> {
               ),
             ),
             Text(tr('modell_3d'), style: stil.bodySmall),
+            // AR: das Möbel in echter Größe im Zimmer (iPhone: AR Quick Look öffnet die USDZ-Datei)
+            if (usdz != null && Platform.isIOS) ...[
+              const SizedBox(height: 8),
+              FilledButton.tonalIcon(
+                onPressed: () => _imRaumAnsehen(usdz),
+                icon: const Icon(Icons.view_in_ar),
+                label: Text(tr('im_raum')),
+                style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+              ),
+            ],
           ],
 
           if (widget.maengel.isNotEmpty) ...[

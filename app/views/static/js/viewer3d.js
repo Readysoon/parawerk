@@ -4,8 +4,10 @@ import * as THREE from 'three';
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
 export class Viewer3D {
-  constructor(canvas) {
+  // fuellen: Zeichenfläche füllt den ganzen Platz (eingebettet in der App), sonst Seitenverhältnis 3:2
+  constructor(canvas, { fuellen = false } = {}) {
     this.el = canvas;
+    this.fuellen = fuellen;
     this.rot = { rx: 0.32, ry: -0.65 };
     this.r = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     this.r.setPixelRatio(Math.min(2, window.devicePixelRatio));
@@ -50,7 +52,7 @@ export class Viewer3D {
 
   zeichnen() {
     if (!this.grp || !this.el.isConnected) return;
-    const w = this.el.clientWidth || 600, h = Math.round(w / 1.5);
+    const w = this.el.clientWidth || 600, h = this.fuellen ? (this.el.clientHeight || Math.round(w / 1.5)) : Math.round(w / 1.5);
     this.r.setSize(w, h, false); this.cam.aspect = w / h; this.cam.updateProjectionMatrix();
     this.grp.rotation.set(this.rot.rx, this.rot.ry, 0);
     // Beim Strecken die Kamera nicht mitzoomen, sonst sieht man das Möbel nicht wachsen

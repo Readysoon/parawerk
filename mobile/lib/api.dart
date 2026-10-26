@@ -230,8 +230,10 @@ class Api {
   }
 
   /// Bauteilgraph → Bauplan (Prüfungen, Einkauf, Zuschnitt, Montage) und 3D-Modell (glb-URL).
-  Future<Map<String, dynamic>> berechnen(Map<String, dynamic> graph, List<int> bereich) =>
-      _post('/api/v1/bauplan/berechnen', {'graph': graph, 'bereich': bereich});
+  /// [schnell]: Vorschau beim Ziehen eines Reglers (nur Teile, ohne 3D-Dateien, etwas weniger genau).
+  Future<Map<String, dynamic>> berechnen(Map<String, dynamic> graph, List<int> bereich, {bool schnell = false}) =>
+      _post(schnell ? '/api/v1/bauplan/berechnen?mit_glb=false&schnell=true' : '/api/v1/bauplan/berechnen',
+          {'graph': graph, 'bereich': bereich});
 
   Future<Map<String, dynamic>> anpassen(Map<String, dynamic> graph, String wunsch) async {
     final j = await _auftrag('/api/v1/bauplan/anpassen', {'graph': graph, 'wunsch': wunsch});

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="{{ sprache() }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="color-scheme" content="light">
+  <title>Parawerk 3D</title>
+  {# Nur der 3D-Viewer, zum Einbetten in die App. Die App ruft zeigen(modell, kameraHalten) auf. #}
+  <style>
+    :root{--board:#d8c2a0;--mark:#c2410c;--soft:#c9ced6}
+    html,body{margin:0;height:100%;background:#eef0f2;overflow:hidden;-webkit-user-select:none;user-select:none}
+    canvas{width:100%;height:100%;display:block;touch-action:none}
+  </style>
+  <script type="importmap">{"imports": {"three": "/static/vendor/three-0.160.0.module.js"}}</script>
+</head>
+<body>
+  <canvas id="viewer" aria-label="{{ t('ui.viewer_aria') }}"></canvas>
+  <script type="module">
+    import { Viewer3D } from '/static/js/viewer3d.js';
+    const viewer = new Viewer3D(document.getElementById('viewer'), { fuellen: true });
+    window.zeigen = (modell, kameraHalten = false) => viewer.zeigen(modell, { kameraHalten });
+    window.Bereit?.postMessage('bereit');  // Kanal der App: jetzt kann sie das Modell schicken
+  </script>
+</body>
+</html>

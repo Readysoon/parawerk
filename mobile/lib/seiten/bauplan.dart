@@ -3,11 +3,11 @@
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
-import 'package:model_viewer_plus/model_viewer_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
 import '../hilfen.dart';
+import '../modell_ansicht.dart';
 import '../sitzung.dart';
 import '../texte.dart';
 
@@ -40,6 +40,36 @@ class _BauplanSeiteState extends State<BauplanSeite> {
   late final List<int> _design = _masse(widget.plan);
   late List<double> _regler = [for (final v in _masse(widget.plan)) v.toDouble()];
   bool _rechnet = false;
+  // Live-Vorschau beim Ziehen: Teile, die gerade angezeigt werden, und ob schon eine Vorschau unterwegs ist
+  late Map<String, dynamic> _anzeige = widget.plan['modell'] as Map<String, dynamic>;
+  bool _zieht = false;
+  bool _vorschauLaeuft = false;
+  bool _vorschauWartet = false;
+  int _stand = 0; // zählt hoch, sobald der ganze Bauplan neu gerechnet wird; ältere Vorschauen werden verworfen
+
+  Map<String, dynamic> _mitZiel() => {..._graph, 'ziel': [for (final v in _regler) v.round()]};
+
+  /// Während des Ziehens: schnelle Vorschau (nur Teile), immer nur eine gleichzeitig, danach der neueste Stand.
+  Future<void> _vorschau() async {
+    if (_vorschauLaeuft) {
+      _vorschauWartet = true;
+      return;
+    }
+    _vorschauLaeuft = true;
+    final stand = _stand;
+    try {
+      final plan = await widget.sitzung.api.berechnen(_mitZiel(), widget.sitzung.bereich, schnell: true);
+      if (mounted && stand == _stand && _zieht) setState(() => _anzeige = plan['modell'] as Map<String, dynamic>);
+    } catch (_) {
+      // nur Vorschau; der ganze Bauplan nach dem Loslassen meldet Fehler
+    } finally {
+      _vorschauLaeuft = false;
+      if (_vorschauWartet && mounted && _zieht) {
+        _vorschauWartet = false;
+        _vorschau();
+      }
+    }
+  }
 
   static List<int> _masse(Map<String, dynamic> plan) =>
       [for (final v in ((plan['modell'] as Map<String, dynamic>)['dims'] as List)) (v as num).round()];
@@ -55,13 +85,18 @@ class _BauplanSeiteState extends State<BauplanSeite> {
     } else {
       graph['ziel'] = [for (final v in _regler) v.round()];
     }
-    setState(() => _rechnet = true);
+    _stand++;
+    setState(() {
+      _rechnet = true;
+      _zieht = false;
+    });
     try {
       final plan = await s.api.berechnen(graph, s.bereich);
       if (!mounted) return;
       setState(() {
         _graph = graph;
         _plan = plan;
+        _anzeige = plan['modell'] as Map<String, dynamic>;
         _regler = [for (final v in _masse(plan)) v.toDouble()];
       });
     } catch (e) {
@@ -92,6 +127,7 @@ class _BauplanSeiteState extends State<BauplanSeite> {
     setState(() {
       _graph = neu.graph;
       _plan = neu.plan;
+      _anzeige = neu.plan['modell'] as Map<String, dynamic>;
       _wunsch.clear();
     });
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('geaendert'))));
@@ -118,7 +154,6 @@ class _BauplanSeiteState extends State<BauplanSeite> {
   Widget build(BuildContext context) {
     final b = _plan['bauplan'] as Map<String, dynamic>;
     final offen = (_plan['offene_punkte'] as num?)?.toInt() ?? 0;
-    final glb = _plan['modell_glb'] as String?;
     final usdz = _plan['modell_usdz'] as String?;
     final stil = Theme.of(context).textTheme;
 
@@ -138,18 +173,11 @@ class _BauplanSeiteState extends State<BauplanSeite> {
           const SizedBox(height: 8),
           // Entwurf und 3D-Modell
           ClipRRect(borderRadius: BorderRadius.circular(6), child: Image.network(widget.entwurf.vollUrl)),
-          if (glb != null) ...[
+          ...[
             const SizedBox(height: 12),
-            SizedBox(
-              height: 300,
-              child: ModelViewer(
-                key: ValueKey(glb), // neues Modell nach dem Anpassen
-                src: '$apiBasis$glb',
-                alt: tr('modell_3d'),
-                cameraControls: true,
-                autoRotate: true,
-                backgroundColor: const Color(0xFFEEF0F2),
-              ),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: ModellAnsicht(modell: _anzeige, kameraHalten: _zieht),
             ),
             Text(tr('modell_3d'), style: stil.bodySmall),
             // AR: das Möbel in echter Größe im Zimmer (iPhone: AR Quick Look öffnet die USDZ-Datei)
@@ -177,7 +205,13 @@ class _BauplanSeiteState extends State<BauplanSeite> {
               max: (_design[i] * 2.0).clamp(500, 4000).toDouble(),
               divisions: 100,
               value: _regler[i].clamp((_design[i] * 0.5).clamp(250, 4000), (_design[i] * 2.0).clamp(500, 4000)).toDouble(),
-              onChanged: _rechnet ? null : (v) => setState(() => _regler[i] = (v / 10).round() * 10.0),
+              onChanged: (v) {
+                setState(() {
+                  _zieht = true;
+                  _regler[i] = (v / 10).round() * 10.0;
+                });
+                _vorschau();
+              },
               onChangeEnd: (_) => _strecken(),
             ),
           ],

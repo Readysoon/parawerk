@@ -34,6 +34,12 @@ def startseite(request: Request, schluessel: str = "", e: Einstellungen = Depend
     return seite
 
 
+@router.get("/ansicht", response_class=HTMLResponse, include_in_schema=False)
+def ansicht(request: Request) -> Response:
+    """Nur der 3D-Viewer, eingebettet in die App: derselbe Viewer wie auf der Website, live beim Strecken."""
+    return templates.TemplateResponse(request, "ansicht.html", {})
+
+
 @router.get("/gesund", include_in_schema=False)
 def gesund() -> dict:
     return {"ok": True}

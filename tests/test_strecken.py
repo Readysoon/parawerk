@@ -84,3 +84,11 @@ def test_api_mit_ziel_und_schnell():
                        json={"graph": {**g, "ziel": [2400, 450, 804]}, "bereich": PLATZ})
             assert r.status_code == 200, r.text
             assert r.json()["modell"]["dims"][0] == 2400
+
+
+def test_ansicht_fuer_die_app():
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+    r = TestClient(app).get("/ansicht?sprache=en")
+    assert r.status_code == 200 and "window.zeigen" in r.text and "viewer3d.js" in r.text and 'lang="en"' in r.text

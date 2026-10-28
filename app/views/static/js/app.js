@@ -408,6 +408,14 @@ function herunterladen(name, blob) {
 $('ergebnis').addEventListener('click', async e => {
   const aktion = e.target.closest('[data-aktion]')?.dataset.aktion;
   if (aktion === 'drucken') window.print();
+  if (aktion === 'pdf') {
+    try {
+      const entwurf = z.entwuerfe[z.gewaehlt]?.id;
+      const res = await api('/bauplan/pdf', { graph: z.graph, bereich: z.bereich, entwurf_id: entwurf || null }, { roh: true });
+      const name = /filename="([^"]+)"/.exec(res.headers.get('content-disposition') || '')?.[1] || 'parawerk.pdf';
+      herunterladen(name, await res.blob());
+    } catch (err) { fehler(err.message); }
+  }
   if (aktion === 'dxf') {
     try { herunterladen('parawerk.dxf', await (await api('/bauplan/dxf', { graph: z.graph, bereich: z.bereich }, { roh: true })).blob()); }
     catch (err) { fehler(err.message); }

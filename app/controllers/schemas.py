@@ -83,6 +83,10 @@ class BerechnenV1(BaseModel):
     sortiment: Literal["DE", "US"] | None = None
 
 
+class PdfV1(BerechnenV1):
+    entwurf_id: BildId | None = Field(None, max_length=32, description="gewählter Entwurf, kommt als Bild ins PDF")
+
+
 class AuftragAntwort(BaseModel):
     auftrag: str
     foto_id: str | None = None

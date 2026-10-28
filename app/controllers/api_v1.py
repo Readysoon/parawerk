@@ -16,6 +16,7 @@ Die Geräte-ID schickt die App im Header ``X-Geraet``, die Sprache in ``X-Sprach
 from __future__ import annotations
 
 import logging
+import re
 import secrets
 from pathlib import Path
 
@@ -45,10 +46,11 @@ from ..services.kostendeckel import Gesperrt, Kostendeckel, Kunde
 from ..services.prompts import bearbeitung_prompt, inpaint_prompt
 from ..services.tiefe import TiefenKI
 from ..views import STATIC, templates
+from ..views.pdf import bauplan_pdf
 from ..views.praesentation import bauplan_ansicht, modell_3d
 from .abhaengigkeiten import bild_ki, konstrukteur, kostendeckel, kunde, tiefen_ki
 from .schemas import (AnpassenAnfrage, CodeAnfrage, AuftragAntwort, AuftragStand, BauplanAntwort, BerechnenV1, EntwuerfeV1,
-                      FotoV1, LesenV1, MasseAntwort, MasseV1, NachjustierenV1)
+                      FotoV1, LesenV1, MasseAntwort, MasseV1, NachjustierenV1, PdfV1)
 
 router = APIRouter(prefix="/api/v1", tags=["API v1"])
 MIME_TIEFE = "application/x-parawerk-tiefe"  # Tiefenkarte (npz) in der Bilder-Tabelle
@@ -378,6 +380,35 @@ async def berechnen(anfrage: BerechnenV1, mit_glb: bool = True, mit_html: bool =
                                             "model/vnd.usdz+zip")) + "/parawerk.usdz"
     return BauplanAntwort(name=graph["name"], offene_punkte=ergebnis.offene_punkte, bauplan=ansicht,
                           modell=modell, modell_glb=glb, modell_usdz=usdz, plan=ergebnis.plan, html=html)
+
+
+def _dateiname(name: str) -> str:
+    """Name des Möbels als einfacher Dateiname (nur Buchstaben, Ziffern, Bindestrich)."""
+    ersetzt = name.lower().replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
+    teile = re.findall(r"[a-z0-9]+", ersetzt)
+    return "parawerk-" + ("-".join(teile)[:40] or "bauplan") + ".pdf"
+
+
+@router.post("/bauplan/pdf", response_model=None)
+async def pdf(anfrage: PdfV1, link: bool = False, k: Kunde = Depends(kunde),
+              e: Einstellungen = Depends(einstellungen)) -> Response | dict:
+    """Bauplan als PDF zum Herunterladen und Ausdrucken, mit Entwurf und 3D-Bild.
+
+    ``link=true`` (für die App): das PDF wird gespeichert, die Antwort ist ``{"url": …}`` zum Öffnen und Teilen.
+    """
+    graph = _graph(anfrage.graph)
+    ergebnis = await run_in_threadpool(_rechnen, graph, anfrage.bereich, anfrage.sortiment or e.sortiment)
+    entwurf = None
+    if anfrage.entwurf_id:
+        gefunden = await run_in_threadpool(speicher.bild_laden, _db(e), anfrage.entwurf_id)
+        if gefunden and gefunden[1].startswith("image/"):
+            entwurf = ba.aus_bytes(gefunden[0])
+    daten = await run_in_threadpool(bauplan_pdf, bauplan_ansicht(ergebnis, graph, anfrage.bereich), modell_3d(ergebnis), entwurf)
+    name = _dateiname(graph["name"])
+    if link:
+        bid = await run_in_threadpool(speicher.bild_speichern, _db(e), k.geraet, daten, "application/pdf")
+        return {"url": f"{_url(bid)}/{name}"}
+    return Response(daten, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
 
 @router.post("/bauplan/dxf")

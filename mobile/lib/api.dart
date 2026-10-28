@@ -235,6 +235,16 @@ class Api {
       _post(schnell ? '/api/v1/bauplan/berechnen?mit_glb=false&schnell=true' : '/api/v1/bauplan/berechnen',
           {'graph': graph, 'bereich': bereich});
 
+  /// Bauplan als PDF (mit Entwurf und 3D-Bild). Der Server speichert es; zurück kommt die Adresse zum Öffnen und Teilen.
+  Future<Uri> pdf(Map<String, dynamic> graph, List<int> bereich, {String? entwurfId}) async {
+    final j = await _post('/api/v1/bauplan/pdf?link=true', {
+      'graph': graph,
+      'bereich': bereich,
+      if (entwurfId != null) 'entwurf_id': entwurfId,
+    });
+    return Uri.parse('$apiBasis${j['url']}');
+  }
+
   Future<Map<String, dynamic>> anpassen(Map<String, dynamic> graph, String wunsch) async {
     final j = await _auftrag('/api/v1/bauplan/anpassen', {'graph': graph, 'wunsch': wunsch});
     return j['graph'] as Map<String, dynamic>;

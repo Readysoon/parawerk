@@ -147,6 +147,22 @@ class _BauplanSeiteState extends State<BauplanSeite> {
     }
   }
 
+  /// PDF erstellen lassen und anzeigen; dort kann man es über „Teilen“ sichern, drucken oder verschicken.
+  Future<void> _pdf() async {
+    final s = widget.sitzung;
+    final hinweise = ScaffoldMessenger.of(context);
+    final url = await mitWarten(context, tr('st_pdf'), () => s.api.pdf(_graph, s.bereich, entwurfId: widget.entwurf.id));
+    if (url == null) return;
+    try {
+      if (!await launchUrl(url, mode: LaunchMode.inAppBrowserView) &&
+          !await launchUrl(url, mode: LaunchMode.externalApplication)) {
+        hinweise.showSnackBar(SnackBar(content: Text(tr('pdf_geht_nicht'))));
+      }
+    } catch (_) {
+      hinweise.showSnackBar(SnackBar(content: Text(tr('pdf_geht_nicht'))));
+    }
+  }
+
   List<Map<String, dynamic>> _liste(Map<String, dynamic> b, String key) =>
       ((b[key] as List?) ?? const []).cast<Map<String, dynamic>>();
 
@@ -234,6 +250,13 @@ class _BauplanSeiteState extends State<BauplanSeite> {
           _Zeile(tr('aussenmass'), '${b['aussenmass']} mm'),
           _Zeile(tr('einzelteile'), '${b['anzahl_teile']}'),
           _Zeile(tr('ergaenzt'), '${b['anzahl_ergaenzt']}'),
+          const SizedBox(height: 8),
+          FilledButton.icon(
+            onPressed: _rechnet ? null : _pdf,
+            icon: const Icon(Icons.picture_as_pdf),
+            label: Text(tr('pdf')),
+            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+          ),
 
           Abschnitt(tr('pruefung')),
           for (final p in _liste(b, 'pruefungen'))

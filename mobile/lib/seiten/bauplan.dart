@@ -151,7 +151,7 @@ class _BauplanSeiteState extends State<BauplanSeite> {
   Future<void> _pdf() async {
     final s = widget.sitzung;
     final hinweise = ScaffoldMessenger.of(context);
-    final url = await mitWarten(context, tr('st_pdf'), () => s.api.pdf(_graph, s.bereich, entwurfId: widget.entwurf.id));
+    final url = await mitWarten(context, tr('st_pdf'), () => s.api.pdf(_graph, s.bereich, entwurfId: widget.entwurf.id, maskeId: s.maskeId));
     if (url == null) return;
     try {
       if (!await launchUrl(url, mode: LaunchMode.inAppBrowserView) &&

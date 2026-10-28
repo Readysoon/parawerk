@@ -39,3 +39,20 @@ def test_pdf_als_link_englisch_und_gestreckt():
 def test_zeichen_fuer_pdf_schrift():
     assert _sauber("ca. ≈ 3 → 4 × 5 € <b>") == "ca. ca. 3 -&gt; 4 × 5 € &lt;b&gt;"
     assert "?" in _sauber("日本")  # unbekannte Zeichen stören nicht
+
+
+def _pdf_text(daten: bytes) -> bytes:
+    """Seiteninhalte eines reportlab-PDFs (ASCII85 + Flate) als Rohtext, ohne zusätzliche Bibliothek."""
+    import base64
+    import re
+    import zlib
+    teile = re.findall(rb"/Filter \[ /ASCII85Decode /FlateDecode \][^>]*>>\s*stream\r?\n(.*?)endstream", daten, re.S)
+    return b"".join(zlib.decompress(base64.a85decode(t.strip().removesuffix(b"~>"))) for t in teile)
+
+
+def test_ohne_pruefung_im_pdf():
+    with TestClient(app, headers=KOPF) as c:
+        r = c.post("/api/v1/bauplan/pdf", json={"graph": GRAPHEN[0], "bereich": [2500, 1000, 1000]})
+    text = _pdf_text(r.content)
+    assert b"Einkaufsliste" in text and b"Montage" in text
+    assert b"Pr\xfcfung" not in text and b"Faustregel" not in text  # Prüfungen sind intern

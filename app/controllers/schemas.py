@@ -85,6 +85,7 @@ class BerechnenV1(BaseModel):
 
 class PdfV1(BerechnenV1):
     entwurf_id: BildId | None = Field(None, max_length=32, description="gewählter Entwurf, kommt als Bild ins PDF")
+    maske_id: BildId | None = Field(None, max_length=32, description="nur für die anonyme Analyse: gleicher Durchgang")
 
 
 class AuftragAntwort(BaseModel):

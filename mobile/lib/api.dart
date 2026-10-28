@@ -236,11 +236,12 @@ class Api {
           {'graph': graph, 'bereich': bereich});
 
   /// Bauplan als PDF (mit Entwurf und 3D-Bild). Der Server speichert es; zurück kommt die Adresse zum Öffnen und Teilen.
-  Future<Uri> pdf(Map<String, dynamic> graph, List<int> bereich, {String? entwurfId}) async {
+  Future<Uri> pdf(Map<String, dynamic> graph, List<int> bereich, {String? entwurfId, String? maskeId}) async {
     final j = await _post('/api/v1/bauplan/pdf?link=true', {
       'graph': graph,
       'bereich': bereich,
       if (entwurfId != null) 'entwurf_id': entwurfId,
+      if (maskeId != null) 'maske_id': maskeId, // nur damit die anonyme Analyse Einträge eines Durchgangs verbindet
     });
     return Uri.parse('$apiBasis${j['url']}');
   }

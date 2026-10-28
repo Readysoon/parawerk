@@ -1,4 +1,6 @@
-"""Bauplan als PDF zum Herunterladen und Ausdrucken: Entwurf, 3D-Bild, Prüfung, Einkaufsliste, Montage, Zuschnitt.
+"""Bauplan als PDF zum Herunterladen und Ausdrucken: Entwurf, 3D-Bild, Einkaufsliste, Montage, Zuschnitt.
+
+Die Prüfungen der Engine stehen bewusst nicht drin: Sie sind für uns, nicht für den Kunden.
 
 Gebaut mit reportlab und den eingebauten PDF-Schriften (Helvetica). Die kennen nur den Windows-Zeichensatz
 (Umlaute, ×, €, – ja; ≈, → nein), darum werden ein paar Zeichen vorher ersetzt.
@@ -27,7 +29,6 @@ ERGAENZT = colors.HexColor("#c2410c")
 DUNKEL = colors.HexColor("#1c2530")
 GRAU = colors.HexColor("#6b7480")
 LINIE = colors.HexColor("#d5dae0")
-FARBE_STATUS = {"ok": colors.HexColor("#2f7d4f"), "no": colors.HexColor("#a15c00"), "info": GRAU}
 
 ERSATZ = {"≈": "ca.", "→": "->", "←": "<-", "≤": "<=", "≥": ">=", " ": " ", " ": " ", "‑": "-",
           "√": "Wurzel"}
@@ -127,10 +128,8 @@ def bauplan_pdf(ansicht: dict, modell: dict, entwurf: Image.Image | None = None)
     doc = SimpleDocTemplate(puffer, pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm, topMargin=17 * mm,
                             bottomMargin=17 * mm, title=_sauber(titel), author="Parawerk")
     inhalt: list = [_p(titel, _titel)]
-    status = t("bp.ok") if not ansicht["offene_punkte"] else (
-        t("bp.punkt") if ansicht["offene_punkte"] == 1 else t("bp.punkte", n=ansicht["offene_punkte"]))
     inhalt.append(_p(f"{t('bp.aussenmass')}: {ansicht['aussenmass']} mm  ·  {ansicht['anzahl_teile']} "
-                     f"{t('bp.einzelteile')}  ·  {status}", _klein))
+                     f"{t('bp.einzelteile')}", _klein))
     inhalt.append(Spacer(1, 6))
 
     # Bilder: Entwurf und 3D-Modell nebeneinander (ohne Entwurf das 3D-Modell groß)
@@ -147,14 +146,6 @@ def bauplan_pdf(ansicht: dict, modell: dict, entwurf: Image.Image | None = None)
     inhalt.append(Paragraph(f'<font color="#b89c74"><b>{_sauber(t("pdf.hell"))}</b></font> {_sauber(t("ui.leg_entwurf"))}'
                             f' &nbsp; <font color="#c2410c"><b>{_sauber(t("pdf.orange"))}</b></font> '
                             f'{_sauber(t("ui.leg_ergaenzt"))}', _klein))
-
-    # Prüfung
-    inhalt.append(_p(t("bp.pruefung"), _h2))
-    zeilen = []
-    for pr in ansicht["pruefungen"]:
-        farbe = FARBE_STATUS.get(pr["klasse"], GRAU).hexval()[2:]
-        zeilen.append([Paragraph(f'<font color="#{farbe}"><b>{_sauber(pr["status"])}</b></font>', _text), _p(pr["text"])])
-    inhalt.append(_tabelle(zeilen, [20 * mm, BREITE - 20 * mm], kopf=False))
 
     # Einkaufsliste
     zeilen = [[_p(t("bp.menge")), _p(t("bp.artikel"))]]

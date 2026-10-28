@@ -411,7 +411,7 @@ $('ergebnis').addEventListener('click', async e => {
   if (aktion === 'pdf') {
     try {
       const entwurf = z.entwuerfe[z.gewaehlt]?.id;
-      const res = await api('/bauplan/pdf', { graph: z.graph, bereich: z.bereich, entwurf_id: entwurf || null }, { roh: true });
+      const res = await api('/bauplan/pdf', { graph: z.graph, bereich: z.bereich, entwurf_id: entwurf || null, maske_id: z.maskeId }, { roh: true });
       const name = /filename="([^"]+)"/.exec(res.headers.get('content-disposition') || '')?.[1] || 'parawerk.pdf';
       herunterladen(name, await res.blob());
     } catch (err) { fehler(err.message); }

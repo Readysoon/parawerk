@@ -138,6 +138,7 @@ Unter `/api/v1` gibt es alles als JSON; Bildarbeit (Entwurf einsetzen, Ausschnit
 | Entwürfe | `POST /api/v1/entwuerfe` `{foto oder foto_id, maske, wunsch}` | Auftrag, `foto_id`, `maske_id` |
 | Nachjustieren | `POST /api/v1/entwuerfe/nachjustieren` `{foto_id, maske_id, entwurf_id, anpassung}` | Auftrag |
 | Konstruktion lesen | `POST /api/v1/bauplan/lesen` `{entwurf_id, maske_id, bereich}` | Auftrag |
+| Bauplan als PDF | `POST /api/v1/bauplan/pdf` `{graph, bereich, entwurf_id}` | PDF (mit `?link=true`: `{url}`) |
 | Bauplan | `POST /api/v1/bauplan/berechnen` `{graph, bereich}` | sofort: Bauplan, `modell_glb`, `modell_usdz` (AR auf dem iPhone) |
 | Anpassen | `POST /api/v1/bauplan/anpassen` `{graph, wunsch}` | Auftrag |
 | Stand | `GET /api/v1/auftraege/{id}` | `laeuft` → `fertig` (+ `ergebnis`) oder `fehler` |
@@ -165,6 +166,16 @@ Unter dem 3D-Modell gibt es Regler für Breite, Tiefe und Höhe. Der Graph bekom
 - Das gebaute Außenmaß wird nachgestellt, bis es auf ±5 mm passt.
 
 Website: während des Ziehens schnelle Vorschau (`?schnell=true`, nur 3D und Teilezahl), kurz nach dem Loslassen der ganze Bauplan. App: neu gerechnet beim Loslassen.
+
+## Anonyme Analyse
+
+Zum Verbessern speichert der Server je Durchgang, was entworfen und gebaut wird (`app/models/analyse.py`, Tabelle `analyse`):
+`entwuerfe` (Wunsch, Prompt), `nachjustiert`, `gelesen` (Maße, Bauteilgraph, Selbstkontrolle), `angepasst`, `pdf` (fertiger Bauplan: Maße, Teile, Einkaufsliste).
+
+- **Nie** gespeichert: Fotos, Masken, Entwurfsbilder (darauf ist die Wohnung), Geräte-ID, IP.
+- Einträge eines Durchgangs verbindet nur `lauf`, ein Hash der zufälligen Masken-ID.
+- Diese Einträge werden nicht nach 7 Tagen gelöscht. Der Wunschtext ist Freitext: In der Datenschutzerklärung erwähnen.
+- Export als JSON nur mit Admin-Schlüssel: erst `/?schluessel=…`, dann `/api/v1/analyse` (optional `?art=pdf`, `&demo=true`).
 
 ## Selbstkontrolle beim Lesen
 

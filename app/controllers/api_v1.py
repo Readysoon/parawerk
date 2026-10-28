@@ -27,8 +27,8 @@ import numpy as np
 from PIL import Image
 
 from ..config import Einstellungen, einstellungen
-from ..i18n import t
-from ..models import speicher
+from ..i18n import sprache, t
+from ..models import analyse, speicher
 from ..models.bauteilgraph import GraphFehler, bereinigen
 from ..models.dxf import teile_als_dxf
 from ..models.engine import Ergebnis, berechnen as engine_berechnen
@@ -245,6 +245,9 @@ async def entwuerfe(anfrage: EntwuerfeV1, ki: BildKI = Depends(bild_ki), kon: Ko
         for src in bilder:
             fertig = await run_in_threadpool(ba.einsetzen, foto, maske, _quelle(src))
             ids.append(await run_in_threadpool(speicher.bild_speichern, db, k.geraet, ba.jpeg(fertig, 90), "image/jpeg"))
+        await run_in_threadpool(analyse.eintragen, db, "entwuerfe", {"wunsch": anfrage.wunsch, "prompt": prompt,
+                                                                      "anzahl": len(ids)},
+                                lauf_id=analyse.lauf(maske_id), sprache=sprache(), demo=ki.demo)
         return {"demo": ki.demo, "prompt": prompt,
                 "entwuerfe": [{"id": i, "url": _url(i), "index": n} for n, i in enumerate(ids)]}
 
@@ -272,6 +275,9 @@ async def nachjustieren(anfrage: NachjustierenV1, ki: BildKI = Depends(bild_ki),
         neu = await ki.bearbeiten(entwurf_url, prompt, secrets.randbelow(10**9))
         fertig = await run_in_threadpool(ba.einsetzen, foto, maske, _quelle(neu))
         bid = await run_in_threadpool(speicher.bild_speichern, db, k.geraet, ba.jpeg(fertig, 90), "image/jpeg")
+        await run_in_threadpool(analyse.eintragen, db, "nachjustiert", {"wunsch": anfrage.wunsch,
+                                                                         "anpassung": anfrage.anpassung},
+                                lauf_id=analyse.lauf(anfrage.maske_id), sprache=sprache())
         return {"prompt": prompt, "entwurf": {"id": bid, "url": _url(bid)}}
 
     aid = await starten(db, k.geraet, "nachjustieren", arbeit, "fehler.nachjustieren", lambda: erstatten(deckel, eintrag))
@@ -335,6 +341,9 @@ async def lesen(anfrage: LesenV1, kon: Konstrukteur = Depends(konstrukteur), dec
 
             graph, pruefung = await _selbstkontrolle(kon, teil_url, graph, anfrage.bereich, e.sortiment,
                                                      e.kontrollrunden, weitere_runde)
+        await run_in_threadpool(analyse.eintragen, db, "gelesen", {"bereich": anfrage.bereich, "graph": graph,
+                                                                    "selbstkontrolle": pruefung},
+                                lauf_id=analyse.lauf(anfrage.maske_id), sprache=sprache(), demo=kon.demo)
         return {"demo": kon.demo, "graph": graph, "pruefung": pruefung}
 
     aid = await starten(db, k.geraet, "lesen", arbeit, "fehler.lesen", lambda: erstatten(deckel, eintrag))
@@ -352,7 +361,10 @@ async def anpassen(anfrage: AnpassenAnfrage, kon: Konstrukteur = Depends(konstru
     eintrag = await reservieren(deckel, "anpassen", k)
 
     async def arbeit() -> dict:
-        return {"graph": await kon.anpassen(graph, anfrage.wunsch)}
+        neu = await kon.anpassen(graph, anfrage.wunsch)
+        await run_in_threadpool(analyse.eintragen, _db(e), "angepasst", {"wunsch": anfrage.wunsch, "vorher": graph,
+                                                                          "nachher": neu}, sprache=sprache())
+        return {"graph": neu}
 
     aid = await starten(_db(e), k.geraet, "anpassen", arbeit, "fehler.aenderung", lambda: erstatten(deckel, eintrag))
     return AuftragAntwort(auftrag=aid)
@@ -405,10 +417,24 @@ async def pdf(anfrage: PdfV1, link: bool = False, k: Kunde = Depends(kunde),
             entwurf = ba.aus_bytes(gefunden[0])
     daten = await run_in_threadpool(bauplan_pdf, bauplan_ansicht(ergebnis, graph, anfrage.bereich), modell_3d(ergebnis), entwurf)
     name = _dateiname(graph["name"])
+    await run_in_threadpool(analyse.eintragen, _db(e), "pdf", {
+        "bereich": anfrage.bereich, "graph": graph, "masse": ergebnis.dims, "teile": len(ergebnis.members),
+        "ergaenzt": sum(1 for m in ergebnis.members if m.origin == "reparatur"), "offene_punkte": ergebnis.offene_punkte,
+        "einkauf": ergebnis.plan["lines"], "schnitte": ergebnis.plan["cuts"]},
+        lauf_id=analyse.lauf(anfrage.maske_id), sprache=sprache(), demo=not e.claude_aktiv)
     if link:
         bid = await run_in_threadpool(speicher.bild_speichern, _db(e), k.geraet, daten, "application/pdf")
         return {"url": f"{_url(bid)}/{name}"}
     return Response(daten, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{name}"'})
+
+
+@router.get("/analyse", include_in_schema=False)
+async def analyse_export(art: str | None = None, demo: bool = False, k: Kunde = Depends(kunde),
+                         e: Einstellungen = Depends(einstellungen)) -> list[dict]:
+    """Anonyme Analyse-Daten als JSON, nur mit Admin-Schlüssel (``/?schluessel=…`` vorher im Browser)."""
+    if not k.admin:
+        raise HTTPException(404, "Not Found")
+    return await run_in_threadpool(analyse.alle, _db(e), art, demo)
 
 
 @router.post("/bauplan/dxf")

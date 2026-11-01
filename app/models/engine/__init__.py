@@ -8,7 +8,7 @@ import copy
 from dataclasses import dataclass, field
 
 from ..sortiment import SORTIMENTE, Sortiment
-from ...i18n import t
+from ...i18n import holz, t
 from .aufbau import RAND_MM, _strecken, aufbauen, skalieren
 from .bauplan import bauplan, polster
 from .grundlagen import Bauteil, einmalig, gesetzt, mm, zahl
@@ -128,20 +128,116 @@ def berechnen(graph: dict, bereich: list[float] | None = None, sortiment: str = 
         for teil in g["teile"]:
             if teil.get("typ") == "brett" and not teil.get("platte"):
                 teil["typ"] = "latte"
-    ziel = g.get("ziel")
-    if not gesetzt(ziel):
-        out = _rechnen(S, g, bereich, None)
-    else:
+
+    def rechne(gg: dict) -> Ergebnis:
+        ziel = gg.get("ziel")
+        if not gesetzt(ziel):
+            return _rechnen(S, gg, bereich, None)
         # Das gebaute Außenmaß ist etwas größer als das Rastermaß (Holzstärken stehen über): nachstellen, bis es passt
         # Zwei Arten zu strecken: Kanten nah am Rand behalten ihren Abstand (meist besser), oder alles anteilig.
         # Die zweite wird nur probiert, wenn die erste offene Punkte hat; es gilt die mit weniger offenen Punkten.
-        out = _strecken_bis_passt(S, g, bereich, ziel, RAND_MM, 2 if schnell else 3)
-        if _probleme(out) and not schnell:
-            anteilig = _strecken_bis_passt(S, g, bereich, ziel, 0)
-            if _probleme(anteilig) < _probleme(out):
-                out = anteilig
+        aus = _strecken_bis_passt(S, gg, bereich, ziel, RAND_MM, 2 if schnell else 3)
+        if _probleme(aus) and not schnell:
+            anteilig = _strecken_bis_passt(S, gg, bereich, ziel, 0)
+            if _probleme(anteilig) < _probleme(aus):
+                aus = anteilig
+        return aus
+
+    out = rechne(g)
+    if not schnell:
+        # Die Reparatur entscheidet je Teil, ob stärkeres Holz oder ein Steg weniger Holz braucht. Im Ganzen kann es
+        # anders ausgehen (eine Stütze zieht Fußriegel nach sich): darum auch „immer erst stärkeres Holz“ rechnen und
+        # das Ergebnis mit weniger offenen Punkten, sonst mit weniger Holz nehmen.
+        g2 = {**g, "_reparatur": "staerker"}
+        anders = rechne(g2)
+        if (anders.offene_punkte, _holz(anders)) < (out.offene_punkte, _holz(out)):
+            out, g = anders, g2
+        out = _sparen(S, g, out, rechne)
     out.graph = graph
     return out
+
+
+# Teile, die man am fertigen Möbel kaum sieht: dürfen schlanker werden als im Entwurf, wenn die Statik es erlaubt
+VERSTECKT = {"zarge", "mittelsteg", "querriegel", "auflage", "wandleiste"}
+SPAR_RESERVE = 0.85  # neue Ausnutzung höchstens 85 %, damit die Abschätzung vor dem Nachrechnen Luft hat
+
+
+def _holz(e: Ergebnis) -> float:
+    return sum((m.max[0] - m.min[0]) * (m.max[1] - m.min[1]) * (m.max[2] - m.min[2]) for m in e.members)
+
+
+def _ergaenzt(e: Ergebnis) -> int:
+    return sum(1 for m in e.members if m.origin == "reparatur")
+
+
+def _sparen(S: Sortiment, g: dict, out: Ergebnis, rechne) -> Ergebnis:
+    """Minimaler Holzverbrauch: versteckte Kanthölzer auf den kleinsten Querschnitt, der die Normlasten noch hält.
+
+    Abschätzung über Widerstands- und Trägheitsmoment, danach wird alles neu gerechnet und nur übernommen, wenn
+    dabei nichts schlechter wird (offene Punkte, Statik). Sichtbare Teile bleiben, wie sie im Entwurf sind.
+    """
+    st = out.fc.get("statik")
+    if st is None:
+        return out
+    nutzung: dict[str, float] = {}
+    for n in st.nachweise:
+        nutzung[n.teil.part] = max(nutzung.get(n.teil.part, 0.0), n.ausnutzung)
+    vorschlaege: dict[str, tuple[dict, dict, float]] = {}
+    for p in g["teile"]:
+        if p.get("rolle") not in VERSTECKT or p.get("typ") != "kantholz":
+            continue
+        ms = [m for m in out.members if m.part == p["id"] and m.origin == "entwurf"]
+        if not ms or ms[0].long == 2 or "label" not in ms[0].prof:
+            continue
+        m = ms[0]
+        quer = next(a for a in (0, 1) if a != m.long)
+        b, h = m.max[quer] - m.min[quer], m.max[2] - m.min[2]
+        u = nutzung.get(p["id"], 0.0)
+        alt = next((k for k in S["kantholz"] if k["label"] == m.prof["label"]), None)
+        if alt is None:
+            continue
+        for k in sorted(S["kantholz"], key=lambda k: k["a"] * k["b"]):
+            if k["a"] * k["b"] >= alt["a"] * alt["b"]:
+                break
+            kb, kh = min(k["a"], k["b"]), max(k["a"], k["b"])
+            faktor = max((b * h * h) / (kb * kh * kh), (b * h ** 3) / (kb * kh ** 3))
+            if u * faktor <= SPAR_RESERVE:
+                vorschlaege[p["id"]] = (alt, k, u * faktor)
+                break
+    if not vorschlaege:
+        return out
+
+    def versuchen(ids: list[str]) -> Ergebnis | None:
+        gg = copy.deepcopy(g)
+        for teil in gg["teile"]:
+            if teil["id"] in ids:
+                teil["_profil"] = vorschlaege[teil["id"]][1]["label"]
+        neu = rechne(gg)
+        schlechtester = neu.fc["statik"].schlechtester
+        if neu.offene_punkte > out.offene_punkte or (schlechtester is not None and schlechtester.ausnutzung > 1
+                                                      and (st.schlechtester is None or st.schlechtester.ausnutzung <= 1)):
+            return None
+        # nur übernehmen, wenn wirklich Holz gespart wird und dafür keine Stützen oder Stege dazukommen
+        if _ergaenzt(neu) > _ergaenzt(out) or _holz(neu) >= _holz(out):
+            return None
+        return neu
+
+    angenommen = list(vorschlaege)
+    neu = versuchen(angenommen)
+    if neu is None:  # gemeinsam ging es nicht: einzeln probieren
+        angenommen = [i for i in vorschlaege if versuchen([i]) is not None]
+        neu = versuchen(angenommen) if angenommen else None
+    if neu is None:
+        return out
+    namen = {p["id"]: p.get("name") or p["id"] for p in g["teile"]}
+    zeilen = [t("rep.sparsam" if vorschlaege[i][2] >= 0.05 else "rep.sparsam_leer", name=namen[i],
+                alt=holz(vorschlaege[i][0]["label"]), neu=holz(vorschlaege[i][1]["label"]), p=mm(vorschlaege[i][2] * 100))
+              for i in angenommen]
+    neu.repairs.extend(zeilen)
+    for schritt in neu.steps:
+        if schritt["key"] == "reparieren":
+            schritt["log"] = [*zeilen, *schritt["log"]]
+    return neu
 
 
 def _probleme(e: Ergebnis) -> int:

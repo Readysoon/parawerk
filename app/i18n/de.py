@@ -46,6 +46,8 @@ TEXTE = {
     "rep.unterstuetzt": "{name} lag nirgends auf: 2 Querriegel ({holz}) unter den Enden eingefügt.",
     "rep.steg_stuetzen": "{name} lag nirgends auf: 2 Stützen bis zum Boden eingefügt.",
     "rep.hochkant": "{holz}, hochkant gestellt",
+    "rep.sparsam": "{name}: {neu} statt {alt} reicht für die Normlasten (geschätzt {p} %), spart Holz.",
+    "rep.sparsam_leer": "{name}: trägt hier kaum Last, {neu} statt {alt} reicht und spart Holz.",
     "rep.stuetze": "{name}: freie Spannweite {len} mm, erlaubt ca. {lm} mm bei {h} mm Höhe. Stütze bis zum Boden eingefügt.",
     "rep.wackelt": "Gestell wackelt {richtung}: {why}. {n} Fußriegel ({holz}) eingefügt.",
     "rep.wackelt_x": "seitlich (von vorne gesehen)",

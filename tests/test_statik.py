@@ -68,17 +68,26 @@ SITZBANK = {
          "achse": "x", "querschnitt": [44, 400]},
         {"id": "zarge", "name": "Seitenzargen", "typ": "kantholz", "rolle": "zarge", "box": [0, 1, 0, 1, 0.78, 0.94],
          "anzahl": 2, "achse": "x", "querschnitt": [44, 74]},
-        {"id": "sitz", "name": "Sitzbretter", "typ": "brett", "rolle": "sitzflaeche", "box": [0, 1, 0, 1, 0.96, 1],
-         "anzahl": 2, "achse": "y", "querschnitt": [18, 195]},
+        {"id": "sitz", "name": "Sitzbrett", "typ": "brett", "rolle": "sitzflaeche", "box": [0, 1, 0, 1, 0.96, 1],
+         "querschnitt": [18, 400]},
     ],
 }
 
 
-def test_zu_duennes_brett_wird_staerker():
+def test_billigere_loesung_wird_gewaehlt():
+    """Sitzbrett 18 mm, 97 cm frei: 28-mm-Brett (≈ 4,4 l Holz mehr) oder eine Stütze (≈ 0,8 l)? Weniger Holz gewinnt."""
+    from app.models.engine.reparatur import kontakte, spannweite, staerker_machen
+    from app.models.sortiment import SORTIMENT_DE
     e = berechnen(bereinigen(SITZBANK), PLATZ)
-    staerken = {m.prof.get("t") for m in e.members if m.part == "sitz"}
-    bericht = " ".join(e.repairs)
-    assert staerken == {28} and "18 mm" in e.repairs[0] and "28 mm" in e.repairs[0] and "Normlast" in bericht
+    assert any("Stütze" in r for r in e.repairs) and not any("Stattdessen" in r for r in e.repairs)
+    brett = next(m for m in e.members if m.part == "sitz")
+    assert brett.prof["t"] == 18
+    # die andere Lösung hätte mehr Holz gebraucht
+    ohne_stuetze = [m for m in e.members if m.rolle != "stuetze"]
+    J = kontakte(ohne_stuetze)
+    laenge = spannweite(brett, J)["worst"]["len"]
+    mehr = staerker_machen(SORTIMENT_DE, ohne_stuetze, brett, laenge, J, bereinigen(SITZBANK), nur_volumen=True)
+    assert mehr is not None and mehr > 44 * 44 * 424
 
 
 def test_regeln_fuers_strecken():
@@ -94,3 +103,27 @@ def test_regeln_fuers_strecken():
     assert Counter(m.part for m in breit.members)["sitz"] == 4
     ablage = lambda e: next(m for m in e.members if m.part == "brett")  # noqa: E731
     assert ablage(breit).max[0] - ablage(breit).min[0] == pytest.approx(ablage(basis).max[0] - ablage(basis).min[0], abs=2)
+
+
+def test_sparsam_versteckte_teile():
+    """Gartenbank mit Armlehnen: Zargen tragen wenig, werden schlanker; sichtbare Teile bleiben wie im Entwurf."""
+    import json
+    from pathlib import Path
+
+    import app.models.engine as engine
+    g = json.loads((Path(__file__).parents[1] / "app/services/demo_graphen.json").read_text(encoding="utf-8"))[0]
+
+    def holz(e):
+        return sum((m.max[0] - m.min[0]) * (m.max[1] - m.min[1]) * (m.max[2] - m.min[2]) for m in e.members)
+
+    sparsam = berechnen(bereinigen(g), PLATZ)
+    original, engine._sparen = engine._sparen, lambda S, gg, out, r: out
+    try:
+        voll = berechnen(bereinigen(g), PLATZ)
+    finally:
+        engine._sparen = original
+    assert holz(sparsam) < holz(voll) and sparsam.offene_punkte == voll.offene_punkte == 0
+    assert any("spart Holz" in r for r in sparsam.repairs)
+    sichtbar = lambda e: {m.part: m.prof for m in e.members if m.rolle in ("bein", "pfosten", "lehne", "sitzflaeche")}  # noqa: E731
+    assert sichtbar(sparsam) == sichtbar(voll)
+    assert sparsam.fc["statik"].schlechtester.ausnutzung <= 1

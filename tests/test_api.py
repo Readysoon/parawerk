@@ -51,7 +51,7 @@ def test_demo_ablauf(client):
     j = r.json()
     assert r.status_code == 200 and j["offene_punkte"] == 0 and "modell_glb" not in j
     assert "baubar und stabil" in j["html"] and "Einkaufsliste" in j["html"]
-    assert j["modell"]["dims"] == [1288, 622, 882] and j["modell"]["teile"]
+    assert j["modell"]["dims"] == [1268, 622, 882] and j["modell"]["teile"]  # Seitenzargen sparsam 34 statt 44 breit
     assert "html" not in client.post("/api/v1/bauplan/berechnen", json={"graph": graph, "bereich": BEREICH}).json()
     r = client.post("/api/v1/bauplan/dxf", json={"graph": graph, "bereich": BEREICH})
     assert r.status_code == 200 and r.headers["content-type"] == "application/dxf" and r.text.endswith("EOF")

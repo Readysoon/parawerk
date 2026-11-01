@@ -105,6 +105,8 @@ Wunsch in Worten       ── bauplan/anpassen ──▶ Claude ändert den Grap
 
 Nachweise: Biegung, Schub, Durchbiegung (mit Kriechen bei Dauerlast), Knicken der Beine, Verschraubung (2 Schrauben je Verbindung: 6 mm ≈ 1,43 kN, 4 mm ≈ 0,42 kN). Die Reparatur nutzt dieselbe Rechnung als zulässige Spannweite: erst stärkeres Holz (Brett 18 → 28 mm, Kantholz hochkant oder größer), sonst Mittelsteg bzw. Stütze. Schwebende Latten bekommen Querriegel, schwebende Stege Stützen.
 
+**Minimaler Holzverbrauch:** Hält ein Teil nicht, vergleicht die Reparatur stärkeres Holz und Steg bzw. Stütze und nimmt, was weniger Holz braucht. Zusätzlich rechnet die Engine die Variante „immer erst stärkeres Holz“ und nimmt die bessere (weniger offene Punkte, dann weniger Holz). Danach werden versteckte Kanthölzer (Zargen, Stege, Querriegel, Auflage- und Wandleisten) auf den kleinsten Querschnitt gesetzt, der die Normlasten noch hält; übernommen nur, wenn nachgerechnet nichts schlechter wird und keine Teile dazukommen. Sichtbare Teile bleiben wie im Entwurf. Referenzfälle: 4 % weniger Holz, 7 von 84 mit weniger offenen Punkten.
+
 **Prüftore** am Ende: keine Teile ineinander (Überschneidung > 1 mm), Wunschmaße beim Strecken auf 10 mm eingehalten.
 
 **Regeln im Bauteilgraphen (optional, von Claude):** `lage: {x|y|z: anfang|ende|mitte|anteilig|auto}` sagt, wie ein Teil beim Strecken mitgeht, `reihe: abstand|anzahl`, ob eine Reihe ihren Abstand oder ihre Anzahl behält.

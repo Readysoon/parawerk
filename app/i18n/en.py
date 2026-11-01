@@ -45,6 +45,8 @@ TEXTE = {
     "rep.unterstuetzt": "{name} rested on nothing: 2 cross rails ({holz}) added under the ends.",
     "rep.steg_stuetzen": "{name} rested on nothing: 2 support posts down to the floor added.",
     "rep.hochkant": "{holz}, turned on edge",
+    "rep.sparsam": "{name}: {neu} instead of {alt} carries the standard loads (estimated {p} %), saves wood.",
+    "rep.sparsam_leer": "{name}: carries hardly any load here, {neu} instead of {alt} is enough and saves wood.",
     "rep.stuetze": "{name}: free span {len} mm, about {lm} mm allowed at {h} mm height. Support post down to the floor added.",
     "rep.wackelt": "Frame wobbles {richtung}: {why}. {n} foot rails ({holz}) added.",
     "rep.wackelt_x": "sideways (seen from the front)",

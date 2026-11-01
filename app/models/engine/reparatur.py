@@ -78,14 +78,19 @@ def kuerzen(ms: list[Bauteil], s: Bauteil) -> None:
             s.max[L] = min(s.max[L], o.min[L])
 
 
+def volumen(m: Bauteil) -> float:
+    return ext(m, 0) * ext(m, 1) * ext(m, 2)
+
+
 def staerker_machen(S: Sortiment, ms: list[Bauteil], m: Bauteil, laenge: float, J: list[dict], g: dict,
-                    krag: bool = False) -> str | None:
+                    krag: bool = False, nur_volumen: bool = False) -> str | float | None:
     """Stärkeres Holz für die ganze Teilegruppe, wenn es die Spannweite dann hält.
 
     Bretter werden nach oben dicker (Unterkante bleibt auf den Trägern), Kanthölzer nach unten (Oberkante bleibt).
 
     Bretter (liegend): nächste Leimholz-Stärke. Kanthölzer: nächst stärkerer Querschnitt, hochkant.
     Gibt das neue Holz zurück (für den Bericht) oder None, wenn es nichts Passendes gibt.
+    ``nur_volumen``: nichts ändern, nur sagen, wie viel Holz (mm³) dafür dazukäme.
     """
     if m.origin != "entwurf":
         return None  # eingefügte Stege bekommen lieber eine Stütze als immer dickeres Holz
@@ -116,6 +121,8 @@ def staerker_machen(S: Sortiment, ms: list[Bauteil], m: Bauteil, laenge: float, 
         probe = m.kopie()
         anwenden(probe, k)
         if max_spannweite(probe, [probe if o is m else o for o in ms], J, g, krag) >= laenge:
+            if nur_volumen:
+                return len(gruppe) * (volumen(probe) - volumen(m))
             for o in gruppe:
                 anwenden(o, k)
                 if o.origin == "reparatur":
@@ -123,6 +130,22 @@ def staerker_machen(S: Sortiment, ms: list[Bauteil], m: Bauteil, laenge: float, 
             if "label" in k and k["label"] == alt_label:
                 return t("rep.hochkant", holz=holz(k["label"]))
             return holz(k["label"]) if "label" in k else t("plan.brett", t=zahl(k["t"]), w=zahl(m.prof.get("w", 0)))
+    return None
+
+
+def _steg_volumen(S: Sortiment, ms: list[Bauteil], groups: dict, m: Bauteil, laenge: float, lm: float) -> float | None:
+    """Holz (mm³) für die andere Lösung: Mittelsteg(e) unter einer Reihe bzw. eine Stütze bis zum Boden."""
+    if m.rolle in SLATS and m.part in groups:
+        if any(o.part == f"Mittelsteg {m.part}" for o in ms):
+            return None
+        prof = naechstes_kantholz(S, 44, 74)
+        dax = groups[m.part]["dax"]
+        ps = [o for o in ms if o.part == m.part]
+        k = max(1, min(8, math.ceil(laenge / lm) - 1)) if math.isfinite(lm) and lm > 0 else 1
+        return k * (max(o.max[dax] for o in ps) - min(o.min[dax] for o in ps)) * prof["a"] * prof["b"]
+    if m.min[2] > 30 and not any(o.part == f"Stütze {m.id}" for o in ms):
+        prof = naechstes_kantholz(S, 44, 44)
+        return m.min[2] * prof["a"] * prof["b"]
     return None
 
 
@@ -474,7 +497,13 @@ def pruefen_und_reparieren(S: Sortiment, ms: list[Bauteil], groups: dict, g: dic
             # zuerst stärkeres Holz (sieht aus wie im Entwurf), sonst Mittelsteg bzw. Stütze
             alt = holz(m.prof["label"]) if "label" in m.prof else t("plan.brett", t=zahl(m.prof.get("t", 0)),
                                                                      w=zahl(m.prof.get("w", 0)))
-            neu = staerker_machen(S, ms, m, si["worst"]["len"], J, g, krag)
+            # Welche Lösung braucht weniger Holz: stärkeres Holz für die ganze Gruppe oder ein Steg / eine Stütze?
+            mehr_holz = staerker_machen(S, ms, m, si["worst"]["len"], J, g, krag, nur_volumen=True)
+            steg_holz = _steg_volumen(S, ms, groups, m, si["worst"]["len"], lm)
+            neu = None
+            immer_staerker = g.get("_reparatur") == "staerker"  # zweiter Durchgang der Engine, siehe berechnen()
+            if mehr_holz is not None and (immer_staerker or steg_holz is None or mehr_holz <= steg_holz):
+                neu = staerker_machen(S, ms, m, si["worst"]["len"], J, g, krag)
             if neu:
                 repairs.append(t("rep.staerker", name=m.name, len=mm(si["worst"]["len"]), alt=alt, neu=neu))
                 fixed = True

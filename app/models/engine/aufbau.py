@@ -35,11 +35,14 @@ def skalieren(g: dict, log: list[str]) -> list[int]:
     return [mm(W), mm(D), mm(H)]
 
 
-def querschnitt_einrasten(S: Sortiment, typ: str, tgt: dict, cross: list[int], hint) -> dict:
-    """Nächsten Querschnitt aus dem Sortiment wählen. ``tgt``: Zielmaß je Querachse (None = unbekannt)."""
+def querschnitt_einrasten(S: Sortiment, typ: str, tgt: dict, cross: list[int], hint, profil: str | None = None) -> dict:
+    """Nächsten Querschnitt aus dem Sortiment wählen. ``tgt``: Zielmaß je Querachse (None = unbekannt).
+
+    ``profil``: fest vorgegebenes Holz (Name aus dem Sortiment), z. B. wenn die Engine sparsamer rechnet.
+    """
     if typ in ("latte", "kantholz"):
         best = None
-        for p in S[typ]:
+        for p in [q for q in S[typ] if q["label"] == profil] or S[typ]:
             for s1, s2 in ((p["a"], p["b"]), (p["b"], p["a"])):
                 sz = {cross[0]: s1, cross[1]: s2}
                 cost = 0
@@ -150,7 +153,7 @@ def aufbauen(S: Sortiment, g: dict, dims: list[int], log: list[str],
             tgt[dax] = h2
         if dax >= 0 and tgt.get(dax) is None:
             tgt[dax] = exts[dax] / n * 0.85
-        sn = querschnitt_einrasten(S, p["typ"], tgt, cross, hint)
+        sn = querschnitt_einrasten(S, p["typ"], tgt, cross, hint, p.get("_profil"))
         neu_exts = [rmax[a] - rmin[a] for a in (0, 1, 2)]
         w_ax = sn.get("w_ax")
         if w_ax is not None and w_ax != dax and abs(neu_exts[w_ax] - ref_exts[w_ax]) > 0.5:

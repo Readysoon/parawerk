@@ -45,7 +45,7 @@ export class Viewer3D {
         kante.position.copy(mesh.position); this.grp.add(kante);
       }
     };
-    for (const t of modell.teile) add(t, t.ergaenzt ? css('--mark') : css('--board'));
+    for (const t of modell.teile) add(t, t.gurt ? (css('--gurt') || '#3b3f46') : t.ergaenzt ? css('--mark') : css('--board'));
     for (const p of modell.polster || []) add(p, css('--soft'), true);
     this.zeichnen();
   }

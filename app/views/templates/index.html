@@ -113,6 +113,14 @@
         {% endfor %}
         <div class="btns"><button class="b" id="ziel-zurueck" disabled>{{ t("ui.groesse_zurueck") }}</button><span class="hint" id="ziel-teile"></span></div>
       </div>
+      <div class="panel noprint" id="sitz" hidden>
+        <h3>{{ t("ui.sitz") }}</h3>
+        <p class="hint">{{ t("ui.sitz_hinweis") }}</p>
+        <div class="btns" role="group" aria-label="{{ t('ui.sitz') }}">
+          <button class="b" data-sitz="latten" aria-pressed="true">{{ t("ui.sitz_latten") }}</button>
+          <button class="b" data-sitz="gurte" aria-pressed="false">{{ t("ui.sitz_gurte") }}</button>
+        </div>
+      </div>
       <div class="panel noprint">
         <h3>{{ t("ui.anpassen") }}</h3>
         <textarea id="anpassen-text" placeholder="{{ t('ui.anpassen_platzhalter') }}" aria-label="{{ t('ui.anpassen_aria') }}"></textarea>

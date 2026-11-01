@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from ..sortiment import Sortiment
 from ...i18n import holz, t
+from . import gurte
 from .grundlagen import AXI, AXN, Bauteil, gesetzt, mm, oder, others, zahl
 
 
@@ -71,6 +72,53 @@ def querschnitt_einrasten(S: Sortiment, typ: str, tgt: dict, cross: list[int], h
 
 
 MAX_STUECK = 60  # je Teilgruppe beim Strecken
+
+
+TRAG_ROLLEN = {"zarge", "rahmen", "auflage", "mittelsteg", "querriegel", "kufe"}
+
+
+def _gurt_richtung(g: dict, p: dict, R: list[int], exts: list[float]) -> int:
+    """Längsachse der Gurte: quer zu den Zargen darunter (von Zarge zu Zarge). Laufen Zargen in beide Richtungen
+    (Rahmen rundum), über die kürzere Seite: weniger Durchhang."""
+    box = p["box"]
+    stimmen = {0: 0, 1: 0}
+    for o in g["teile"]:
+        if o is p or o.get("rolle") not in TRAG_ROLLEN:
+            continue
+        ob = o["box"]
+        if ob[5] < box[4] - 0.15 or ob[4] > box[5] or any(ob[2 * a + 1] <= box[2 * a] or ob[2 * a] >= box[2 * a + 1] for a in (0, 1)):
+            continue  # nicht direkt unter dem Sitz
+        dax = AXI.get(o.get("achse"), -1) if mm(oder(o.get("anzahl"), 1)) > 1 else -1
+        o_long = max((a for a in (0, 1) if a != dax), key=lambda a: (ob[2 * a + 1] - ob[2 * a]) * R[a])
+        stimmen[1 - o_long] += 1
+    if stimmen[0] != stimmen[1]:
+        return max(stimmen, key=stimmen.get)
+    return min((0, 1), key=lambda a: exts[a])
+
+
+def _reihe(p: dict, n: int, long: int, dax: int, sn: dict, rmin: list[float], rmax: list[float], box: list[float],
+           typ: str) -> list[Bauteil]:
+    """n gleiche Teile einer Gruppe: entlang ``long`` über die ganze Box, entlang ``dax`` gleichmäßig verteilt."""
+    teile = []
+    for i in range(n):
+        mn, mx = [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]
+        for a in (0, 1, 2):
+            if a == long:
+                mn[a], mx[a] = rmin[a], rmax[a]
+                continue
+            s = sn["sz"][a]
+            if a == dax:
+                L = rmax[a] - rmin[a]
+                mn[a] = rmin[a] + (L - s) / 2 if n == 1 else rmin[a] + i * (L - s) / (n - 1)
+            else:
+                lo, hi = box[a * 2], box[a * 2 + 1]
+                mn[a] = rmin[a] if lo <= 0.015 else rmax[a] - s if hi >= 0.985 else (rmin[a] + rmax[a] - s) / 2
+            mx[a] = mn[a] + s
+        teile.append(Bauteil(
+            id=f"{p['id']}-{i + 1}" if n > 1 else p["id"], part=p["id"], name=oder(p.get("name"), p["id"]), typ=typ,
+            rolle=p.get("rolle"), prof=sn["prof"], long=long, dax=dax, min=mn, max=mx, origin="entwurf",
+        ))
+    return teile
 REIHEN = {"lattenrost", "sitzflaeche", "liegeflaeche", "lehne", "verkleidung", "regalboden"}  # Rollen, die Reihen bilden
 RAND_MM = 150  # beim Strecken: Kanten so nah am Rand behalten ihren Abstand zum Rand (Einrückungen, Beinstärken)
 
@@ -153,8 +201,23 @@ def aufbauen(S: Sortiment, g: dict, dims: list[int], log: list[str],
             tgt[dax] = h2
         if dax >= 0 and tgt.get(dax) is None:
             tgt[dax] = exts[dax] / n * 0.85
-        sn = querschnitt_einrasten(S, p["typ"], tgt, cross, hint, p.get("_profil"))
         neu_exts = [rmax[a] - rmin[a] for a in (0, 1, 2)]
+        if p["typ"] == "gurt":
+            # Polstergurte: quer zur Spannrichtung so viele, wie in die Breite passen (Anzahl aus dem Bild zählt nicht)
+            long = _gurt_richtung(g, p, R, neu_exts)
+            dax = next(a for a in (0, 1) if a != long)
+            cross = others(long)
+            # die äußeren Gurte liegen innen neben den Seitenzargen, nicht längs darauf
+            rmin, rmax = list(rmin), list(rmax)
+            einzug = min(gurte.EINZUG, neu_exts[dax] / 6)
+            rmin[dax], rmax[dax] = rmin[dax] + einzug, rmax[dax] - einzug
+            n = gurte.anzahl(rmax[dax] - rmin[dax])
+            sn = {"sz": {dax: gurte.GURT_BREITE, 2: gurte.GURT_DICKE}, "prof": {"label": "gurt", "t": gurte.GURT_DICKE}}
+            log.append(t("log.gurte", name=oder(p.get("name"), p["id"]), n=n, breite=mm(neu_exts[dax])))
+            members += _reihe(p, n, long, dax, sn, rmin, rmax, box, "gurt")
+            groups[p["id"]] = {"dax": dax, "n": n}
+            continue
+        sn = querschnitt_einrasten(S, p["typ"], tgt, cross, hint, p.get("_profil"))
         w_ax = sn.get("w_ax")
         if w_ax is not None and w_ax != dax and abs(neu_exts[w_ax] - ref_exts[w_ax]) > 0.5:
             # Brett: Stärke bleibt, Breite folgt der Streckung
@@ -178,24 +241,7 @@ def aufbauen(S: Sortiment, g: dict, dims: list[int], log: list[str],
         profil = t("plan.brett", t=zahl(sn["prof"]["t"]), w=zahl(sn["prof"]["w"])) if typ == "brett" else holz(sn["prof"]["label"])
         stueck = t("log.stueck", n=n, achse=AXN[dax]) if n > 1 else ""
         log.append(t("log.gelesen", name=name, gelesen=gelesen, profil=profil, bekommen=bekommen, stueck=stueck))
-        for i in range(n):
-            mn, mx = [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]
-            for a in (0, 1, 2):
-                if a == long:
-                    mn[a], mx[a] = rmin[a], rmax[a]
-                    continue
-                s = sn["sz"][a]
-                if a == dax:
-                    L = rmax[a] - rmin[a]
-                    mn[a] = rmin[a] + (L - s) / 2 if n == 1 else rmin[a] + i * (L - s) / (n - 1)
-                else:
-                    lo, hi = box[a * 2], box[a * 2 + 1]
-                    mn[a] = rmin[a] if lo <= 0.015 else rmax[a] - s if hi >= 0.985 else (rmin[a] + rmax[a] - s) / 2
-                mx[a] = mn[a] + s
-            members.append(Bauteil(
-                id=f"{p['id']}-{i + 1}" if n > 1 else p["id"], part=p["id"], name=name, typ=typ, rolle=p.get("rolle"),
-                prof=sn["prof"], long=long, dax=dax, min=mn, max=mx, origin="entwurf",
-            ))
+        members += _reihe(p, n, long, dax, sn, rmin, rmax, box, typ)
         if n > 1:
             groups[p["id"]] = {"dax": dax, "n": n}
     return members, groups

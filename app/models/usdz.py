@@ -10,7 +10,7 @@ import io
 import struct
 import zipfile
 
-from .gltf import FARBEN, SEITEN, _ecken
+from .gltf import FARBEN, SEITEN, _art, _ecken
 
 
 def _zahl(v: float) -> str:
@@ -69,9 +69,9 @@ def _material(name: str) -> str:
 
 def als_usda(modell: dict) -> str:
     """``modell`` wie für ``als_glb``: teile (min, max, ergaenzt), polster (min, max), in mm."""
-    gruppen: dict[str, list] = {"holz": [], "ergaenzt": [], "polster": []}
+    gruppen: dict[str, list] = {"holz": [], "ergaenzt": [], "gurt": [], "polster": []}
     for teil in modell.get("teile", []):
-        gruppen["ergaenzt" if teil.get("ergaenzt") else "holz"].append((teil["min"], teil["max"]))
+        gruppen[_art(teil)].append((teil["min"], teil["max"]))
     for p in modell.get("polster", []):
         gruppen["polster"].append((p["min"], p["max"]))
     gruppen = {name: q for name, q in gruppen.items() if q}

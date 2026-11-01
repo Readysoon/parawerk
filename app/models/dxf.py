@@ -18,6 +18,8 @@ def teile_als_dxf(members: list[Bauteil]) -> str:
     add(0, "SECTION", 2, "ENTITIES")
     x = 0
     for m in members:
+        if m.typ == "gurt":
+            continue  # Gurtband wird nicht gesägt
         d = sorted((mm(m.max[a] - m.min[a]) for a in (0, 1, 2)), reverse=True)
         w, h = d[0], d[1]
         layer = re.sub(r"[^A-Za-z0-9]", "_", m.name or "TEIL").upper()

@@ -79,6 +79,7 @@ def modell_3d(e: Ergebnis) -> dict:
     """Nur was die 3D-Ansicht im Browser braucht."""
     return {
         "dims": e.dims,
-        "teile": [{"min": m.min, "max": m.max, "ergaenzt": m.origin == "reparatur", "name": m.name} for m in e.members],
+        "teile": [{"min": m.min, "max": m.max, "ergaenzt": m.origin == "reparatur", "name": m.name,
+                   **({"gurt": True} if m.typ == "gurt" else {})} for m in e.members],
         "polster": e.soft,
     }

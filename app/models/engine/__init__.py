@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 
 from ..sortiment import SORTIMENTE, Sortiment
 from ...i18n import holz, t
+from . import gurte
 from .aufbau import RAND_MM, _strecken, aufbauen, skalieren
 from .bauplan import bauplan, polster
 from .grundlagen import Bauteil, einmalig, gesetzt, mm, zahl
@@ -123,7 +124,7 @@ def berechnen(graph: dict, bereich: list[float] | None = None, sortiment: str = 
     ``schnell``: für die Vorschau beim Ziehen eines Reglers (weniger Nachstellen, keine zweite Streckart).
     """
     S = SORTIMENTE["US" if sortiment == "US" else "DE"]
-    g = copy.deepcopy(graph)
+    g = gurte.umstellen(graph) if graph.get("sitz") == "gurte" else copy.deepcopy(graph)
     if sortiment == "US":
         for teil in g["teile"]:
             if teil.get("typ") == "brett" and not teil.get("platte"):
@@ -306,7 +307,8 @@ def _rechnen(S: Sortiment, g: dict, bereich, soll: list[float] | None, rand: flo
             break  # die Korrektur hätte mehr Probleme gemacht als gelöst: beim vorigen Stand bleiben
         dims, out = neue_dims, neu
 
-    out.plan = bauplan(S, out.members, out.joints)
+    schaum = (g.get("funktion") or {}).get("polster") if any(m.typ == "gurt" for m in out.members) else None
+    out.plan = bauplan(S, out.members, out.joints, schaum)
     out.soft = polster(g, out.members, out.dims)
     return out
 

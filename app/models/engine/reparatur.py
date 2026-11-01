@@ -16,6 +16,43 @@ from ...i18n import holz, t, und, zitat
 from .setzen import kontakte, setzen
 
 
+GURT_FREI = 60  # mm, so weit darf ein Gurtende über die Zarge hinausstehen
+
+
+def _gurte_verlaengern(ms: list[Bauteil], m: Bauteil) -> bool:
+    """Gurtenden, die knapp vor einer Zarge auf gleicher Höhe enden, bis über diese Zarge verlängern (die ganze Reihe).
+
+    So werden die Gurte dort festgetackert, wo auch im Echten getackert wird: oben auf dem Rahmen.
+    """
+    L, quer = m.long, next(a for a in (0, 1) if a != m.long)
+    reihe = [o for o in ms if o.part == m.part]
+    neu: dict = {}
+    for seite in ("min", "max"):
+        ende = m.min[L] if seite == "min" else m.max[L]
+        def nah(o: Bauteil) -> bool:
+            if o.part == m.part or prio(o) < 4 or abs(o.max[2] - m.min[2]) > 2 or ov(m, o, quer) < 30:
+                return False
+            if seite == "max":
+                return ende - 1.5 <= o.min[L] <= ende + 2 * GURT_FREI and o.max[L] > ende + 1
+            return ende - 2 * GURT_FREI <= o.max[L] <= ende + 1.5 and o.min[L] < ende - 1
+        traeger = [o for o in ms if nah(o)]
+        if traeger:
+            neu[seite] = (max if seite == "max" else min)(o.max[L] if seite == "max" else o.min[L] for o in traeger)
+    if not neu:
+        return False
+    geaendert = False
+    for g in reihe:  # einzeln: Gurte neben einem Pfosten bleiben kürzer
+        alt = g.min[L], g.max[L]
+        g.min[L] = min(g.min[L], neu.get("min", g.min[L]))
+        g.max[L] = max(g.max[L], neu.get("max", g.max[L]))
+        if (g.min[L], g.max[L]) == alt:
+            continue
+        if any(depth(g, o) > 0.5 for o in ms if o.part != m.part):
+            g.min[L], g.max[L] = alt
+        else:
+            geaendert = True
+    return geaendert
+
 def _beruehrt(J: list[dict], a: Bauteil, b: Bauteil) -> bool:
     return any((j["a"] is a and j["b"] is b) or (j["a"] is b and j["b"] is a) for j in J)
 
@@ -35,7 +72,7 @@ def spannweite(m: Bauteil, J: list[dict]) -> dict:
                 iv.append([max(m.min[L], o.min[L]), min(m.max[L], o.max[L])])
         elif j["ax"] == L:
             iv.append([m.min[L], m.min[L] + 20] if o.max[L] <= m.min[L] + 1.5 else [m.max[L] - 20, m.max[L]])
-        elif m.rolle not in SLATS:
+        elif m.rolle not in SLATS and m.rolle != "gurt":
             iv.append([max(m.min[L], o.min[L]), min(m.max[L], o.max[L])])
     if not iv:
         return {"supported": False}
@@ -448,13 +485,20 @@ def pruefen_und_reparieren(S: Sortiment, ms: list[Bauteil], groups: dict, g: dic
         # c) Spannweiten
         J = kontakte(ms)
         for m in ms:
-            if m.rolle not in LOADED or m.long == 2:
+            gurt = m.rolle == "gurt"
+            if (m.rolle not in LOADED and not gurt) or m.long == 2:
                 continue
             si = spannweite(m, J)
-            if not si["supported"]:
+            if gurt and si["supported"] and not (si["worst"].get("cant") and si["worst"]["len"] > 2 * GURT_FREI):
+                continue  # Gurte federn: Spannweite egal, nur beide Enden müssen auf einem Holz liegen
+            if gurt and _gurte_verlaengern(ms, m):
+                repairs.append(t("rep.gurt_laenger", name=m.name))
+                fixed = True
+                break
+            if not si["supported"] or gurt:
                 # Latten, die nirgends aufliegen (z. B. zu kurz gelesen): zwei Querriegel unter die Enden der Reihe
                 name = f"Querriegel {m.part}"
-                if m.rolle in SLATS and m.part in groups and m.min[2] > 30 and not any(o.part == name for o in ms):
+                if (m.rolle in SLATS or gurt) and m.part in groups and m.min[2] > 30 and not any(o.part == name for o in ms):
                     ps = [o for o in ms if o.part == m.part]
                     dax, L = groups[m.part]["dax"], m.long
                     prof = naechstes_kantholz(S, 44, 74)

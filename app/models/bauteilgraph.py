@@ -32,6 +32,7 @@ GRAPH_SCHEMA = """Bauteilgraph (JSON). Koordinaten relativ 0..1 im Hüllquader d
 }
 Regeln: "box" ist der Bereich, den das Teil bzw. die Teilegruppe einnimmt. Bei anzahl > 1 werden die Teile gleichmäßig entlang "achse" in der Box verteilt.
 Optional für das Strecken/Stauchen (Größe ändern): "lage": {"x": "anfang|ende|mitte|anteilig|auto", "y": …, "z": …} sagt, wie das Teil entlang jeder Achse mitgeht (anfang/ende = Maß und Abstand zum linken/vorderen/unteren bzw. rechten/hinteren/oberen Rand bleiben, mitte = bleibt mittig in gleicher Größe, anteilig = wächst mit; weglassen = auto). "reihe": "abstand" (Abstand bleibt, es kommen Teile dazu, z. B. Latten, Stäbe) oder "anzahl" (Anzahl bleibt, z. B. 2 Beine, 3 Schubladen).
+Optional "sitz": "gurte", wenn die Sitzfläche gepolstert ist und auf Polstergurten (Gummigurten) statt auf Latten liegt, sonst "latten" oder weglassen. Die Sitzfläche trotzdem als Teil mit rolle "sitzflaeche" beschreiben (Box wie die Polsterunterseite).
 "querschnitt" = geschätzter Querschnitt eines Stücks. Sortiment: Latte 24×44, Rahmenholz 34×54, 44×44, 44×74, 44×94, Leimholz 18 oder 28 mm (Bretter beliebig breit bis 600, Länge bis 2000).
 "wandleiste" = an die Wand geschraubte Leiste, trägt mit. "leiste" = verbindende Leiste ohne Last (z. B. Querleisten unter einem Deckel). "auflage" trägt etwas, das darauf liegt.
 Beschreibe nur, was man im Bild sieht. Exakte Maße, Verbindungen, Statik und Reparaturen rechnet danach Code."""
@@ -111,6 +112,7 @@ JSON_SCHEMA = _objekt({
     "masse": _objekt({"breite": _ZAHL, "tiefe": _ZAHL, "hoehe": _ZAHL}, ["breite", "tiefe", "hoehe"]),
     "funktion": _objekt({"matratze": _LISTE, "luft": _ZAHL, "sitzhoehe": _ZAHL, "polster": _ZAHL}),
     "anker": _objekt({"liegeflaeche": _LISTE, "sitz_oben": _ZAHL}),
+    "sitz": {"type": "string", "enum": ["latten", "gurte"]},
     "teile": {"type": "array", "items": _objekt({
         "id": {"type": "string"}, "name": {"type": "string"},
         "typ": {"type": "string", "enum": TYPEN},
@@ -205,6 +207,8 @@ def bereinigen(j: Any) -> dict:
         anker = {"sitz_oben": _int_wenn_ganz(_zahl(a["sitz_oben"]))}
     out = {"name": str(j.get("name") or "Möbel")[:40], "kategorie": str(j.get("kategorie") or "sonstiges"),
            "masse": masse, "funktion": funktion, "anker": anker, "teile": teile}
+    if j.get("sitz") in ("latten", "gurte"):
+        out["sitz"] = j["sitz"]
     # Wunschmaße zum Strecken/Stauchen (vom Nutzer, nicht von Claude): Breite, Tiefe, Höhe in mm
     ziel = j.get("ziel")
     if isinstance(ziel, list) and len(ziel) == 3 and all((_zahl(v) or 0) > 0 for v in ziel):

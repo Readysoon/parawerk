@@ -17,21 +17,22 @@ AXI = {"x": 0, "y": 1, "z": 2}
 PRIO = {
     "riegel": 5, "wandleiste": 6, "bein": 6, "pfosten": 6, "kufe": 6, "stuetze": 6, "rahmen": 5, "zarge": 5,
     "auflage": 4, "mittelsteg": 4, "querriegel": 4, "leiste": 3, "lattenrost": 2, "sitzflaeche": 2,
-    "liegeflaeche": 2, "regalboden": 2, "lehne": 2, "verkleidung": 1,
+    "liegeflaeche": 2, "regalboden": 2, "lehne": 2, "verkleidung": 1, "gurt": 2,
 }
 ROLLENNAME = {
     "riegel": "Fußriegel", "wandleiste": "Wandleiste", "bein": "Bein", "pfosten": "Pfosten", "kufe": "Kufe",
     "stuetze": "Stütze", "rahmen": "Rahmen", "zarge": "Zarge", "auflage": "Auflageleiste", "mittelsteg": "Mittelsteg",
     "querriegel": "Querriegel", "lattenrost": "Lattenrost", "sitzflaeche": "Sitzbrett", "liegeflaeche": "Liegefläche",
-    "regalboden": "Regalboden", "leiste": "Leiste", "lehne": "Lehne", "verkleidung": "Verkleidung",
+    "regalboden": "Regalboden", "leiste": "Leiste", "lehne": "Lehne", "verkleidung": "Verkleidung", "gurt": "Polstergurt",
 }
-GRAVITY = {"lattenrost", "sitzflaeche", "liegeflaeche", "regalboden"}  # fällt auf das Teil darunter
+GRAVITY = {"lattenrost", "sitzflaeche", "liegeflaeche", "regalboden", "gurt"}  # fällt auf das Teil darunter
 LOADED = {"lattenrost", "sitzflaeche", "liegeflaeche", "regalboden", "auflage", "rahmen", "zarge", "mittelsteg", "querriegel"}
 SLATS = {"lattenrost", "sitzflaeche", "liegeflaeche", "regalboden"}
 ATTACH = {"auflage", "lehne", "verkleidung"}  # wird seitlich an einen Träger angelegt
 def sitzteile(ms: list["Bauteil"]) -> list["Bauteil"]:
     """Teile, auf denen man sitzt: Sitzbretter, sonst Latten oder Bretter (die Bildlesung nennt Sitzlatten oft Lattenrost)."""
-    return [m for m in ms if m.rolle == "sitzflaeche"] or [m for m in ms if m.rolle in SLATS and m.long != 2]
+    return ([m for m in ms if m.rolle == "sitzflaeche"] or [m for m in ms if m.rolle == "gurt"]
+            or [m for m in ms if m.rolle in SLATS and m.long != 2])
 
 
 TOL = 60  # größte Korrektur aus der Bildlesung (mm)

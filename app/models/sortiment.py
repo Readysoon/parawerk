@@ -62,6 +62,8 @@ def naechstes_kantholz(S: Sortiment, a: float, b: float) -> Stab:
 
 
 def handelslaengen(S: Sortiment, m) -> list[int]:
+    if m.typ == "gurt":
+        return [100_000]  # Gurtband gibt es von der Rolle
     if m.typ in ("latte", "kantholz"):
         return next(p for p in S[m.typ] if p["label"] == m.prof["label"])["L"]
     return [next(p for p in S["leimholz"] if p["t"] == m.prof["t"])["L"]]

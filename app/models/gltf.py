@@ -9,7 +9,12 @@ from __future__ import annotations
 import json
 import struct
 
-FARBEN = {"holz": (0.85, 0.76, 0.63, 1.0), "ergaenzt": (0.76, 0.25, 0.05, 1.0), "polster": (0.79, 0.81, 0.84, 1.0)}
+FARBEN = {"holz": (0.85, 0.76, 0.63, 1.0), "ergaenzt": (0.76, 0.25, 0.05, 1.0), "polster": (0.79, 0.81, 0.84, 1.0),
+          "gurt": (0.23, 0.25, 0.27, 1.0)}
+
+
+def _art(teil: dict) -> str:
+    return "gurt" if teil.get("gurt") else "ergaenzt" if teil.get("ergaenzt") else "holz"
 # 6 Seiten je Quader: Normale und die vier Ecken (Indizes in die 8 Ecken, gegen den Uhrzeigersinn von außen)
 SEITEN = [
     ((1, 0, 0), (1, 5, 7, 3)), ((-1, 0, 0), (4, 0, 2, 6)),
@@ -52,9 +57,9 @@ def _auffuellen(b: bytes, mit: bytes = b"\0") -> bytes:
 
 def als_glb(modell: dict) -> bytes:
     """``modell`` wie von ``views.praesentation.modell_3d``: teile (min, max, ergaenzt), polster (min, max)."""
-    gruppen: dict[str, list] = {"holz": [], "ergaenzt": [], "polster": []}
+    gruppen: dict[str, list] = {"holz": [], "ergaenzt": [], "gurt": [], "polster": []}
     for teil in modell.get("teile", []):
-        gruppen["ergaenzt" if teil.get("ergaenzt") else "holz"].append((teil["min"], teil["max"]))
+        gruppen[_art(teil)].append((teil["min"], teil["max"]))
     for p in modell.get("polster", []):
         gruppen["polster"].append((p["min"], p["max"]))
 

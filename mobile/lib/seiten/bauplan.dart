@@ -71,16 +71,26 @@ class _BauplanSeiteState extends State<BauplanSeite> {
     }
   }
 
+  bool get _hatSitz {
+    final matratze = (_graph['funktion'] as Map?)?['matratze'] is List;
+    return ((_graph['teile'] as List?) ?? const []).any((t) {
+      final rolle = (t as Map)['rolle'];
+      return rolle == 'sitzflaeche' || (!matratze && (rolle == 'liegeflaeche' || rolle == 'lattenrost'));
+    });
+  }
+
   static List<int> _masse(Map<String, dynamic> plan) =>
       [for (final v in ((plan['modell'] as Map<String, dynamic>)['dims'] as List)) (v as num).round()];
 
   /// Regler losgelassen: mit den neuen Maßen neu rechnen. Das Design bleibt, Holzstärken auch;
   /// Latten und Stäbe behalten ihren Abstand, es kommen welche dazu oder fallen weg.
-  Future<void> _strecken({bool zurueck = false}) async {
+  Future<void> _strecken({bool zurueck = false, String? sitz}) async {
     final s = widget.sitzung;
     final hinweise = ScaffoldMessenger.of(context);
     final graph = Map<String, dynamic>.of(_graph);
-    if (zurueck) {
+    if (sitz != null) {
+      graph['sitz'] = sitz; // Latten oder Polstergurte, Größe bleibt
+    } else if (zurueck) {
       graph.remove('ziel');
     } else {
       graph['ziel'] = [for (final v in _regler) v.round()];
@@ -117,9 +127,11 @@ class _BauplanSeiteState extends State<BauplanSeite> {
     if (text.isEmpty) return;
     final s = widget.sitzung;
     final ziel = _graph['ziel'];
+    final sitz = _graph['sitz'];
     final neu = await mitWarten(context, tr('st_anpassen'), () async {
       final graph = await s.api.anpassen(_graph, text);
       if (ziel != null) graph['ziel'] = ziel; // gestreckte Größe beibehalten
+      if (sitz != null) graph.putIfAbsent('sitz', () => sitz); // Latten oder Gurte beibehalten
       final plan = await s.api.berechnen(graph, s.bereich);
       return (graph: graph, plan: plan);
     });
@@ -239,6 +251,21 @@ class _BauplanSeiteState extends State<BauplanSeite> {
             const Spacer(),
             if (_rechnet) const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
           ]),
+
+          // Sitz: Holzlatten oder Polstergurte (federn, weicher)
+          if (_hatSitz) ...[
+            Abschnitt(tr('sitz')),
+            Text(tr('sitz_hinweis'), style: stil.bodySmall),
+            const SizedBox(height: 8),
+            SegmentedButton<String>(
+              segments: [
+                ButtonSegment(value: 'latten', label: Text(tr('sitz_latten'))),
+                ButtonSegment(value: 'gurte', label: Text(tr('sitz_gurte'))),
+              ],
+              selected: {_graph['sitz'] == 'gurte' ? 'gurte' : 'latten'},
+              onSelectionChanged: _rechnet ? null : (w) => _strecken(sitz: w.first),
+            ),
+          ],
 
           if (widget.maengel.isNotEmpty) ...[
             Abschnitt(tr('selbstkontrolle')),

@@ -322,6 +322,7 @@ async function berechnen() {
     z.ergebnis = j;
     if (!z.graph.ziel) z.designMasse = j.modell.dims;  // Maße wie im Entwurf: Ausgangspunkt der Regler
     reglerSetzen(j.modell.dims, j.modell.teile.length);
+    sitzSetzen();
     $('bauplan').innerHTML = j.html;
     const vorlage = $('bauplan').querySelector('#ergebnis-vorlage');
     $('ergebnis').replaceChildren(vorlage.content.cloneNode(true));
@@ -380,6 +381,22 @@ $('ziel-zurueck').addEventListener('click', () => {
   const { ziel, ...ohne } = z.graph; z.graph = ohne; berechnen();
 });
 
+// ---------- Sitz: Latten oder Polstergurte ----------
+function hatSitz(g) {
+  const matratze = Array.isArray(g?.funktion?.matratze);
+  return !!g?.teile?.some(t => t.rolle === 'sitzflaeche' || (!matratze && ['liegeflaeche', 'lattenrost'].includes(t.rolle)));
+}
+function sitzSetzen() {
+  $('sitz').hidden = !hatSitz(z.graph);
+  const art = z.graph?.sitz === 'gurte' ? 'gurte' : 'latten';
+  document.querySelectorAll('[data-sitz]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.sitz === art)));
+}
+document.querySelectorAll('[data-sitz]').forEach(b => b.addEventListener('click', () => {
+  if (!z.graph || z.beschaeftigt || (z.graph.sitz || 'latten') === b.dataset.sitz) return;
+  z.graph = { ...z.graph, sitz: b.dataset.sitz };
+  sitzSetzen(); berechnen();
+}));
+
 function verlauf(cls, text) {
   const li = document.createElement('li'); li.className = cls; li.textContent = text; $('verlauf').prepend(li);
 }
@@ -388,7 +405,8 @@ async function anpassen() {
   verlauf('me', text); $('anpassen-text').value = ''; status(tx('st_anpassen'));
   try {
     const j = await auftrag('/bauplan/anpassen', { graph: z.graph, wunsch: text });
-    z.verlauf.push(z.graph); z.graph = z.graph.ziel ? { ...j.graph, ziel: z.graph.ziel } : j.graph; $('rueckgaengig').disabled = false;
+    z.verlauf.push(z.graph);
+    const alt = z.graph; z.graph = { ...(alt.sitz ? { sitz: alt.sitz } : {}), ...j.graph, ...(alt.ziel ? { ziel: alt.ziel } : {}) }; $('rueckgaengig').disabled = false;
     await berechnen();
     verlauf('ai', tx('geaendert'));
   } catch (e) { verlauf('err', e.message); } finally { status(''); }

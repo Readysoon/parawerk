@@ -166,11 +166,34 @@ def _getragen(m: Bauteil, J: list[dict]) -> list[Bauteil]:
     def nachbarn(x: Bauteil) -> list[tuple[Bauteil, int]]:
         return [((j["b"] if j["a"] is x else j["a"]), j["ax"]) for j in J if j["a"] is x or j["b"] is x]
 
-    oben = [o for o, ax in nachbarn(m) if ax == 2 and o.rolle in SLATS and o.min[2] >= m.max[2] - 1.5]
+    flaeche = SLATS | {"gurt"}
+    oben = [o for o, ax in nachbarn(m) if ax == 2 and o.rolle in flaeche and o.min[2] >= m.max[2] - 1.5]
     for a, ax in nachbarn(m):
         if ax != 2 and a.rolle == "auflage":
-            oben += [o for o, ax2 in nachbarn(a) if ax2 == 2 and o.rolle in SLATS and o.min[2] >= a.max[2] - 1.5]
+            oben += [o for o, ax2 in nachbarn(a) if ax2 == 2 and o.rolle in flaeche and o.min[2] >= a.max[2] - 1.5]
     return oben
+
+
+def _gurtzug(m: Bauteil, L: float, krag: bool, gurte_oben: list[Bauteil], ms: list[Bauteil]) -> float | None:
+    """Polstergurte ziehen die Zarge waagrecht nach innen: Vorspannung (Dauerlast) und der Zug, wenn jemand sitzt.
+
+    Biegung um die schwache Achse (W = h·b²/6). Gibt die Ausnutzung zurück, die zur senkrechten Biegung dazukommt.
+    """
+    if not gurte_oben:
+        return None
+    from . import gurte
+    b, h = _querschnitt(m)
+    W = h * b * b / 6
+    teilung = max(_teilung(gurte_oben[0], ms), gurte.GURT_BREITE)
+    q = gurte.ZUG_VOR / teilung  # N/mm, Dauerlast
+    P = gurte.ZUG_PERSON  # zieht an beiden Zargen
+    a = min(LASTBREITE, L)
+    if krag:
+        c = L / 2
+        M_q, M_p = q * c * c / 2, P * c
+    else:
+        M_q, M_p = q * L * L / 8, P * (2 * L - a) / 8
+    return (M_q / W) / _fd(F_M_K, KMOD_DAUER) + (M_p / W) / _fd(F_M_K, KMOD_KURZ)
 
 
 def liegend(m: Bauteil, L: float, krag: bool, ms: list[Bauteil], J: list[dict], g: dict,
@@ -197,6 +220,9 @@ def liegend(m: Bauteil, L: float, krag: bool, ms: list[Bauteil], J: list[dict], 
         quer = next(a for a in (0, 1) if a != m.long)
         n = _balken(m, L, krag, q=REGAL_Q * max(ext(o, quer) for o in oben) / 2, kmod=KMOD_DAUER, grenze=200,
                     kriechen=True)
+    zug = _gurtzug(m, L, krag, [o for o in oben if o.rolle == "gurt" and o.long != m.long], ms)
+    if zug is not None:
+        n = Nachweis(m, n.ausnutzung + zug, "zug", {**n.werte, "zug": round(zug, 3)})
     # Verschraubung an den Enden: Auflagerkraft gegen 2 Schrauben je Verbindung
     d = 6 if m.typ == "kantholz" else 4
     aus = n.werte["V"] / (SCHRAUBEN_JE_VERBINDUNG * SCHRAUBE_RD[d])

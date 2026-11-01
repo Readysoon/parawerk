@@ -9,7 +9,7 @@ import math
 
 from PIL import Image, ImageDraw
 
-FARBEN = {"holz": (216, 194, 160), "ergaenzt": (194, 65, 12), "polster": (201, 206, 214)}
+FARBEN = {"holz": (216, 194, 160), "ergaenzt": (194, 65, 12), "polster": (201, 206, 214), "gurt": (59, 63, 70)}
 HELLIGKEIT = {"oben": 1.12, "vorne": 0.95, "seite": 0.78}  # Licht von oben, Seite im Schatten
 
 
@@ -45,7 +45,8 @@ def _flaechen(mn, mx):
 def modellbild(modell: dict, breite: int = 768, hoehe: int = 576, drehung: float = 30, neigung: float = 22) -> Image.Image:
     """``modell`` wie ``views.praesentation.modell_3d``: teile (min, max, ergaenzt), polster (min, max)."""
     achsen = _vektoren(drehung, neigung)
-    quader = [("ergaenzt" if t.get("ergaenzt") else "holz", t["min"], t["max"]) for t in modell.get("teile", [])]
+    quader = [("gurt" if t.get("gurt") else "ergaenzt" if t.get("ergaenzt") else "holz", t["min"], t["max"])
+              for t in modell.get("teile", [])]
     quader += [("polster", p["min"], p["max"]) for p in modell.get("polster", [])]
     bild = Image.new("RGB", (breite, hoehe), (238, 240, 242))
     if not quader:

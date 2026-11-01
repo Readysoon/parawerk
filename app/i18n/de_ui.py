@@ -73,6 +73,10 @@ TEXTE = {
     "ui.anpassen_platzhalter": "z. B. Lehne 10 cm höher, ohne Kufen, Bett 160 breit",
     "ui.anpassen_aria": "Änderungswunsch",
     "ui.bereich_aendern": "Bereich ändern",
+    "ui.sitz": "Sitzfläche",
+    "ui.sitz_hinweis": "Latten sind hart. Polstergurte (elastische Gummigurte) federn wie bei einem Sofa; obendrauf kommt Schaumstoff.",
+    "ui.sitz_latten": "Holzlatten",
+    "ui.sitz_gurte": "Polstergurte",
     "ui.groesse": "Größe des Möbels",
     "ui.groesse_hinweis": "Ziehen zum Strecken oder Stauchen. Das Design bleibt: Holzstärken bleiben gleich, Latten und Stäbe "
                           "behalten ihren Abstand, es kommen welche dazu oder fallen weg.",

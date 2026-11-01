@@ -2,13 +2,13 @@
 :root{
   --bg:#eef0f2; --panel:#fff; --ink:#1c2530; --muted:#5d6876; --line:#d5dae0;
   --accent:#e8b400; --accent-ink:#2a2100; --mark:#c2410c; --ok:#2f7d4f; --warn:#a15c00;
-  --board:#d8c2a0; --soft:#c9ced6;
+  --board:#d8c2a0; --soft:#c9ced6; --gurt:#3b3f46;
   --display:"Barlow Condensed","Arial Narrow",sans-serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root{
   --bg:#12171d; --panel:#1a2129; --ink:#e6eaef; --muted:#97a2af; --line:#2c3540;
-  --accent:#f2c230; --accent-ink:#1d1700; --mark:#fb8a4b; --ok:#5cc188; --warn:#f0a43a; --board:#b89c74; --soft:#4b535e; color-scheme:dark}}
+  --accent:#f2c230; --accent-ink:#1d1700; --mark:#fb8a4b; --ok:#5cc188; --warn:#f0a43a; --board:#b89c74; --soft:#4b535e; --gurt:#1f2227; color-scheme:dark}}
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--body);

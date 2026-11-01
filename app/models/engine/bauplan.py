@@ -67,7 +67,35 @@ MONTAGE = [  # Rollen je Montageschritt, Text unter montage.<n> im Sprachkatalog
 ]
 
 
-def bauplan(S: Sortiment, ms: list[Bauteil], J: list[dict]) -> dict:
+def _gurte(ms: list[Bauteil], J: list[dict], schaum: float | None) -> tuple[list[dict], list[dict], list[dict]]:
+    """Polstergurte: Meterware, Tackerklammern, Schaum, Montageschritt. Gurte sind kein Holz."""
+    from . import gurte
+    gs = [m for m in ms if m.typ == "gurt"]
+    if not gs:
+        return [], [], []
+    zuschnitte = []
+    for m in gs:
+        auf = [j["b"] if j["a"] is m else j["a"] for j in J if j["a"] is m or j["b"] is m]
+        l = m.long
+        ueber = [min(m.max[l], o.max[l]) - max(m.min[l], o.min[l]) for o in auf]
+        lichte = ext(m, l) - sum(sorted(ueber)[:2]) if len(ueber) >= 2 else ext(m, l)
+        zuschnitte.append(gurte.zuschnitt(max(lichte, 100)))
+    lang = mm(max(zuschnitte))
+    lines = [{"n": 1, "text": tr("plan.gurt") + ": " + tr("plan.gurt_menge", m=dez(fest(gurte.meter(zuschnitte), 1)),
+                                                          n=len(gs), l=lang)}]
+    flaeche = [min(m.min[a] for m in gs) for a in (0, 1)], [max(m.max[a] for m in gs) for a in (0, 1)]
+    if schaum:
+        lines.append({"n": 1, "text": tr("plan.schaum", d=zahl(schaum)) + f" ({mm(flaeche[1][0] - flaeche[0][0])} × "
+                      f"{mm(flaeche[1][1] - flaeche[0][1])} mm)"})
+    hardware = [{"n": math.ceil(len(gs) * 2 * gurte.KLAMMERN_JE_ENDE * 2 * 1.1), "text": tr("plan.klammern")}]
+    steps = [{"t": tr("montage.gurte", l=lang, k=gurte.KLAMMERN_JE_ENDE), "n": len(gs)}]
+    return lines, hardware, steps
+
+
+def bauplan(S: Sortiment, ms: list[Bauteil], J: list[dict], schaum: float | None = None) -> dict:
+    gurt_lines, gurt_hw, gurt_steps = _gurte(ms, J, schaum)
+    ms = [m for m in ms if m.typ != "gurt"]
+    J = [j for j in J if j["a"].typ != "gurt" and j["b"].typ != "gurt"]
     kerf = SAEGESCHNITT
     lines: list[dict] = []
     cut_groups: list[dict] = []
@@ -135,6 +163,10 @@ def bauplan(S: Sortiment, ms: list[Bauteil], J: list[dict]) -> dict:
 
     steps = [{"t": tr(key), "n": sum(1 for m in ms if m.rolle in rollen)} for rollen, key in MONTAGE]
     steps = [s for s in steps if s["n"]]
+    i = next((k for k, s in enumerate(steps) if s["t"] == tr("montage.5")), len(steps))  # vor der Lehne
+    steps[i:i] = gurt_steps
+    lines += gurt_lines
+    hardware += gurt_hw
     return {"lines": lines, "cut_groups": cut_groups, "cuts": cuts, "cost": cuts * SCHNITT_PREIS,
             "hardware": hardware, "steps": steps}
 

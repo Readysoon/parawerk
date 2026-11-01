@@ -11,6 +11,7 @@ import re
 from typing import Any
 
 from ..i18n import t as tr
+from .engine.aufbau import LAGEN
 from .engine.grundlagen import mm
 
 TYPEN = ["latte", "kantholz", "brett", "platte"]
@@ -30,6 +31,7 @@ GRAPH_SCHEMA = """Bauteilgraph (JSON). Koordinaten relativ 0..1 im Hüllquader d
             "box": [x0,x1,y0,y1,z0,z1], "anzahl": n, "achse": "x|y|z", "querschnitt": [mm,mm]} ]
 }
 Regeln: "box" ist der Bereich, den das Teil bzw. die Teilegruppe einnimmt. Bei anzahl > 1 werden die Teile gleichmäßig entlang "achse" in der Box verteilt.
+Optional für das Strecken/Stauchen (Größe ändern): "lage": {"x": "anfang|ende|mitte|anteilig|auto", "y": …, "z": …} sagt, wie das Teil entlang jeder Achse mitgeht (anfang/ende = Maß und Abstand zum linken/vorderen/unteren bzw. rechten/hinteren/oberen Rand bleiben, mitte = bleibt mittig in gleicher Größe, anteilig = wächst mit; weglassen = auto). "reihe": "abstand" (Abstand bleibt, es kommen Teile dazu, z. B. Latten, Stäbe) oder "anzahl" (Anzahl bleibt, z. B. 2 Beine, 3 Schubladen).
 "querschnitt" = geschätzter Querschnitt eines Stücks. Sortiment: Latte 24×44, Rahmenholz 34×54, 44×44, 44×74, 44×94, Leimholz 18 oder 28 mm (Bretter beliebig breit bis 600, Länge bis 2000).
 "wandleiste" = an die Wand geschraubte Leiste, trägt mit. "leiste" = verbindende Leiste ohne Last (z. B. Querleisten unter einem Deckel). "auflage" trägt etwas, das darauf liegt.
 Beschreibe nur, was man im Bild sieht. Exakte Maße, Verbindungen, Statik und Reparaturen rechnet danach Code."""
@@ -116,6 +118,8 @@ JSON_SCHEMA = _objekt({
         "box": _LISTE, "anzahl": {"type": "integer"},
         "achse": {"type": "string", "enum": ["x", "y", "z"]},
         "querschnitt": _LISTE,
+        "lage": _objekt({a: {"type": "string", "enum": ["auto", "anfang", "ende", "mitte", "anteilig"]} for a in "xyz"}),
+        "reihe": {"type": "string", "enum": ["abstand", "anzahl"]},
     }, ["id", "name", "typ", "rolle", "box"])},
 }, ["name", "kategorie", "masse", "funktion", "anker", "teile"])
 
@@ -174,6 +178,12 @@ def bereinigen(j: Any) -> dict:
         }
         if querschnitt and all(v is not None for v in querschnitt):
             teil["querschnitt"] = [_int_wenn_ganz(v) for v in querschnitt]
+        lage = t.get("lage") if isinstance(t.get("lage"), dict) else {}
+        lage = {a: str(lage[a]).lower() for a in "xyz" if str(lage.get(a, "")).lower() in LAGEN and str(lage[a]).lower() != "auto"}
+        if lage:
+            teil["lage"] = lage
+        if str(t.get("reihe") or "").lower() in ("abstand", "anzahl"):
+            teil["reihe"] = str(t["reihe"]).lower()
         teile.append(teil)
     ids: set[str] = set()
     for teil in teile:

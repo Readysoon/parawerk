@@ -50,7 +50,8 @@ app/
     engine/                Bauteil-Engine
       aufbau.py            skalieren (Matratze, Sitzhöhe) und auf Sortiment einrasten
       setzen.py            Überschneidungen lösen, Fugen schließen, Enden anschließen
-      reparatur.py         Handelslänge, Spannweiten, Auflager, Wackeln → Teile ergänzen
+      reparatur.py         Handelslänge, Spannweiten (nach Statik), Auflager, Wackeln → stärkeres Holz oder Teile ergänzen
+      statik.py            Vorbemessung nach Eurocode 5 mit Normlasten (EN 12520, EN 16122, EN 1022)
       pruefung.py          Endkontrolle
       bauplan.py           Einkauf, Zuschnitt (Stangen und Platten), Schrauben, Montage
   services/                ── Model: Anbindung externer KI, je mit Demo-Ersatz
@@ -89,6 +90,24 @@ Graph + Bereich        ── bauplan/berechnen ──▶ Engine: skalieren → 
   Bauplan (JSON, für die Website auch HTML) + 3D-Modell ◀──
 Wunsch in Worten       ── bauplan/anpassen ──▶ Claude ändert den Graph, dann neu berechnen
 ```
+
+## Statik (Vorbemessung)
+
+`app/models/engine/statik.py` rechnet jedes tragende Teil nach Eurocode 5 (Nadelholz C24, γ_M 1,3, k_mod 0,9 für Personen bzw. 0,6 für Dauerlast):
+
+| Lastfall | Wert | Quelle |
+|---|---|---|
+| Sitz- und Liegeflächen | 1300 N, auf 300 × 300 mm | EN 12520 / EN 1728 |
+| Träger darunter | 80 % davon (Kantenlast), lange Bänke 1 Person je 600 mm | EN 1728 |
+| Regalböden | 1,5 kg/dm² Dauerlast, Durchbiegung ≤ 0,5 % | EN 16122 |
+| Kippen von Sitzmöbeln | 600 N + 20 N bzw. 0,2857·(1000 − Sitzhöhe) an der Lehne | EN 1022 |
+| Durchbiegung | mit 110 kg: Sitz L/150, Liegefläche L/100, Träger L/200 | Gebrauchstauglichkeit |
+
+Nachweise: Biegung, Schub, Durchbiegung (mit Kriechen bei Dauerlast), Knicken der Beine, Verschraubung (2 Schrauben je Verbindung: 6 mm ≈ 1,43 kN, 4 mm ≈ 0,42 kN). Die Reparatur nutzt dieselbe Rechnung als zulässige Spannweite: erst stärkeres Holz (Brett 18 → 28 mm, Kantholz hochkant oder größer), sonst Mittelsteg bzw. Stütze. Schwebende Latten bekommen Querriegel, schwebende Stege Stützen.
+
+**Prüftore** am Ende: keine Teile ineinander (Überschneidung > 1 mm), Wunschmaße beim Strecken auf 10 mm eingehalten.
+
+**Regeln im Bauteilgraphen (optional, von Claude):** `lage: {x|y|z: anfang|ende|mitte|anteilig|auto}` sagt, wie ein Teil beim Strecken mitgeht, `reihe: abstand|anzahl`, ob eine Reihe ihren Abstand oder ihre Anzahl behält.
 
 ## Engine-Tests
 
@@ -206,7 +225,7 @@ Eine Bild-KI ist jede Klasse mit `entwerfen(foto, maske, prompt, seeds)` (siehe 
 
 ## Grenzen
 
-- Statik nach Faustregeln (Spannweite aus Holzstärke), keine Ingenieursberechnung.
+- Statik ist eine Vorbemessung (Eurocode 5, vereinfachte Lastfälle aus den Möbelnormen), keine geprüfte Statik. Leimholz wird wie Nadelholz C24 gerechnet, Bett-Lasten nach EN 1725 sind angenähert.
 - Nur achsparallele Teile, keine Schrägen und Rundungen.
 - Sortiment nach deutschen Baumarkt-Angeboten (OBI, toom, Hornbach, Okt. 2026); im eigenen Markt prüfen.
 - Ohne Messung kommen die Maße aus deiner Eingabe. Gemessen wird ein Vorschlag (meist auf wenige Prozent genau), der Bereich gilt als Umriss des Möbels: Unterkante = Vorderkante am Boden.

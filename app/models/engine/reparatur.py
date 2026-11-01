@@ -1,7 +1,7 @@
 """Schritt 4: Prüfen und reparieren.
 
 Reihenfolge je Durchlauf: Handelslänge, Liegefläche frei, Lattenabstand, fehlende Auflager, Spannweiten,
-Aussteifung. Nach jeder Reparatur werden die Teile neu gesetzt und es geht von vorn los (höchstens 8-mal).
+Aussteifung. Nach jeder Reparatur werden die Teile neu gesetzt und es geht von vorn los (höchstens 12-mal).
 """
 from __future__ import annotations
 
@@ -60,11 +60,70 @@ def spannweite(m: Bauteil, J: list[dict]) -> dict:
     return {"supported": True, "worst": worst}
 
 
-def max_spannweite(m: Bauteil) -> float:
-    """Faustregel: Latten und Bretter 40 × Stärke, tragende Hölzer 25 × Höhe, Leimholzböden höchstens 800 mm."""
-    h = ext(m, 2)
-    k = 40 if m.rolle in SLATS else 25
-    return min(800, k * h) if m.typ == "brett" and m.rolle == "regalboden" else k * h
+def max_spannweite(m: Bauteil, ms: list[Bauteil], J: list[dict], g: dict, krag: bool = False) -> float:
+    """Größte freie Spannweite nach der Statik (Normlasten, Eurocode 5); unendlich, wenn das Teil nichts trägt."""
+    from .statik import grenz_spannweite
+    return grenz_spannweite(m, ms, J, g, krag)
+
+
+def kuerzen(ms: list[Bauteil], s: Bauteil) -> None:
+    """Eingefügtes Teil an Hölzern enden lassen, die es kreuzt (statt hindurchzugehen): Enden an deren Innenseite."""
+    L = s.long
+    for o in ms:
+        if o is s or o.part == s.part or o.rolle in SLATS or depth(s, o) <= 0.5:
+            continue
+        if cen(o, L) < cen(s, L):
+            s.min[L] = max(s.min[L], o.max[L])
+        else:
+            s.max[L] = min(s.max[L], o.min[L])
+
+
+def staerker_machen(S: Sortiment, ms: list[Bauteil], m: Bauteil, laenge: float, J: list[dict], g: dict,
+                    krag: bool = False) -> str | None:
+    """Stärkeres Holz für die ganze Teilegruppe, wenn es die Spannweite dann hält.
+
+    Bretter werden nach oben dicker (Unterkante bleibt auf den Trägern), Kanthölzer nach unten (Oberkante bleibt).
+
+    Bretter (liegend): nächste Leimholz-Stärke. Kanthölzer: nächst stärkerer Querschnitt, hochkant.
+    Gibt das neue Holz zurück (für den Bericht) oder None, wenn es nichts Passendes gibt.
+    """
+    if m.origin != "entwurf":
+        return None  # eingefügte Stege bekommen lieber eine Stütze als immer dickeres Holz
+    quer = next(a for a in (0, 1) if a != m.long)
+    alt_label = m.prof.get("label")
+    if m.typ == "brett" and abs(ext(m, 2) - m.prof.get("t", 0)) < 0.5:
+        kandidaten = [{"t": p["t"]} for p in sorted(S["leimholz"], key=lambda p: p["t"]) if p["t"] > m.prof["t"]]
+    elif m.typ == "kantholz":
+        jetzt = ext(m, quer) * ext(m, 2) ** 2
+        kandidaten = sorted((p for p in S["kantholz"] if min(p["a"], p["b"]) * max(p["a"], p["b"]) ** 2 > jetzt * 1.05),
+                            key=lambda p: p["a"] * p["b"])
+    else:
+        return None
+    gruppe = [o for o in ms if o.part == m.part]
+
+    def anwenden(ziel: Bauteil, k: dict) -> None:
+        if "t" in k:  # Brett wird nach oben dicker: liegt weiter auf seinen Trägern
+            ziel.max[2] = ziel.min[2] + k["t"]
+            ziel.prof = {**ziel.prof, "t": k["t"]}
+        else:
+            b, h = min(k["a"], k["b"]), max(k["a"], k["b"])
+            mitte = cen(ziel, quer)
+            ziel.min[quer], ziel.max[quer] = mitte - b / 2, mitte + b / 2
+            ziel.min[2] = ziel.max[2] - h
+            ziel.prof = {"label": k["label"], "a": k["a"], "b": k["b"]}
+
+    for k in kandidaten:
+        probe = m.kopie()
+        anwenden(probe, k)
+        if max_spannweite(probe, [probe if o is m else o for o in ms], J, g, krag) >= laenge:
+            for o in gruppe:
+                anwenden(o, k)
+                if o.origin == "reparatur":
+                    kuerzen(ms, o)
+            if "label" in k and k["label"] == alt_label:
+                return t("rep.hochkant", holz=holz(k["label"]))
+            return holz(k["label"]) if "label" in k else t("plan.brett", t=zahl(k["t"]), w=zahl(m.prof.get("w", 0)))
+    return None
 
 
 def senkrecht_einsetzen(ms: list[Bauteil], tpl: Bauteil, at: float, along: int, label: str, name: str | None = None) -> int:
@@ -193,7 +252,7 @@ def fussriegel_einsetzen(S: Sortiment, ms: list[Bauteil], ax: int, bad: list[dic
 
 def pruefen_und_reparieren(S: Sortiment, ms: list[Bauteil], groups: dict, g: dict, log: list[str], repairs: list[str]) -> None:
     ausgesteift: set[int] = set()  # Richtungen, in denen schon Fußriegel eingesetzt wurden (je Richtung höchstens einmal)
-    for _ in range(8):
+    for _ in range(12):
         J = kontakte(ms)
         fixed = False
 
@@ -368,10 +427,58 @@ def pruefen_und_reparieren(S: Sortiment, ms: list[Bauteil], groups: dict, g: dic
         for m in ms:
             if m.rolle not in LOADED or m.long == 2:
                 continue
-            si, lm = spannweite(m, J), max_spannweite(m)
-            if not si["supported"] or si["worst"]["len"] <= lm:
+            si = spannweite(m, J)
+            if not si["supported"]:
+                # Latten, die nirgends aufliegen (z. B. zu kurz gelesen): zwei Querriegel unter die Enden der Reihe
+                name = f"Querriegel {m.part}"
+                if m.rolle in SLATS and m.part in groups and m.min[2] > 30 and not any(o.part == name for o in ms):
+                    ps = [o for o in ms if o.part == m.part]
+                    dax, L = groups[m.part]["dax"], m.long
+                    prof = naechstes_kantholz(S, 44, 74)
+                    for i, at in enumerate((m.min[L] + prof["a"], m.max[L] - prof["a"])):
+                        q = Bauteil(id=f"{name} {i + 1}", part=name, name=t("teil.querriegel"), typ="kantholz",
+                                    rolle="querriegel", prof={"label": prof["label"], "a": prof["a"], "b": prof["b"]},
+                                    long=dax, dax=-1, origin="reparatur", min=[0, 0, 0], max=[0, 0, 0])
+                        q.min[dax], q.max[dax] = min(o.min[dax] for o in ps), max(o.max[dax] for o in ps)
+                        q.min[L], q.max[L] = at - prof["a"] / 2, at + prof["a"] / 2
+                        q.max[2], q.min[2] = m.min[2], m.min[2] - prof["b"]
+                        ms.append(q)
+                        kuerzen(ms, q)
+                    repairs.append(t("rep.unterstuetzt", name=m.name, holz=holz(prof["label"])))
+                    fixed = True
+                    break
+                # eingefügter Steg, der selbst nirgends aufliegt: Stützen bis zum Boden unter beide Enden
+                name = f"Stütze {m.id}"
+                if m.origin == "reparatur" and m.rolle in ("mittelsteg", "querriegel") and m.min[2] > 30 \
+                        and not any(o.part == name for o in ms):
+                    prof = naechstes_kantholz(S, 44, 44)
+                    L = m.long
+                    o_ax = next(a for a in others(2) if a != L)
+                    for i, at in enumerate((m.min[L] + prof["a"], m.max[L] - prof["a"])):
+                        tpl = Bauteil(typ="kantholz", rolle="stuetze",
+                                      prof={"label": prof["label"], "a": prof["a"], "b": prof["b"]},
+                                      min=[0, 0, 0], max=[0, 0, 0])
+                        tpl.min[L], tpl.max[L] = 0, prof["a"]
+                        tpl.min[o_ax], tpl.max[o_ax] = cen(m, o_ax) - prof["b"] / 2, cen(m, o_ax) + prof["b"] / 2
+                        tpl.min[2], tpl.max[2] = 0, m.min[2]
+                        senkrecht_einsetzen(ms, tpl, at, L, f"{name} {i + 1}", t("teil.stuetze", id=m.id))
+                    repairs.append(t("rep.steg_stuetzen", name=m.name))
+                    fixed = True
+                    break
+                continue
+            krag = bool(si["worst"].get("cant"))
+            lm = max_spannweite(m, ms, J, g, krag)
+            if si["worst"]["len"] <= lm:
                 continue
             L = m.long
+            # zuerst stärkeres Holz (sieht aus wie im Entwurf), sonst Mittelsteg bzw. Stütze
+            alt = holz(m.prof["label"]) if "label" in m.prof else t("plan.brett", t=zahl(m.prof.get("t", 0)),
+                                                                     w=zahl(m.prof.get("w", 0)))
+            neu = staerker_machen(S, ms, m, si["worst"]["len"], J, g, krag)
+            if neu:
+                repairs.append(t("rep.staerker", name=m.name, len=mm(si["worst"]["len"]), alt=alt, neu=neu))
+                fixed = True
+                break
             if m.rolle in SLATS and m.part in groups:
                 name = f"Mittelsteg {m.part}"
                 if any(o.part == name for o in ms):
@@ -395,6 +502,7 @@ def pruefen_und_reparieren(S: Sortiment, ms: list[Bauteil], groups: dict, g: dic
                     s.min[L], s.max[L] = at - prof["a"] / 2, at + prof["a"] / 2
                     s.max[2], s.min[2] = m.min[2], m.min[2] - prof["b"]
                     ms.append(s)
+                    kuerzen(ms, s)
                 repairs.append(t("rep.mittelsteg" if k == 1 else "rep.mittelstege", rolle=rollenname(m.rolle),
                                  len=mm(laenge), lm=mm(lm), h=mm(ext(m, 2)), steg=s.name, holz=holz(prof["label"]), n=k))
                 fixed = True

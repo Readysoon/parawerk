@@ -72,6 +72,30 @@ REIHEN = {"lattenrost", "sitzflaeche", "liegeflaeche", "lehne", "verkleidung", "
 RAND_MM = 150  # beim Strecken: Kanten so nah am Rand behalten ihren Abstand zum Rand (Einrückungen, Beinstärken)
 
 
+LAGEN = ("auto", "anfang", "ende", "mitte", "anteilig")
+
+
+def _lage(lo: float, hi: float, ref: float, neu: float, regel: str | None, rand: float) -> tuple[float, float]:
+    """Kanten eines Teils entlang einer Achse beim Strecken, nach der Regel aus dem Bauteilgraphen.
+
+    anfang/ende: Maß und Abstand zum Anfang bzw. Ende bleiben (z. B. Bein links/rechts), mitte: bleibt mittig in
+    gleicher Größe, anteilig: wächst mit, auto (oder keine Regel): Kanten nah am Rand halten ihren Abstand, der Rest
+    wächst anteilig.
+    """
+    groesse = (hi - lo) * ref
+    if regel == "anfang":
+        return lo * ref, lo * ref + groesse
+    if regel == "ende":
+        return neu - (1 - lo) * ref, neu - (1 - lo) * ref + groesse
+    if regel == "mitte":
+        mitte = (lo + hi) / 2 * neu
+        return mitte - groesse / 2, mitte + groesse / 2
+    if regel == "anteilig":
+        return lo * neu, hi * neu
+    a, b = _strecken(lo, ref, neu, rand), _strecken(hi, ref, neu, rand)
+    return a, max(a + 1, b)
+
+
 def _strecken(b: float, ref: float, neu: float, rand: float = RAND_MM) -> float:
     """Relative Kante ``b`` (0–1) auf das neue Maß abbilden.
 
@@ -102,8 +126,9 @@ def aufbauen(S: Sortiment, g: dict, dims: list[int], log: list[str],
     for p in g["teile"]:
         box = p["box"]
         if referenz:
-            rmin = [_strecken(box[2 * a], R[a], dims[a], rand) for a in (0, 1, 2)]
-            rmax = [max(rmin[a] + 1, _strecken(box[2 * a + 1], R[a], dims[a], rand)) for a in (0, 1, 2)]
+            lage = p.get("lage") or {}
+            kanten = [_lage(box[2 * a], box[2 * a + 1], R[a], dims[a], lage.get(AXN[a]), rand) for a in (0, 1, 2)]
+            rmin, rmax = [k[0] for k in kanten], [k[1] for k in kanten]
         else:
             rmin = [box[0] * W, box[2] * D, box[4] * H]
             rmax = [box[1] * W, box[3] * D, box[5] * H]
@@ -132,7 +157,8 @@ def aufbauen(S: Sortiment, g: dict, dims: list[int], log: list[str],
             # Brett: Stärke bleibt, Breite folgt der Streckung
             sn["sz"][w_ax] = mm(neu_exts[w_ax])
             sn["prof"] = {**sn["prof"], "w": mm(neu_exts[w_ax])}
-        if (n >= 3 or p.get("rolle") in REIHEN) and n > 1 and abs(neu_exts[dax] - ref_exts[dax]) > 0.5:
+        reihe = p.get("reihe") or ("abstand" if n >= 3 or p.get("rolle") in REIHEN else "anzahl")
+        if reihe == "abstand" and n > 1 and abs(neu_exts[dax] - ref_exts[dax]) > 0.5:
             # Reihe: Abstand wie im Design, Anzahl passt sich an. Paare an den Enden (z. B. zwei Beine) bleiben ein
             # Paar; wird die Spannweite zu lang, setzt die Reparatur eine Stütze, die zur Konstruktion passt.
             s_dax = sn["sz"][dax]

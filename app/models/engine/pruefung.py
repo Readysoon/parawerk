@@ -1,11 +1,12 @@
-"""Schritt 5: Endkontrolle des fertigen Modells (Halt, Spannweiten, Stand, Wackeln, Funktion, Bereich)."""
+"""Schritt 5: Endkontrolle des fertigen Modells (Halt, Statik, Kippen, Stand, Wackeln, Funktion, Prüftore, Bereich)."""
 from __future__ import annotations
 
 import math
 
-from .grundlagen import sitzteile, LOADED, SLATS, Bauteil, cen, einmalig, ext, gesetzt, max_or, min_or, mm, oder, zahl
+from .grundlagen import sitzteile, LOADED, SLATS, Bauteil, cen, depth, einmalig, ext, gesetzt, max_or, min_or, mm, oder, zahl
 from ...i18n import t, und
-from .reparatur import aussteifung, max_spannweite, spannweite
+from .reparatur import aussteifung, spannweite
+from .statik import statik
 
 
 def endkontrolle(ms: list[Bauteil], g: dict, bereich: list[float] | None, J: list[dict]) -> dict:
@@ -21,25 +22,16 @@ def endkontrolle(ms: list[Bauteil], g: dict, bereich: list[float] | None, J: lis
     else:
         out.append({"ok": True, "t": t("chk.verbunden")})
 
-    # Spannweiten
-    worst_ratio, worst_m = 0, None
-    for m in ms:
-        if m.rolle not in LOADED or m.long == 2:
-            continue
-        si = spannweite(m, J)
-        if not si["supported"]:
-            worst_ratio, worst_m = 9, m
-            continue
-        r = si["worst"]["len"] / max_spannweite(m)
-        if r > worst_ratio:
-            worst_ratio, worst_m = r, m
-    if worst_ratio <= 1:
-        out.append({"ok": True, "t": t("chk.spann_ok", p=mm(worst_ratio * 100))})
-    elif worst_ratio == 9:
-        out.append({"ok": False, "t": t("chk.liegt_nicht", name=worst_m.name)})
-    else:
-        out.append({"ok": False, "t": t("chk.spann", name=worst_m.name, p=mm(worst_ratio * 100))})
-
+    # Tragfähigkeit (Statik nach Normlasten, siehe statik.py); Teile ohne Auflager zuerst
+    lose_flaechen = [m for m in ms if m.rolle in LOADED and m.long != 2 and not spannweite(m, J)["supported"]]
+    st = statik(ms, J, g)
+    extra["statik"] = st
+    if lose_flaechen:
+        out.append({"ok": False, "t": t("chk.liegt_nicht", name=lose_flaechen[0].name)})
+    elif st.schlechtester is not None:
+        w = st.schlechtester
+        werte = {"name": w.teil.name, "p": mm(w.ausnutzung * 100), "art": t(f"statik.{w.art}")}
+        out.append({"ok": w.ausnutzung <= 1, "t": t("chk.statik_ok" if w.ausnutzung <= 1 else "chk.statik", **werte)})
     # Stand
     floor = [m for m in ms if m.min[2] <= 0.5]
 
@@ -65,6 +57,11 @@ def endkontrolle(ms: list[Bauteil], g: dict, bereich: list[float] | None, J: lis
         out.append({"ok": True, "t": t("chk.stand", n=len(floor))})
     else:
         out.append({"ok": False, "t": t("chk.stand_nein")})
+    # Kippen beim Belasten (EN 1022); steht es schon so nicht sicher, reicht die Meldung oben
+    if st.kippen is not None and (inside or wall):
+        k = st.kippen
+        out.append({"ok": k["ausnutzung"] <= 1, "t": t("chk.kippen_ok" if k["ausnutzung"] <= 1 else "chk.kippen",
+                                                         p=mm(k["ausnutzung"] * 100), richtung=t(f"wort.{k['richtung']}"))})
     if dims[2] > 1.5 * min(dims[0], dims[1]):
         out.append({"ok": None, "t": t("chk.hoch")})
 
@@ -110,6 +107,17 @@ def endkontrolle(ms: list[Bauteil], g: dict, bereich: list[float] | None, J: lis
         extra["seat_ok"] = ok
         out.append({"ok": ok, "t": t("chk.sitz", polster=zahl(polster), sh=sh, ziel=zahl(f["sitzhoehe"]),
                                      bereich=t("wort.lounge") if lounge else t("wort.stuhl"))})
+    # Prüftore: keine Teile ineinander, Wunschmaße eingehalten
+    ueber = [(a, b) for i, a in enumerate(ms) for b in ms[i + 1:] if depth(a, b) > 1.0]
+    if ueber:
+        out.append({"ok": False, "t": t("chk.ueberschneidung", n=len(ueber), a=ueber[0][0].name, b=ueber[0][1].name)})
+    ziel = g.get("ziel")
+    if gesetzt(ziel):
+        bett = gesetzt(f.get("matratze"))
+        abw = [abs(dims[a] - ziel[a]) for a in (0, 1, 2) if not (bett and a < 2)]
+        if max(abw, default=0) > 10:
+            out.append({"ok": False, "t": t("chk.ziel", dims=" × ".join(map(str, dims)),
+                                            ziel=" × ".join(zahl(v) for v in ziel))})
     if bereich is not None:
         fits = dims[0] <= bereich[0] and dims[1] <= bereich[1] and dims[2] <= bereich[2]
         out.append({"ok": fits, "t": t("chk.bereich", dims=" × ".join(map(str, dims)), bereich=" × ".join(zahl(v) for v in bereich),

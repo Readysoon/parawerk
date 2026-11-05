@@ -117,7 +117,7 @@ def anleitung(ms: list[Bauteil], J: list[dict], plan: dict, dims: list[int], pol
             k = (buchstaben.get(v["durch"].id, "?"), buchstaben.get(v["ins"].id, "?"), sch.name(v), sch.randabstand(v))
             n, richtungen = wie.get(k, (0, set()))
             wie[k] = (n + 1, richtungen | {RICHTUNG[(v["ax"], max(r, key=abs))]})
-            stellen += [{"p": st["p"], "r": st["richtung"]} for st in v["stellen"]]
+            stellen += [{"p": st["p"], "r": st["richtung"], "id": v["durch"].id} for st in v["stellen"]]
         werkzeug = ["akkuschrauber", "maßband", "bleistift"]
         if schrauben:
             werkzeug += ["bohrer"]

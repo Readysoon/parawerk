@@ -54,5 +54,5 @@ def test_ohne_pruefung_im_pdf():
     with TestClient(app, headers=KOPF) as c:
         r = c.post("/api/v1/bauplan/pdf", json={"graph": GRAPHEN[0], "bereich": [2500, 1000, 1000]})
     text = _pdf_text(r.content)
-    assert b"Einkaufsliste" in text and b"Montage" in text
+    assert b"Einkaufsliste" in text and b"Schritt 1" in text and b"Das brauchst du" in text and b"Werkzeug" in text
     assert b"Pr\xfcfung" not in text and b"Faustregel" not in text  # Prüfungen sind intern

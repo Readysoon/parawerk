@@ -38,7 +38,7 @@
     <p class="hint">{{ t("bp.zuschnitt_markt", n=schnitte, preis=0.99 | eur, kosten=schnittkosten | eur) }}</p>
     <h3>{{ t("bp.montage") }}</h3>
     <ol class="montage">
-      {% for s in montage %}<li>{{ s.t }} <span class="hint">{{ t("bp.teile", n=s.n) }}</span></li>{% endfor %}
+      {% for s in montage %}<li>{{ s.t }} <span class="hint">{% if s.teile %}{{ s.teile }}{% elif s.n %}{{ t("bp.teile", n=s.n) }}{% endif %}</span></li>{% endfor %}
     </ol>
   </section>
 
@@ -51,13 +51,13 @@
         {% for s in g.stangen %}
         <div class="bar">
           <div class="lbl"><span>{{ t("bp.stange", n=s.anzahl, m=s.laenge | meter) }}{% if s.zu_lang %}{{ t("bp.zu_lang") }}{% endif %}</span><span>{{ t("bp.rest", n=s.rest) }}</span></div>
-          <div class="stock">{% for p in s.stuecke %}<div class="pc{% if p.ergaenzt %} rep{% endif %}" style="flex:0 0 {{ p.breite }}" title="{{ p.name }} {{ p.len }} mm">{{ p.len }}</div>{% endfor %}</div>
+          <div class="stock">{% for p in s.stuecke %}<div class="pc{% if p.ergaenzt %} rep{% endif %}" style="flex:0 0 {{ p.breite }}" title="{{ p.b }} {{ p.name }} {{ p.len }} mm">{% if p.b %}<b>{{ p.b }}</b> {% endif %}{{ p.len }}</div>{% endfor %}</div>
         </div>
         {% endfor %}
       {% else %}
         {% for platte in g.platten %}
         <div class="sheetv" style="aspect-ratio:{{ g.seitenverhaeltnis }}">
-          {% for st in platte %}<div style="left:{{ st.links }};top:{{ st.oben }};width:{{ st.breite }};height:{{ st.hoehe }}" title="{{ st.name }}">{{ st.l }}×{{ st.w }}</div>{% endfor %}
+          {% for st in platte %}<div style="left:{{ st.links }};top:{{ st.oben }};width:{{ st.breite }};height:{{ st.hoehe }}" title="{{ st.b }} {{ st.name }}">{% if st.b %}<b>{{ st.b }}</b> {% endif %}{{ st.l }}×{{ st.w }}</div>{% endfor %}
         </div>
         {% endfor %}
       {% endif %}

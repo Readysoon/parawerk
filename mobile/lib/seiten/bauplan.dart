@@ -305,7 +305,8 @@ class _BauplanSeiteState extends State<BauplanSeite> {
           for (final (i, m) in _liste(b, 'montage').indexed)
             Padding(
               padding: const EdgeInsets.only(bottom: 6),
-              child: Text('${i + 1}. ${m['t']} (${tr('teile', {'n': m['n']})})'),
+              child: Text('${i + 1}. ${m['t']}'
+                  '${(m['teile'] ?? '') != '' ? ' (${m['teile']})' : ''}'),
             ),
 
           Abschnitt(tr('zuschnitt')),

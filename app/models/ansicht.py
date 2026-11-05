@@ -7,9 +7,11 @@ from __future__ import annotations
 
 import math
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 
-FARBEN = {"holz": (216, 194, 160), "ergaenzt": (194, 65, 12), "polster": (201, 206, 214), "gurt": (59, 63, 70)}
+FARBEN = {"holz": (216, 194, 160), "ergaenzt": (194, 65, 12), "polster": (201, 206, 214), "gurt": (59, 63, 70),
+          "neu": (236, 128, 36), "blass": (236, 229, 218)}
+KANTE = {"blass": (190, 182, 170)}
 HELLIGKEIT = {"oben": 1.12, "vorne": 0.95, "seite": 0.78}  # Licht von oben, Seite im Schatten
 
 
@@ -42,22 +44,32 @@ def _flaechen(mn, mx):
     ]
 
 
-def modellbild(modell: dict, breite: int = 768, hoehe: int = 576, drehung: float = 30, neigung: float = 22) -> Image.Image:
-    """``modell`` wie ``views.praesentation.modell_3d``: teile (min, max, ergaenzt), polster (min, max)."""
+def _art(t: dict) -> str:
+    return t.get("stil") or ("gurt" if t.get("gurt") else "ergaenzt" if t.get("ergaenzt") else "holz")
+
+
+def modellbild(modell: dict, breite: int = 768, hoehe: int = 576, drehung: float = 30, neigung: float = 22,
+               rahmen: dict | None = None, beschriften: str | None = None, hintergrund=(238, 240, 242)) -> Image.Image:
+    """``modell`` wie ``views.praesentation.modell_3d``: teile (min, max, ergaenzt), polster (min, max).
+
+    Für die Bauanleitung: ``teile[i]["stil"]`` = "neu" (hervorgehoben) oder "blass" (steht schon); ``rahmen`` = das
+    ganze Modell, damit alle Schrittbilder denselben Ausschnitt haben; ``beschriften`` = "alle" oder "neu": Buchstaben
+    (``teile[i]["b"]``) einmal je Buchstabe ins Bild schreiben.
+    """
     achsen = _vektoren(drehung, neigung)
-    quader = [("gurt" if t.get("gurt") else "ergaenzt" if t.get("ergaenzt") else "holz", t["min"], t["max"])
-              for t in modell.get("teile", [])]
+    quader = [(_art(t), t["min"], t["max"]) for t in modell.get("teile", [])]
     quader += [("polster", p["min"], p["max"]) for p in modell.get("polster", [])]
-    bild = Image.new("RGB", (breite, hoehe), (238, 240, 242))
-    if not quader:
+    bild = Image.new("RGB", (breite, hoehe), hintergrund)
+    bezug = [(t["min"], t["max"]) for t in (rahmen or modell).get("teile", [])] or [(q[1], q[2]) for q in quader]
+    if not quader or not bezug:
         return bild
 
     # Maßstab: alles passt mit Rand ins Bild
-    ecken = [_punkt((x, y, z), achsen) for _, mn, mx in quader
+    ecken = [_punkt((x, y, z), achsen) for mn, mx in bezug
              for x in (mn[0], mx[0]) for y in (mn[1], mx[1]) for z in (mn[2], mx[2])]
     u0, u1 = min(e[0] for e in ecken), max(e[0] for e in ecken)
     v0, v1 = min(e[1] for e in ecken), max(e[1] for e in ecken)
-    rand = 24
+    rand = max(24, breite // 20)
     m = min((breite - 2 * rand) / max(u1 - u0, 1), (hoehe - 2 * rand) / max(v1 - v0, 1))
     du = (breite - (u1 - u0) * m) / 2
     dv = (hoehe - (v1 - v0) * m) / 2
@@ -68,8 +80,8 @@ def modellbild(modell: dict, breite: int = 768, hoehe: int = 576, drehung: float
 
     stift = ImageDraw.Draw(bild)
     # Boden als Bezug
-    x0, y0 = min(q[1][0] for q in quader), min(q[1][1] for q in quader)
-    x1, y1 = max(q[2][0] for q in quader), max(q[2][1] for q in quader)
+    x0, y0 = min(q[0][0] for q in bezug), min(q[0][1] for q in bezug)
+    x1, y1 = max(q[1][0] for q in bezug), max(q[1][1] for q in bezug)
     stift.polygon([bildpunkt(p) for p in [(x0, y0, 0), (x1, y0, 0), (x1, y1, 0), (x0, y1, 0)]], fill=(222, 225, 229))
 
     def tiefe(q):  # Mittelpunkt entlang der Blickrichtung; weiter hinten zuerst zeichnen
@@ -79,5 +91,35 @@ def modellbild(modell: dict, breite: int = 768, hoehe: int = 576, drehung: float
     for art, mn, mx in sorted(quader, key=tiefe, reverse=True):
         for seite, punkte in _flaechen(mn, mx):
             farbe = tuple(min(255, round(c * HELLIGKEIT[seite])) for c in FARBEN[art])
-            stift.polygon([bildpunkt(p) for p in punkte], fill=farbe, outline=(90, 80, 64))
+            stift.polygon([bildpunkt(p) for p in punkte], fill=farbe, outline=KANTE.get(art, (90, 80, 64)))
+    if beschriften:
+        _buchstaben(stift, modell, bildpunkt, beschriften, breite)
     return bild
+
+
+def _buchstaben(stift: ImageDraw.ImageDraw, modell: dict, bildpunkt, welche: str, breite: int) -> None:
+    """Je Buchstabe ein Kreis mit dem Buchstaben, auf dem größten sichtbaren Teil dieser Art."""
+    r = max(11, breite // 38)
+    try:
+        schrift = ImageFont.load_default(size=round(r * 1.25))
+    except TypeError:  # sehr altes Pillow
+        schrift = ImageFont.load_default()
+    beste: dict[str, dict] = {}
+    for t in modell.get("teile", []):
+        b = t.get("b")
+        if not b or (welche == "neu" and t.get("stil") != "neu"):
+            continue
+        groesse = sum(t["max"][a] - t["min"][a] for a in (0, 1, 2))
+        if b not in beste or groesse > beste[b]["g"]:
+            beste[b] = {"g": groesse, "t": t}
+    gesetzt: list[tuple[float, float]] = []
+    for b, x in sorted(beste.items()):
+        t = x["t"]
+        mitte = ((t["min"][0] + t["max"][0]) / 2, (t["min"][1] + t["max"][1]) / 2, t["max"][2])
+        u, v = bildpunkt(mitte)
+        for du, dv in gesetzt:  # nicht übereinander
+            if abs(u - du) < 2.2 * r and abs(v - dv) < 2.2 * r:
+                v -= 2.4 * r
+        gesetzt.append((u, v))
+        stift.ellipse([u - r, v - r, u + r, v + r], fill=(28, 37, 48), outline=(255, 255, 255), width=max(2, r // 6))
+        stift.text((u, v), b, fill=(255, 255, 255), font=schrift, anchor="mm")

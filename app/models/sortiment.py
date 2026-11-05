@@ -52,7 +52,6 @@ SORTIMENT_US: Sortiment = {
 SORTIMENTE = {"DE": SORTIMENT_DE, "US": SORTIMENT_US}
 # Ungefähre Preise (DE, Nov. 2026): Rahmenholz 44×94 2 m 12,98 €, Latte 24×44 2 m 3,98 € (toom.de),
 # Leimholz Fichte 200×50 cm 18 mm 45,99 €, 28 mm 74,99 € (obi.de); übrige Querschnitte daraus geschätzt.
-SCHRAUBE_PREIS = {"6×100": 0.25, "4×": 0.06}  # € je Stück, Großpackung
 SCHNITT_PREIS = 0.99  # € je gerader Schnitt (OBI-Zuschnittservice, Angabe obi.de)
 
 

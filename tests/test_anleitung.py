@@ -54,3 +54,39 @@ def test_kopf_und_ansicht():
     assert v["werkzeug"] and v["schritte"][-1]["ids"] == []  # zuletzt: schleifen und ölen
     assert any(p["b"] for g_ in v["zuschnitt"] if g_["art"] == "stab" for st in g_["stangen"] for p in st["stuecke"])
     assert all("b" in t for t in modell_3d(e)["teile"] if not t.get("gurt"))
+
+
+def test_armlehne_liegt_auf_dem_bein():
+    import json
+    from pathlib import Path
+
+    from app.models.engine.reparatur import spannweite
+    from app.models.engine.setzen import kontakte
+    g = json.loads((Path(__file__).parents[1] / "app/services/demo_graphen.json").read_text(encoding="utf-8"))[0]
+    e = berechnen(bereinigen(g), PLATZ)
+    J = kontakte(e.members)
+    for m in (m for m in e.members if m.part == "ar"):
+        si = spannweite(m, J)
+        assert si["supported"] and not si["worst"].get("cant"), si  # kein freies Ende mehr
+        assert any(j["ax"] == 2 and (j["a"].rolle == "bein" or j["b"].rolle == "bein") and m in (j["a"], j["b"])
+                   for j in J)
+    assert e.offene_punkte == 0
+
+
+def test_schrauben_lang_genug_und_auf_der_kontaktflaeche():
+    from app.models.engine import schrauben as sch
+    e = berechnen(bereinigen(alte_graphen()[2]), PLATZ)
+    n = 0
+    for j in e.joints:
+        v = sch.verbindung(j)
+        if not v:
+            continue
+        n += 1
+        dicke = ext(v["durch"], v["ax"])
+        assert v["l"] <= dicke + ext(v["ins"], v["ax"]) - 5  # geht nicht hinten wieder raus
+        for s in v["stellen"]:
+            for a in (0, 1, 2):
+                if a != v["ax"]:
+                    assert max(v["durch"].min[a], v["ins"].min[a]) - 0.01 <= s["p"][a] <= min(v["durch"].max[a], v["ins"].max[a]) + 0.01
+    assert n > 10
+    assert all(l.get("preis") for l in e.plan["lines"]) and all(h.get("preis") for h in e.plan["hardware"])

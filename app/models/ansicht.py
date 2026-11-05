@@ -49,7 +49,8 @@ def _art(t: dict) -> str:
 
 
 def modellbild(modell: dict, breite: int = 768, hoehe: int = 576, drehung: float = 30, neigung: float = 22,
-               rahmen: dict | None = None, beschriften: str | None = None, hintergrund=(238, 240, 242)) -> Image.Image:
+               rahmen: dict | None = None, beschriften: str | None = None, hintergrund=(238, 240, 242),
+               schrauben: list[dict] | None = None) -> Image.Image:
     """``modell`` wie ``views.praesentation.modell_3d``: teile (min, max, ergaenzt), polster (min, max).
 
     Für die Bauanleitung: ``teile[i]["stil"]`` = "neu" (hervorgehoben) oder "blass" (steht schon); ``rahmen`` = das
@@ -92,9 +93,23 @@ def modellbild(modell: dict, breite: int = 768, hoehe: int = 576, drehung: float
         for seite, punkte in _flaechen(mn, mx):
             farbe = tuple(min(255, round(c * HELLIGKEIT[seite])) for c in FARBEN[art])
             stift.polygon([bildpunkt(p) for p in punkte], fill=farbe, outline=KANTE.get(art, (90, 80, 64)))
+    if schrauben:
+        _schrauben(stift, schrauben, bildpunkt, achsen, breite)
     if beschriften:
         _buchstaben(stift, modell, bildpunkt, beschriften, breite)
     return bild
+
+
+def _schrauben(stift: ImageDraw.ImageDraw, stellen: list[dict], bildpunkt, achsen, breite: int) -> None:
+    """Schraubstellen als Punkte, nur auf Flächen, die zur Kamera zeigen (sonst sieht man sie im Bild nicht)."""
+    _, _, vor = achsen
+    r = max(5, breite // 110)
+    for s in stellen:
+        normale = [-v for v in s["r"]]  # die Schraube geht hinein, die Fläche zeigt hinaus
+        if sum(n * v for n, v in zip(normale, vor)) >= -0.05:
+            continue  # Fläche zeigt von der Kamera weg
+        u, v = bildpunkt(s["p"])
+        stift.ellipse([u - r, v - r, u + r, v + r], fill=(20, 24, 30), outline=(255, 255, 255), width=max(1, r // 3))
 
 
 def _buchstaben(stift: ImageDraw.ImageDraw, modell: dict, bildpunkt, welche: str, breite: int) -> None:

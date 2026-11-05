@@ -5,21 +5,11 @@ import math
 
 from ...i18n import dez, holz
 from ...i18n import t as tr
-from ..sortiment import SCHNITT_PREIS, SCHRAUBE_PREIS, Sortiment
-from .grundlagen import sitzteile, SLATS, Bauteil, eintraege, ext, fest, gesetzt, mm, prio, zahl
+from ..sortiment import SCHNITT_PREIS, Sortiment
+from . import schrauben
+from .grundlagen import SLATS, Bauteil, eintraege, ext, fest, gesetzt, mm, sitzteile, zahl
 
 SAEGESCHNITT = 3  # mm
-SCHRAUBEN_JE_VERBINDUNG = 2
-
-
-def schraube(j: dict) -> str | None:
-    """Welche Schraube eine Verbindung bekommt (None: Latte an Latte wird nicht verschraubt, Gurte werden getackert)."""
-    if max(prio(j["a"]), prio(j["b"])) < 4 or "gurt" in (j["a"].typ, j["b"].typ):
-        return None
-    ts = [j["a"].typ, j["b"].typ]
-    if all(t == "kantholz" for t in ts):
-        return "Holzschraube 6×100 (Rahmen)"
-    return "Holzschraube 4×40" if "brett" in ts else "Holzschraube 4×50"
 
 
 def stangen_packen(pieces: list[dict], stock: list[int], kerf: int) -> list[dict]:
@@ -131,7 +121,8 @@ def bauplan(S: Sortiment, ms: list[Bauteil], J: list[dict], schaum: float | None
         for b in bins:
             by_l[b["L"]] = by_l.get(b["L"], 0) + 1
         for L, n in eintraege(by_l):
-            lines.append({"n": n, "text": tr("plan.stab", holz=holz(label), laenge=dez(fest(L / 1000, 1)))})
+            lines.append({"n": n, "text": tr("plan.stab", holz=holz(label), laenge=dez(fest(L / 1000, 1))),
+                          "preis": round(n * L / 1000 * stab["preis_m"], 2) if "preis_m" in stab else None})
         for b in bins:
             cuts += len(b["items"]) - (1 if b["used"] == b["L"] else 0)
         cut_groups.append({"label": holz(label), "kind": "stab", "bins": bins})
@@ -161,7 +152,9 @@ def bauplan(S: Sortiment, ms: list[Bauteil], J: list[dict], schaum: float | None
             preis += len(best["sheets"]) * opt["L"] * best["Wd"] / 1e6 * opt["preis_m2"]
         else:
             preis = None
-        lines.append({"n": len(best["sheets"]), "text": tr("plan.leimholz", t=zahl(t), l=zahl(opt["L"] / 10), w=zahl(best["Wd"] / 10))})
+        lines.append({"n": len(best["sheets"]), "text": tr("plan.leimholz", t=zahl(t), l=zahl(opt["L"] / 10), w=zahl(best["Wd"] / 10)),
+                      "preis": round(len(best["sheets"]) * opt["L"] * best["Wd"] / 1e6 * opt["preis_m2"], 2)
+                      if "preis_m2" in opt else None})
         for s in best["sheets"]:
             cuts += len(s["strips"]) + sum(len(st["items"]) for st in s["strips"]) - 1
         cut_groups.append({"label": tr("plan.leimholz_gruppe", t=zahl(t), l=zahl(opt["L"]), w=zahl(best["Wd"])), "kind": "platte",
@@ -170,13 +163,17 @@ def bauplan(S: Sortiment, ms: list[Bauteil], J: list[dict], schaum: float | None
     # Schrauben
     scr: dict = {}
     for j in J:
-        k = schraube(j)
-        if k:
-            scr[k] = scr.get(k, 0) + SCHRAUBEN_JE_VERBINDUNG
-    hardware = [{"n": math.ceil(v * 1.1), "text": tr(f"schraube.{k}")} for k, v in eintraege(scr)]
+        v = schrauben.verbindung(j)
+        if v:
+            k = (v["d"], v["l"])
+            scr[k] = scr.get(k, 0) + schrauben.JE_VERBINDUNG
+    hardware = []
+    for (d, l), n in sorted(scr.items(), key=lambda kv: (-kv[0][0], -kv[0][1])):
+        stueck = math.ceil(n * 1.1)
+        hardware.append({"n": stueck, "text": tr("schraube.allg", d=d, l=l),
+                         "preis": round(stueck * schrauben.preis({"d": d, "l": l}), 2)})
     if preis is not None:
-        preis += sum(math.ceil(v * 1.1) * (SCHRAUBE_PREIS["6×100"] if "6×100" in k else SCHRAUBE_PREIS["4×"])
-                     for k, v in scr.items()) + cuts * SCHNITT_PREIS
+        preis += sum(h["preis"] for h in hardware) + cuts * SCHNITT_PREIS
 
     steps = [{"t": tr(key), "n": sum(1 for m in ms if m.rolle in rollen), "key": key} for rollen, key in MONTAGE]
     steps = [s for s in steps if s["n"]]

@@ -9,11 +9,15 @@ from __future__ import annotations
 
 import string
 
-from ...i18n import KATALOG, t
-from .bauplan import MONTAGE, SCHRAUBEN_JE_VERBINDUNG, schraube
+from ...i18n import KATALOG, t, und
+from . import schrauben as sch
+from .bauplan import MONTAGE
 from .grundlagen import Bauteil, ext, mm
 
 GURT_SCHRITT = "montage.gurte"
+# Achse und Richtung, in die die Schraube eindringt -> von wo man schraubt
+RICHTUNG = {(0, 1): "von_links", (0, -1): "von_rechts", (1, 1): "von_vorne", (1, -1): "von_hinten",
+            (2, 1): "von_unten", (2, -1): "von_oben"}
 OBERFLAECHE = "montage.oberflaeche"
 
 
@@ -61,6 +65,13 @@ def schritte_und_buchstaben(ms: list[Bauteil]) -> tuple[list[tuple[str, list[Bau
     return schritte, buchstaben
 
 
+def _richtung(rs: set[str]) -> str:
+    """Spiegelbildliche Paare (links und rechts, vorne und hinten) heißen „von außen“."""
+    if rs in ({"von_links", "von_rechts"}, {"von_vorne", "von_hinten"}):
+        return t("wort.von_aussen")
+    return und([t(f"wort.{r}") for r in sorted(rs)])
+
+
 def _zaehlen(werte: list[str]) -> list[dict]:
     aus: dict[str, int] = {}
     for w in werte:
@@ -95,10 +106,18 @@ def anleitung(ms: list[Bauteil], J: list[dict], plan: dict, dims: list[int], pol
         verbindungen = [j for j in J if (id(j["a"]) in neu or id(j["b"]) in neu)
                         and id(j["a"]) in stehend and id(j["b"]) in stehend]
         schrauben: dict[str, int] = {}
+        wie: dict[tuple, int] = {}
+        stellen: list[dict] = []
         for j in verbindungen:
-            k = schraube(j)
-            if k:
-                schrauben[k] = schrauben.get(k, 0) + SCHRAUBEN_JE_VERBINDUNG
+            v = sch.verbindung(j)
+            if not v:
+                continue
+            schrauben[sch.name(v)] = schrauben.get(sch.name(v), 0) + sch.JE_VERBINDUNG
+            r = v["stellen"][0]["richtung"]
+            k = (buchstaben.get(v["durch"].id, "?"), buchstaben.get(v["ins"].id, "?"), sch.name(v), sch.randabstand(v))
+            n, richtungen = wie.get(k, (0, set()))
+            wie[k] = (n + 1, richtungen | {RICHTUNG[(v["ax"], max(r, key=abs))]})
+            stellen += [{"p": st["p"], "r": st["richtung"]} for st in v["stellen"]]
         werkzeug = ["akkuschrauber", "maßband", "bleistift"]
         if schrauben:
             werkzeug += ["bohrer"]
@@ -115,12 +134,17 @@ def anleitung(ms: list[Bauteil], J: list[dict], plan: dict, dims: list[int], pol
             "nr": i + 1, "t": text, "ids": [m.id for m in teile], "n": len(teile),
             "teile": _zaehlen([buchstaben[m.id] for m in teile if m.id in buchstaben]),
             "gurte": sum(1 for m in teile if m.typ == "gurt"),
-            "schrauben": [{"n": n, "text": t(f"schraube.{k}")} for k, n in schrauben.items()],
+            "schrauben": [{"n": n, "text": t("schraube.allg", d=k.split("×")[0], l=k.split("×")[1])}
+                          for k, n in sorted(schrauben.items())],
+            "wie": [t("schraube.wie", n=n, durch=d, ins=i, s=name, richtung=_richtung(rs), rand=rand)
+                    for (d, i, name, rand), (n, rs) in sorted(wie.items())],
+            "stellen": stellen,
             "werkzeug": [t(f"werkzeug.{w}") for w in dict.fromkeys(werkzeug)],
             "tipp": t(f"tipp.{key.split('.')[1]}") if f"tipp.{key.split('.')[1]}" in KATALOG["de"] else "",
         })
         fertig |= neu
     aus.append({"nr": len(aus) + 1, "t": t(OBERFLAECHE), "ids": [], "n": 0, "teile": [], "gurte": 0, "schrauben": [],
+                "wie": [], "stellen": [],
                 "werkzeug": [t("werkzeug.schleifpapier"), t("werkzeug.pinsel")], "tipp": t("tipp.oberflaeche")})
 
     # Kopf: Schwierigkeit, Zeit, Personen, Kosten

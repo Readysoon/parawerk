@@ -149,12 +149,13 @@ def _kaestchen() -> Drawing:
     return d
 
 
-def _schrittbild(modell: dict, ids: list[str], vorher: set[str], breite: int = 1500, hoehe: int = 1000) -> Image.Image:
+def _schrittbild(modell: dict, ids: set[str], vorher: set[str], stellen: list[dict], breite: int = 1500,
+                 hoehe: int = 1000) -> Image.Image:
     """Modell bis zu diesem Schritt: neue Teile orange mit Buchstaben, fertige Teile blass, spätere fehlen."""
     teile = [{**x, "stil": "neu" if x.get("id") in ids else "blass"} for x in modell["teile"]
              if x.get("id") in ids or x.get("id") in vorher]
     gross = modellbild({"teile": teile}, breite * 2, hoehe * 2, rahmen=modell, beschriften="neu",
-                       hintergrund=(255, 255, 255))
+                       hintergrund=(255, 255, 255), schrauben=stellen)
     return gross.resize((breite, hoehe), Image.LANCZOS)
 
 
@@ -166,7 +167,7 @@ def _brauchst(s: dict) -> list:
     if s.get("gurte"):
         zeilen.append(_p(t("pdf.gurte_n", n=s["gurte"])))
     zeilen += [_p(f"{x['n']}× {x['text']}") for x in s["schrauben"]]
-    zeilen += [_p(w, _klein) for w in s["werkzeug"]]
+    zeilen += [Spacer(1, 3)] + [_p(w, _klein) for w in s["werkzeug"]]
     return zeilen
 
 
@@ -222,10 +223,17 @@ def bauplan_pdf(ansicht: dict, modell: dict, entwurf: Image.Image | None = None)
 
     # Einkaufsliste und Werkzeug nebeneinander
     links_b, rechts_b = BREITE * 0.6, BREITE * 0.4
-    zeilen = [[_p(t("bp.menge")), _p(t("bp.artikel"))]]
-    zeilen += [[_p(f"{l['n']}×"), _p(l["text"])] for l in ansicht["einkauf"]]
-    zeilen += [[_p(l["n"]), _p(f"{l['text']} {t('bp.reserve')}")] for l in ansicht["beschlaege"]]
-    einkauf = [_p(t("bp.einkauf"), _h2), _tabelle(zeilen, [14 * mm, links_b - 20 * mm]), Spacer(1, 3),
+    rechts_stil = ParagraphStyle("re", parent=_text, alignment=2)
+    zeilen = [[_p(t("bp.menge")), _p(t("bp.artikel")), Paragraph(_sauber(t("pdf.preis")), rechts_stil)]]
+    zeilen += [[_p(f"{l['n']}×"), _p(l["text"]), _p(eur(l["preis"]) if l.get("preis") else "", rechts_stil)]
+               for l in ansicht["einkauf"]]
+    zeilen += [[_p(l["n"]), _p(f"{l['text']} {t('bp.reserve')}"), _p(eur(l["preis"]) if l.get("preis") else "", rechts_stil)]
+               for l in ansicht["beschlaege"]]
+    if ansicht["kopf"].get("preis_text"):
+        zeilen.append(["", Paragraph(_sauber(t("pdf.summe")), ParagraphStyle("su", parent=_text, fontName="Helvetica-Bold")),
+                       Paragraph(_sauber(ansicht["kopf"]["preis_text"]),
+                                 ParagraphStyle("sp", parent=rechts_stil, fontName="Helvetica-Bold"))])
+    einkauf = [_p(t("bp.einkauf"), _h2), _tabelle(zeilen, [15 * mm, links_b - 39 * mm, 20 * mm]), Spacer(1, 3),
                _p(t("bp.zuschnitt_markt", n=ansicht["schnitte"], preis=eur(0.99), kosten=eur(ansicht["schnittkosten"])),
                   _klein)]
     werkzeug = [_p(t("pdf.werkzeug"), _h2)] + [_p(f"- {w}", _klein) for w in ansicht["werkzeug"]]
@@ -240,7 +248,7 @@ def bauplan_pdf(ansicht: dict, modell: dict, entwurf: Image.Image | None = None)
     for s in ansicht["schritte"]:
         ids = set(s["ids"])
         if ids:
-            bild = _schrittbild(modell, ids, vorher)
+            bild = _schrittbild(modell, ids, vorher, s.get("stellen", []))
         else:  # letzter Schritt: alles fertig
             bild = modellbild({**modell, "teile": [{**x, "stil": "holz"} for x in modell["teile"]]}, 3000, 2000,
                               hintergrund=(255, 255, 255)).resize((1500, 1000), Image.LANCZOS)
@@ -251,6 +259,10 @@ def bauplan_pdf(ansicht: dict, modell: dict, entwurf: Image.Image | None = None)
                                    ("BACKGROUND", (1, 0), (1, 0), BEIGE),
                                    ("LEFTPADDING", (1, 0), (1, 0), 7), ("TOPPADDING", (1, 0), (1, 0), 6)]))
         block = [_p(f"{t('pdf.schritt', n=s['nr'])}: {s['t']}", _h3), zeile]
+        if s.get("wie"):
+            block += [Spacer(1, 3), _p(t("pdf.so_schrauben"), _h3)] + [_p(f"- {w}", _klein) for w in s["wie"]]
+            if s.get("stellen"):
+                block.append(_p(t("pdf.punkte"), _klein))
         if s.get("tipp"):
             tipp = Table([[_p(f"{t('pdf.tipp')}: {s['tipp']}", _klein)]], colWidths=[BREITE], hAlign="LEFT")
             tipp.setStyle(TableStyle([("LINEBEFORE", (0, 0), (0, 0), 2.5, ORANGE),

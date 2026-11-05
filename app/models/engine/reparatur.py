@@ -7,16 +7,71 @@ from __future__ import annotations
 
 import math
 
+from ...i18n import holz, t, und, zitat
 from ..sortiment import Sortiment, handelslaengen, naechstes_kantholz
 from .grundlagen import (
-    ATTACH, AXN, LOADED, SLATS, Bauteil, cen, depth, einmalig, eintraege, ext, gesetzt, mm, others, ov, prio,
-    quader, rollenname, zahl,
+    ATTACH,
+    AXN,
+    LOADED,
+    SLATS,
+    Bauteil,
+    cen,
+    depth,
+    einmalig,
+    eintraege,
+    ext,
+    gesetzt,
+    mm,
+    others,
+    ov,
+    prio,
+    quader,
+    rollenname,
+    zahl,
 )
-from ...i18n import holz, t, und, zitat
 from .setzen import kontakte, setzen
 
-
 GURT_FREI = 60  # mm, so weit darf ein Gurtende über die Zarge hinausstehen
+
+
+def _auf_bein_legen(ms: list[Bauteil], m: Bauteil, J: list[dict]) -> bool:
+    """Liegt ein liegendes Teil mit einem Ende frei neben dem Kopf eines Beins, wird es über das Bein verbreitert.
+
+    Stößt es dabei an ein anderes stehendes Teil (den Pfosten), endet es vor diesem und wird dort angeschraubt.
+    Nur für Bretter und Leisten, die nicht zu einer Fläche (Latten) gehören.
+    """
+    if m.long == 2 or m.rolle in SLATS or m.typ == "gurt" or m.min[2] < 30 or m.origin != "entwurf":
+        return False
+    si = spannweite(m, J)
+    if not si.get("supported") or not si["worst"].get("cant") or si["worst"]["len"] < 160:
+        return False
+    L = m.long
+    q = next(a for a in (0, 1) if a != L)
+    frei_min = si["worst"]["at"] < cen(m, L)  # freies Ende am Anfang oder am Ende der Längsachse
+    ende = m.min[L] if frei_min else m.max[L]
+    beine = [v for v in ms if v.long == 2 and abs(v.max[2] - m.min[2]) <= 1.5 and v.rolle in ("bein", "pfosten", "stuetze")
+             and v.min[L] <= ende + 1 and v.max[L] >= ende - 1 and -1.5 <= -ov(m, v, q) <= 1.5]
+    if not beine:
+        return False
+    v = beine[0]
+    alt = (list(m.min), list(m.max))
+    m.min[q], m.max[q] = min(m.min[q], v.min[q]), max(m.max[q], v.max[q])
+    for o in ms:  # an stehenden Teilen auf dem Weg zum anderen Ende enden
+        if o is m or o is v or depth(m, o) <= 0.5:
+            continue
+        if o.long == 2:
+            if frei_min:
+                m.max[L] = min(m.max[L], o.min[L])
+            else:
+                m.min[L] = max(m.min[L], o.max[L])
+    ok = (m.max[L] - m.min[L] > 0.5 * (alt[1][L] - alt[0][L])
+          and not any(o is not m and depth(m, o) > 0.5 for o in ms))
+    if not ok:
+        m.min, m.max = alt
+        return False
+    if "w" in m.prof:
+        m.prof = {**m.prof, "w": round(m.max[q] - m.min[q])}
+    return True
 
 
 def _gurte_verlaengern(ms: list[Bauteil], m: Bauteil) -> bool:
@@ -477,6 +532,20 @@ def pruefen_und_reparieren(S: Sortiment, ms: list[Bauteil], groups: dict, g: dic
                         added.append(c)
             if added:
                 repairs.append(t("rep.auflage", name=m.name, n=len(added), holz=holz(lat["label"])))
+                fixed = True
+        if fixed:
+            setzen(ms, log)
+            continue
+
+        # c1) Liegende Teile, deren eines Ende neben einem Bein in der Luft hängt (z. B. Armlehne neben dem Vorderbein,
+        # weil sie dem Pfosten ausweichen musste): breiter machen, damit sie auf dem Bein liegt, und vor dem Pfosten enden
+        J = kontakte(ms)
+        gemeldet = set()
+        for m in ms:
+            if _auf_bein_legen(ms, m, J):
+                if m.part not in gemeldet:
+                    repairs.append(t("rep.auf_bein", name=m.name))
+                    gemeldet.add(m.part)
                 fixed = True
         if fixed:
             setzen(ms, log)

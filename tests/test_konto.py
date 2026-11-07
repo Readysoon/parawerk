@@ -122,3 +122,26 @@ def test_cors_nur_lokal():
     assert r.headers.get("access-control-allow-origin") == "http://localhost:54123"
     r = c.options("/api/v1/entwuerfe", headers={**h, "Origin": "https://boese.example"})
     assert "access-control-allow-origin" not in r.headers
+
+
+def test_stufen_im_demo_simulieren(tmp_path):
+    """Lokal ohne KI-Schlüssel: zweite Runde verlangt ein Konto, mit Konto zählt es weiter, nichts kostet etwas."""
+    from tests.hilfen import foto_und_maske
+    foto, maske = foto_und_maske()
+    e = Einstellungen(database_url=f"sqlite:///{tmp_path / 's.db'}", konto_pflicht=True, stufen_simulieren=True,
+                      replicate_api_token="", anthropic_api_key="")
+    app.dependency_overrides[einstellungen] = lambda: e
+    try:
+        with TestClient(app, headers={"X-Geraet": "simu-geraet-01"}) as c:
+            neu = {"foto": foto, "maske": maske, "wunsch": "Bank"}
+            assert c.post("/api/v1/entwuerfe", json=neu).status_code == 202
+            assert c.post("/api/v1/entwuerfe", json=neu).status_code == 401  # Stufe 2: Konto nötig
+            token = _anmelden(c, "simu-nutzer-001")
+            mit = {"Authorization": f"Bearer {token}"}
+            assert c.post("/api/v1/entwuerfe", json=neu, headers=mit).status_code == 202
+            assert c.get("/api/v1/kontingent", headers=mit).json()["runden"] == 2
+        from app.models import verbrauch as v
+        from app.models.verbrauch import datenbank
+        assert v.kosten_seit(datenbank(e.database_url), v.heute_beginn()) == 0
+    finally:
+        app.dependency_overrides.pop(einstellungen, None)

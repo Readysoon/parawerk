@@ -1,7 +1,6 @@
 // Konto: „Mit Apple anmelden“ und „Mit Google anmelden“. Der Server prüft das ID-Token des Anbieters.
 // Ein Konto braucht man fürs Anpassen, für weitere Runden und fürs Umwandeln in einen Bauplan (wenn eingeschaltet).
-import 'dart:io' show Platform;
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
@@ -14,6 +13,11 @@ import 'texte.dart';
 const _googleIos = String.fromEnvironment('GOOGLE_IOS_CLIENT_ID');
 const _googleWeb = String.fromEnvironment('GOOGLE_WEB_CLIENT_ID');
 
+bool get _iPhone => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+
+/// Nur wenn der Server im Demo-Modus läuft (lokal, ohne KI-Schlüssel): Anmelden ohne Apple/Google.
+Future<String?> _mitDemo(Api api) => api.anmelden('demo', 'demo-nutzer-${api.geraet}');
+
 Future<String?> _mitApple(Api api) async {
   final c = await SignInWithApple.getAppleIDCredential(scopes: [AppleIDAuthorizationScopes.email]);
   final token = c.identityToken;
@@ -24,7 +28,7 @@ Future<String?> _mitApple(Api api) async {
 Future<String?> _mitGoogle(Api api) async {
   final google = GoogleSignIn(
     scopes: const ['email'],
-    clientId: Platform.isIOS && _googleIos.isNotEmpty ? _googleIos : null,
+    clientId: _iPhone && _googleIos.isNotEmpty ? _googleIos : null,
     serverClientId: _googleWeb.isNotEmpty ? _googleWeb : null,
   );
   final konto = await google.signIn();
@@ -58,6 +62,15 @@ class _AnmeldeBlatt extends StatefulWidget {
 class _AnmeldeBlattState extends State<_AnmeldeBlatt> {
   bool _laeuft = false;
   String? _fehler;
+  bool _demo = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.api.konto().then((s) {
+      if (mounted) setState(() => _demo = s.demo);
+    }).catchError((_) {});
+  }
 
   Future<void> _los(Future<String?> Function(Api) anmelden) async {
     setState(() {
@@ -88,7 +101,16 @@ class _AnmeldeBlattState extends State<_AnmeldeBlatt> {
           const SizedBox(height: 8),
           Text(widget.grund ?? tr('konto_warum'), style: stil.bodyMedium),
           const SizedBox(height: 20),
-          if (Platform.isIOS) ...[
+          if (_demo) ...[
+            FilledButton.icon(
+              onPressed: _laeuft ? null : () => _los(_mitDemo),
+              icon: const Icon(Icons.science_outlined),
+              label: Text(tr('mit_demo')),
+              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+            ),
+            const SizedBox(height: 12),
+          ],
+          if (_iPhone) ...[
             SignInWithAppleButton(
               text: tr('mit_apple'),
               height: 48,
@@ -96,6 +118,7 @@ class _AnmeldeBlattState extends State<_AnmeldeBlatt> {
             ),
             const SizedBox(height: 12),
           ],
+          if (!kIsWeb || _googleWeb.isNotEmpty)
           OutlinedButton.icon(
             onPressed: _laeuft ? null : () => _los(_mitGoogle),
             icon: const Icon(Icons.account_circle_outlined),

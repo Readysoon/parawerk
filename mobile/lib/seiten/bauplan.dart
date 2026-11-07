@@ -1,7 +1,6 @@
 // Bauplan: 3D-Modell, Prüfung, Einkaufsliste, Montage, Zuschnitt. Per Text anpassen.
 // Alle Texte des Bauplans kommen fertig übersetzt vom Server.
-import 'dart:io' show Platform;
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -225,7 +224,7 @@ class _BauplanSeiteState extends State<BauplanSeite> {
             ),
             Text(tr('modell_3d'), style: stil.bodySmall),
             // AR: das Möbel in echter Größe im Zimmer (iPhone: AR Quick Look öffnet die USDZ-Datei)
-            if (usdz != null && Platform.isIOS) ...[
+            if (usdz != null && !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) ...[
               const SizedBox(height: 8),
               FilledButton.tonalIcon(
                 onPressed: () => _imRaumAnsehen(usdz),

@@ -69,10 +69,11 @@ class MassErgebnis {
 
 /// Angemeldet als … und welche Schranken der Server gerade verlangt.
 class KontoStand {
-  KontoStand(this.email, this.kontoPflicht, this.bezahlungPflicht);
+  KontoStand(this.email, this.kontoPflicht, this.bezahlungPflicht, {this.demo = false});
   final String? email; // null = nicht angemeldet; sonst E-Mail oder „Apple“/„Google“
   final bool kontoPflicht;
   final bool bezahlungPflicht;
+  final bool demo; // Server ohne KI-Schlüssel (lokal): dann gibt es „Demo-Anmeldung“ zum Durchspielen der Stufen
 }
 
 class Api {
@@ -122,7 +123,8 @@ class Api {
   Future<KontoStand> konto() async {
     final j = await _get('/api/v1/konto');
     if (j['email'] == null && _sitzung != null) await _sitzungSpeichern(null); // Sitzung abgelaufen oder gelöscht
-    return KontoStand(j['email'] as String?, j['konto_pflicht'] == true, j['bezahlung_pflicht'] == true);
+    return KontoStand(j['email'] as String?, j['konto_pflicht'] == true, j['bezahlung_pflicht'] == true,
+        demo: j['demo'] == true);
   }
 
   /// ID-Token von Apple oder Google gegen eine Parawerk-Sitzung tauschen. Gibt den Anzeigenamen zurück.

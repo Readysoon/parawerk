@@ -117,10 +117,12 @@ class Kostendeckel:
                 art == "runde" and v.anzahl(self.db, "runde", geraet=k.geraet) >= self.e.gratis_runden):
             raise Gesperrt(401, t("fehler.konto_noetig"))
 
-    def reservieren(self, art: str, k: Kunde) -> int:
-        """Prüft die Regeln und trägt die geschätzten Kosten ein. Gibt die Nummer des Eintrags zurück."""
+    def reservieren(self, art: str, k: Kunde, kostenlos: bool = False) -> int:
+        """Prüft die Regeln und trägt die geschätzten Kosten ein. Gibt die Nummer des Eintrags zurück.
+
+        ``kostenlos``: nur zählen, nicht fürs Tagesbudget (Demo-Modus mit ``stufen_simulieren``)."""
         self._pruefen(art, k)
-        return v.eintragen(self.db, k.geraet, k.ip, art, KOSTEN[art])
+        return v.eintragen(self.db, k.geraet, k.ip, art, 0.0 if kostenlos else KOSTEN[art])
 
     def erstatten(self, eintrag: int | None) -> None:
         """Aufruf ist fehlgeschlagen: zählt weder fürs Kontingent noch fürs Budget."""

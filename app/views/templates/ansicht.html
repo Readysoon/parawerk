@@ -20,6 +20,14 @@
     const viewer = new Viewer3D(document.getElementById('viewer'), { fuellen: true });
     window.zeigen = (modell, kameraHalten = false) => viewer.zeigen(modell, { kameraHalten });
     window.Bereit?.postMessage('bereit');  // Kanal der App: jetzt kann sie das Modell schicken
+    // Flutter-App im Browser: Ansicht steckt in einem iframe, Daten kommen per postMessage (nur Anzeige, keine Rechte)
+    if (window.parent !== window) {
+      addEventListener('message', (ev) => {
+        const d = ev.data;
+        if (d && d.parawerk === 'zeigen' && d.modell) window.zeigen(d.modell, !!d.kameraHalten);
+      });
+      window.parent.postMessage({ parawerk: 'bereit' }, '*');
+    }
   </script>
 </body>
 </html>

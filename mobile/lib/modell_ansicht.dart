@@ -8,10 +8,30 @@ import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import 'api.dart';
+import 'modell_web_ersatz.dart' if (dart.library.js_interop) 'modell_web.dart';
 import 'texte.dart';
 
-class ModellAnsicht extends StatefulWidget {
+/// Im Browser ein iframe, sonst ein Webfenster (webview_flutter gibt es im Browser nicht).
+class ModellAnsicht extends StatelessWidget {
   const ModellAnsicht({super.key, required this.modell, this.kameraHalten = false});
+  final Map<String, dynamic> modell;
+  final bool kameraHalten;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!kIsWeb) return _AppModell(modell: modell, kameraHalten: kameraHalten);
+    return AspectRatio(
+      aspectRatio: 1.5,
+      child: Semantics(
+        label: tr('modell_3d'),
+        child: WebModell(url: '$apiBasis/ansicht?sprache=$sprache', modell: modell, kameraHalten: kameraHalten),
+      ),
+    );
+  }
+}
+
+class _AppModell extends StatefulWidget {
+  const _AppModell({required this.modell, this.kameraHalten = false});
 
   /// Teile als Quader wie in der Antwort von /api/v1/bauplan/berechnen (Feld "modell").
   final Map<String, dynamic> modell;
@@ -20,10 +40,10 @@ class ModellAnsicht extends StatefulWidget {
   final bool kameraHalten;
 
   @override
-  State<ModellAnsicht> createState() => _ModellAnsichtState();
+  State<_AppModell> createState() => _ModellAnsichtState();
 }
 
-class _ModellAnsichtState extends State<ModellAnsicht> {
+class _ModellAnsichtState extends State<_AppModell> {
   late final WebViewController _web;
   bool _bereit = false;
 
@@ -41,7 +61,7 @@ class _ModellAnsichtState extends State<ModellAnsicht> {
   }
 
   @override
-  void didUpdateWidget(ModellAnsicht alt) {
+  void didUpdateWidget(_AppModell alt) {
     super.didUpdateWidget(alt);
     if (!identical(alt.modell, widget.modell)) _senden();
   }

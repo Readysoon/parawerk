@@ -75,10 +75,10 @@ def _rechnen(graph: dict, bereich: list[float], sortiment: str, schnell: bool = 
         raise HTTPException(422, t("fehler.modell", art=type(err).__name__)) from err
 
 
-async def reservieren(deckel: Kostendeckel, art: str, k: Kunde) -> int:
+async def reservieren(deckel: Kostendeckel, art: str, k: Kunde, kostenlos: bool = False) -> int:
     """Kosten vor dem Aufruf eintragen; ist das Kontingent oder Budget erschöpft, gibt es eine lesbare Fehlermeldung."""
     try:
-        return await run_in_threadpool(deckel.reservieren, art, k)
+        return await run_in_threadpool(deckel.reservieren, art, k, kostenlos)
     except Gesperrt as g:
         raise HTTPException(g.status, str(g)) from g
 
@@ -90,6 +90,13 @@ async def konto_pruefen(deckel: Kostendeckel, art: str, k: Kunde) -> None:
         raise HTTPException(g.status, str(g)) from g
 
 
+async def zaehlen(deckel: Kostendeckel, art: str, k: Kunde, demo: bool, e: Einstellungen) -> int | None:
+    """Echte Aufrufe immer; im Demo-Modus nur mit ``stufen_simulieren`` (dann kostenlos), sonst gar nicht."""
+    if not demo:
+        return await reservieren(deckel, art, k)
+    return await reservieren(deckel, art, k, kostenlos=True) if e.stufen_simulieren else None
+
+
 async def erstatten(deckel: Kostendeckel, eintrag: int | None) -> None:
     await run_in_threadpool(deckel.erstatten, eintrag)
 
@@ -98,7 +105,7 @@ async def erstatten(deckel: Kostendeckel, eintrag: int | None) -> None:
 async def kontingent(k: Kunde = Depends(kunde), deckel: Kostendeckel = Depends(kostendeckel),
                      e: Einstellungen = Depends(einstellungen)) -> dict:
     """Verbleibende Gratis-Runden und -Änderungen (``null`` = unbegrenzt bzw. Demo-Modus)."""
-    if not e.bild_ki_aktiv:
+    if not e.bild_ki_aktiv and not e.stufen_simulieren:
         return {"runden": None, "nachjustieren": None}
     return await run_in_threadpool(deckel.stand, k)
 
@@ -235,7 +242,7 @@ async def entwuerfe(anfrage: EntwuerfeV1, ki: BildKI = Depends(bild_ki), kon: Ko
         raise HTTPException(400, t("fehler.nichts_markiert"))
     foto_id = anfrage.foto_id or await run_in_threadpool(speicher.bild_speichern, db, k.geraet, ba.jpeg(foto), "image/jpeg")
     maske_id = anfrage.maske_id or await run_in_threadpool(speicher.bild_speichern, db, k.geraet, ba.png(maske), "image/png")
-    eintrag = None if ki.demo else await reservieren(deckel, "runde", k)
+    eintrag = await zaehlen(deckel, "runde", k, ki.demo, e)
 
     async def arbeit() -> dict:
         foto_url = ba.als_data_url(ba.jpeg(foto), "image/jpeg")
@@ -267,6 +274,7 @@ async def nachjustieren(anfrage: NachjustierenV1, ki: BildKI = Depends(bild_ki),
                         deckel: Kostendeckel = Depends(kostendeckel), k: Kunde = Depends(kunde),
                         e: Einstellungen = Depends(einstellungen)) -> AuftragAntwort:
     """Einen Entwurf per Text ändern; eingesetzt wird wieder nur der markierte Bereich."""
+    await konto_pruefen(deckel, "nachjustieren", k)
     if ki.demo:
         raise HTTPException(501, t("fehler.nj_demo"))
     db = _db(e)
@@ -332,7 +340,7 @@ async def lesen(anfrage: LesenV1, kon: Konstrukteur = Depends(konstrukteur), dec
     await konto_pruefen(deckel, "lesen", k)
     db = _db(e)
     entwurf, maske = _bild(db, anfrage.entwurf_id), _bild(db, anfrage.maske_id).convert("L")
-    eintrag = None if kon.demo else await reservieren(deckel, "lesen", k)
+    eintrag = await zaehlen(deckel, "lesen", k, kon.demo, e)
 
     async def arbeit() -> dict:
         teil = ba.ausschnitt(entwurf, maske.resize(entwurf.size) if maske.size != entwurf.size else maske)

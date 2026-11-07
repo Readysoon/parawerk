@@ -31,24 +31,37 @@ class FreischaltAnfrage(BaseModel):
     entwurf_id: str | None = Field(None, max_length=32)
 
 
-def stufen(k: Kunde, e: Einstellungen) -> dict:
+LOKAL = ("127.0.0.1", "::1", "localhost", "testclient")
+
+
+def demo_anmeldung(request: Request, e: Einstellungen) -> bool:
+    """Anmelden ohne Apple/Google: im Demo-Modus (ohne KI-Schlüssel) immer, sonst nur mit ``stufen_simulieren``
+    und nur direkt vom selben Computer (lokaler Server, keine Weiterleitung über einen Proxy wie bei fly.io)."""
+    if not (e.claude_aktiv or e.bild_ki_aktiv):
+        return True
+    h = request.headers
+    direkt = not (h.get("fly-client-ip") or h.get("x-forwarded-for") or h.get("fly-region"))
+    return e.stufen_simulieren and direkt and bool(request.client) and request.client.host in LOKAL
+
+
+def stufen(k: Kunde, e: Einstellungen, request: Request) -> dict:
     return {"email": k.email, "konto_pflicht": e.konto_pflicht, "bezahlung_pflicht": e.bezahlung_pflicht,
             "apple_web": e.apple_web_client_id or None, "google_web": e.google_web_client_id or None,
-            "demo": not (e.claude_aktiv or e.bild_ki_aktiv)}
+            "demo": demo_anmeldung(request, e)}
 
 
 @router.get("/konto")
-async def konto(k: Kunde = Depends(kunde), e: Einstellungen = Depends(einstellungen)) -> dict:
+async def konto(request: Request, k: Kunde = Depends(kunde), e: Einstellungen = Depends(einstellungen)) -> dict:
     """Angemeldet als …, welche Schranken gelten und welche Anmelde-Knöpfe die Website zeigt."""
-    return stufen(k, e)
+    return stufen(k, e, request)
 
 
-def pruefer(e: Einstellungen = Depends(einstellungen)):
-    """Prüft ID-Tokens (in Tests ersetzbar). Im Demo-Modus ohne KI-Schlüssel gibt es zusätzlich ``demo``."""
+def pruefer(request: Request, e: Einstellungen = Depends(einstellungen)):
+    """Prüft ID-Tokens (in Tests ersetzbar). Zusätzlich ``demo``, wenn ``demo_anmeldung`` es erlaubt."""
     def pruefe(anbieter: str, id_token: str) -> Identitaet:
         if anbieter == "demo":
-            if e.claude_aktiv or e.bild_ki_aktiv:
-                raise AnmeldeFehler("Demo-Anmeldung nur im Demo-Modus")
+            if not demo_anmeldung(request, e):
+                raise AnmeldeFehler("Demo-Anmeldung nur im Demo-Modus oder lokal mit STUFEN_SIMULIEREN")
             return Identitaet("demo", id_token[:64], None)
         return pruefen(anbieter, id_token, e.client_ids(anbieter))
     return pruefe

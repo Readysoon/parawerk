@@ -145,3 +145,24 @@ def test_stufen_im_demo_simulieren(tmp_path):
         assert v.kosten_seit(datenbank(e.database_url), v.heute_beginn()) == 0
     finally:
         app.dependency_overrides.pop(einstellungen, None)
+
+
+def test_demo_anmeldung_mit_ki_nur_lokal_und_simuliert(tmp_path):
+    def mit(**kw):
+        e = Einstellungen(database_url=f"sqlite:///{tmp_path / 'd.db'}", replicate_api_token="r8_x",
+                          anthropic_api_key="sk-x", **kw)
+        app.dependency_overrides[einstellungen] = lambda: e
+    try:
+        with TestClient(app) as c:
+            demo = {"id_token": "demo-nutzer-xxxxxxxxxxxxxx"}
+            mit()  # echte Schlüssel, ohne Simulation: keine Demo-Anmeldung
+            assert c.get("/api/v1/konto").json()["demo"] is False
+            assert c.post("/api/v1/konto/anmelden/demo", json=demo).status_code == 401
+            mit(stufen_simulieren=True)  # lokal mit Simulation: erlaubt
+            assert c.get("/api/v1/konto").json()["demo"] is True
+            assert c.post("/api/v1/konto/anmelden/demo", json=demo).status_code == 200
+            # über einen Proxy (wie fly.io) nie
+            assert c.post("/api/v1/konto/anmelden/demo", json=demo,
+                          headers={"Fly-Client-IP": "1.2.3.4"}).status_code == 401
+    finally:
+        app.dependency_overrides.pop(einstellungen, None)

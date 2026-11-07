@@ -43,8 +43,9 @@ class Einstellungen(BaseSettings):
     konto_pflicht: bool = False
     bezahlung_pflicht: bool = False
     gratis_runden_konto: int = 3  # Runden insgesamt je Konto (statt gratis_runden je Gerät)
-    # Nur im Demo-Modus (ohne KI-Schlüssel): Runden und Lesen zählen trotzdem (kostenlos), damit man die Stufen
-    # lokal durchspielen kann, z. B. mit der Flutter-App im Browser. Ohne Wirkung, sobald KI-Schlüssel gesetzt sind.
+    # Stufen lokal durchspielen, z. B. mit der Flutter-App im Browser (nie auf fly.io setzen):
+    # - „Demo-Anmeldung“ ohne Apple/Google, auch mit KI-Schlüsseln, aber nur direkt vom selben Computer
+    # - im Demo-Modus (ohne KI-Schlüssel) zählen Runden und Lesen trotzdem, kostenlos
     stufen_simulieren: bool = False
     # Anmelden mit Apple und Google: erlaubte Client-IDs, durch Komma getrennt.
     # Apple: Bundle-ID der App (at.parawerk.parawerk) und, für die Website, die Services-ID.

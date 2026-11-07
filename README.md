@@ -32,9 +32,9 @@ pytest
 
 **Ohne Schlüssel** läuft der Demo-Modus mit Beispielzimmer, vier fertigen Entwürfen und den dazu gelesenen Konstruktionen. Die Engine rechnet dabei echt. Nur das Anpassen per Text braucht den Claude-Schlüssel.
 
-**Stufen lokal durchspielen** (Konto- und Bezahlschranke, z. B. mit der Flutter-App im Browser): Server ohne Schlüssel starten, die Schranken einschalten und mit `STUFEN_SIMULIEREN=true` die Runden zählen lassen (kostet nichts). Anmelden geht dann mit „Demo-Anmeldung“, freischalten mit dem Code `TEST`.
+**Stufen lokal durchspielen** (Konto- und Bezahlschranke, z. B. mit der Flutter-App im Browser): Schranken einschalten und `STUFEN_SIMULIEREN=true` setzen. Anmelden geht dann mit „Demo-Anmeldung“ (nur vom selben Computer), freischalten mit dem Code `TEST`. Die KI-Schlüssel aus `.env` werden normal genutzt; ohne Schlüssel läuft der Demo-Modus und die Runden zählen trotzdem (kostenlos).
 ```
-REPLICATE_API_TOKEN= ANTHROPIC_API_KEY= KONTO_PFLICHT=true BEZAHLUNG_PFLICHT=true STUFEN_SIMULIEREN=true TESTCODES=TEST:5:1:5 uvicorn app.main:app --reload
+KONTO_PFLICHT=true BEZAHLUNG_PFLICHT=true STUFEN_SIMULIEREN=true TESTCODES=TEST:5:1:5 uvicorn app.main:app --reload
 cd mobile && flutter run -d chrome --dart-define=API=http://localhost:8000
 ```
 

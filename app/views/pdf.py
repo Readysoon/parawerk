@@ -215,7 +215,7 @@ def bauplan_pdf(ansicht: dict, modell: dict, entwurf: Image.Image | None = None,
     zeilen = [[_p(t("pdf.buchstabe")), _p(t("pdf.anzahl")), _p(t("pdf.bezeichnung")), _p(t("pdf.holz")), _p(t("pdf.mass"))]]
     zeilen += [[_p(x["b"], ParagraphStyle("b", parent=_text, fontName="Helvetica-Bold")), _p(f"{x['n']}×"), _p(x["name"]),
                 _p(x["holz"]), _p(x["mass"])] for x in ansicht["teileliste"]]
-    inhalt += [Spacer(1, 4), _p(t("pdf.teile_hinweis"), _klein), Spacer(1, 2),
+    inhalt += [Spacer(1, 4), _p(t("pdf.teile_hinweis") + " " + t("pdf.haftung_kurz"), _klein), Spacer(1, 2),
                _tabelle(zeilen, [12 * mm, 14 * mm, 50 * mm, 58 * mm, BREITE - 134 * mm]), PageBreak()]
 
     # Einkaufsliste und Werkzeug nebeneinander
@@ -285,6 +285,15 @@ def bauplan_pdf(ansicht: dict, modell: dict, entwurf: Image.Image | None = None,
             for platte in g["platten"]:
                 teil += [_platte(platte, g["seitenverhaeltnis"], BREITE * 0.75), Spacer(1, 4)]
         inhalt.append(KeepTogether(teil))
+
+    # Sicherheit und Haftung (wie bei Baumarkt-Anleitungen am Ende; „Vorbemessung“ statt „statisch geprüft“)
+    kasten = Table([[[_p(t("pdf.sicherheit"), _h3)] + [_p(f"- {x}", _klein) for x in t("pdf.sicherheit_punkte").split("|")]
+                      + [Spacer(1, 4), _p(t("pdf.haftung_titel"), _h3), _p(t("pdf.haftung"), _klein)]]],
+                   colWidths=[BREITE], hAlign="LEFT")
+    kasten.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), BEIGE), ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                                ("RIGHTPADDING", (0, 0), (-1, -1), 8), ("TOPPADDING", (0, 0), (-1, -1), 6),
+                                ("BOTTOMPADDING", (0, 0), (-1, -1), 8)]))
+    inhalt += [Spacer(1, 10), KeepTogether([kasten])]
 
     doc.build(inhalt, onFirstPage=seite, onLaterPages=seite)
     return puffer.getvalue()

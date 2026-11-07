@@ -64,6 +64,10 @@
     </div>
     {% endfor %}
     <p class="hint">{{ t("bp.orange") }}</p>
+    <details class="hint"><summary>{{ t("pdf.sicherheit") }} · {{ t("pdf.haftung_titel") }}</summary>
+      <ul>{% for x in t("pdf.sicherheit_punkte").split("|") %}<li>{{ x }}</li>{% endfor %}</ul>
+      <p>{{ t("pdf.haftung") }}</p>
+    </details>
   </section>
 </div>
 

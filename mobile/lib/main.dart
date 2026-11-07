@@ -9,9 +9,13 @@ import 'texte.dart';
 
 const zollstockGelb = Color(0xFFE8B400);
 
+/// Sprache fest vorgeben, z. B. im Browser: flutter run -d chrome --dart-define=SPRACHE=de (leer: wie das Gerät)
+const _festeSprache = String.fromEnvironment('SPRACHE');
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  sprache = ui.PlatformDispatcher.instance.locale.languageCode == 'de' ? 'de' : 'en';
+  final geraet = ui.PlatformDispatcher.instance.locale.languageCode;
+  sprache = (_festeSprache == 'de' || _festeSprache == 'en') ? _festeSprache : (geraet == 'de' ? 'de' : 'en');
   final api = await Api.erstellen(sprache);
   runApp(ParawerkApp(api: api));
 }

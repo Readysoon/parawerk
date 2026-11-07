@@ -35,7 +35,7 @@ pytest
 **Stufen lokal durchspielen** (Konto- und Bezahlschranke, z. B. mit der Flutter-App im Browser): Schranken einschalten und `STUFEN_SIMULIEREN=true` setzen. Anmelden geht dann mit „Demo-Anmeldung“ (nur vom selben Computer), freischalten mit dem Code `TEST`. Die KI-Schlüssel aus `.env` werden normal genutzt; ohne Schlüssel läuft der Demo-Modus und die Runden zählen trotzdem (kostenlos).
 ```
 KONTO_PFLICHT=true BEZAHLUNG_PFLICHT=true STUFEN_SIMULIEREN=true TESTCODES=TEST:5:1:5 uvicorn app.main:app --reload
-cd mobile && flutter run -d chrome --dart-define=API=http://localhost:8000
+cd mobile && flutter run -d chrome --dart-define=API=http://localhost:8000 --dart-define=SPRACHE=de
 ```
 
 API-Dokumentation: `/docs`.

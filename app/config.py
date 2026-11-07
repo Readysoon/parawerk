@@ -34,7 +34,8 @@ class Einstellungen(BaseSettings):
     tagesbudget_usd: float = 5.0  # alle zusammen, Notbremse
     # Testcodes für Tester: "KUMPEL:10,FREUNDE:5:3" = Code:Runden[:Geräte]; ohne Geräte-Angabe genau ein Gerät
     testcodes: str = ""
-    admin_schluessel: str = ""  # ?schluessel=… auf der Startseite hebt die Kontingente für diesen Browser auf
+    admin_schluessel: str = ""
+    oeffentliche_url: str = "https://parawerk.fly.dev"  # für Links und QR-Codes in der PDF  # ?schluessel=… auf der Startseite hebt die Kontingente für diesen Browser auf
 
     @property
     def codes(self) -> dict[str, tuple[int, int]]:

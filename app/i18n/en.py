@@ -130,6 +130,7 @@ TEXTE = {
     "pdf.punkte": "Black dots in the picture show the screw positions visible from the front. Always pre-drill and countersink.",
     "pdf.preis": "approx. price",
     "pdf.summe": "Total incl. cutting",
+    "pdf.qr": "Scan to rotate the 3D model and view it life-size in AR",
     "statik.knicken": "buckling", "statik.schrauben": "screw connection",
     "wort.vorne": "forwards", "wort.seite": "sideways", "wort.hinten": "backwards",
     "chk.liegt_nicht": "{name} rests on nothing.",

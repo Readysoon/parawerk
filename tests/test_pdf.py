@@ -1,12 +1,10 @@
 """Bauplan als PDF: mit und ohne Entwurf, als Download und als Link für die App, in beiden Sprachen."""
 from __future__ import annotations
 
-import io
 import json
 from pathlib import Path
 
 from fastapi.testclient import TestClient
-from PIL import Image
 
 from app.main import app
 from app.views.pdf import _sauber
@@ -46,7 +44,7 @@ def _pdf_text(daten: bytes) -> bytes:
     import base64
     import re
     import zlib
-    teile = re.findall(rb"/Filter \[ /ASCII85Decode /FlateDecode \][^>]*>>\s*stream\r?\n(.*?)endstream", daten, re.S)
+    teile = re.findall(rb"/Filter \[ /ASCII85Decode /FlateDecode \][^>]*>>\s*stream\r?\n(.*?)endstream", daten, re.DOTALL)
     return b"".join(zlib.decompress(base64.a85decode(t.strip().removesuffix(b"~>"))) for t in teile)
 
 
@@ -56,3 +54,32 @@ def test_ohne_pruefung_im_pdf():
     text = _pdf_text(r.content)
     assert b"Einkaufsliste" in text and b"Schritt 1" in text and b"Das brauchst du" in text and b"Werkzeug" in text
     assert b"Pr\xfcfung" not in text and b"Faustregel" not in text  # Prüfungen sind intern
+
+
+def test_qr_link_zum_3d_modell_mit_ar():
+    """Die PDF verlinkt ein dauerhaft gespeichertes 3D-Modell; die Seite dazu hat AR für iPhone und Android."""
+    import re
+    import zlib
+
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+    from tests.hilfen import alte_graphen
+    with TestClient(app, headers={"X-Geraet": "qr-test-0001"}) as c:
+        r = c.post("/api/v1/bauplan/pdf", json={"graph": alte_graphen()[2], "bereich": [6000, 3000, 3000]})
+        assert r.status_code == 200
+        roh = r.content
+        links = re.findall(rb"/URI \((https://parawerk\.fly\.dev/m/[\w-]+)\)", roh)
+        if not links:  # Annotationen können komprimiert sein
+            for strom in re.findall(rb"stream\r?\n(.*?)\r?\nendstream", roh, re.DOTALL):
+                try:
+                    links += re.findall(rb"https://parawerk\.fly\.dev/m/[\w-]+", zlib.decompress(strom))
+                except zlib.error:
+                    pass
+        assert links, "kein Link zum 3D-Modell in der PDF"
+        pfad = links[0].decode().split("fly.dev")[1]
+        seite = c.get(pfad)
+        assert seite.status_code == 200 and 'rel="ar"' in seite.text and "scene-viewer" in seite.text
+        assert c.get(pfad + ".usdz").content[:2] == b"PK"
+        assert c.get(pfad + ".glb").content[:4] == b"glTF"
+        assert c.get("/m/gibtsnicht").status_code == 404

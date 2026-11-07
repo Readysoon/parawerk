@@ -38,6 +38,31 @@ auftraege = Table(
 )
 
 
+# 3D-Modelle zu einem Bauplan, für den Link und QR-Code in der PDF. Bleiben dauerhaft (ein gedruckter Bauplan soll
+# auch nach Monaten noch funktionieren). Nur Quader-Koordinaten und Teilnamen: keine Fotos, kein Gerät.
+modelle = Table(
+    "modelle", metadata,
+    Column("id", String(32), primary_key=True),
+    Column("name", String(200), nullable=False),
+    Column("modell", Text, nullable=False),  # JSON wie views.praesentation.modell_3d
+    Column("erstellt", DateTime(timezone=True), nullable=False),
+)
+
+
+def modell_speichern(db: Engine, name: str, modell: dict) -> str:
+    mid = secrets.token_urlsafe(9)  # 12 Zeichen: kurzer Link, nicht erratbar
+    with db.begin() as c:
+        c.execute(insert(modelle).values(id=mid, name=name[:200], modell=json.dumps(modell, separators=(",", ":")),
+                                         erstellt=jetzt()))
+    return mid
+
+
+def modell_laden(db: Engine, mid: str) -> tuple[str, dict] | None:
+    with db.connect() as c:
+        z = c.execute(select(modelle.c.name, modelle.c.modell).where(modelle.c.id == mid)).first()
+    return (z.name, json.loads(z.modell)) if z else None
+
+
 def neue_id() -> str:
     return secrets.token_hex(16)
 

@@ -131,6 +131,7 @@ TEXTE = {
     "pdf.punkte": "Die schwarzen Punkte im Bild zeigen die Schraubstellen, die man von vorne sieht. Immer vorbohren und versenken.",
     "pdf.preis": "ca. Preis",
     "pdf.summe": "Summe mit Zuschnitt",
+    "pdf.qr": "Scannen: 3D-Modell drehen und in AR in Originalgröße ansehen",
     "statik.knicken": "Knicken", "statik.schrauben": "Verschraubung",
     "wort.vorne": "nach vorne", "wort.seite": "zur Seite", "wort.hinten": "nach hinten",
     "chk.liegt_nicht": "{name} liegt nirgends auf.",

@@ -415,7 +415,10 @@ async def pdf(anfrage: PdfV1, link: bool = False, k: Kunde = Depends(kunde),
         gefunden = await run_in_threadpool(speicher.bild_laden, _db(e), anfrage.entwurf_id)
         if gefunden and gefunden[1].startswith("image/"):
             entwurf = ba.aus_bytes(gefunden[0])
-    daten = await run_in_threadpool(bauplan_pdf, bauplan_ansicht(ergebnis, graph, anfrage.bereich), modell_3d(ergebnis), entwurf)
+    modell = modell_3d(ergebnis)
+    mid = await run_in_threadpool(speicher.modell_speichern, _db(e), graph["name"], modell)
+    link3d = f"{e.oeffentliche_url.rstrip('/')}/m/{mid}"
+    daten = await run_in_threadpool(bauplan_pdf, bauplan_ansicht(ergebnis, graph, anfrage.bereich), modell, entwurf, link3d)
     name = _dateiname(graph["name"])
     await run_in_threadpool(analyse.eintragen, _db(e), "pdf", {
         "bereich": anfrage.bereich, "graph": graph, "masse": ergebnis.dims, "teile": len(ergebnis.members),

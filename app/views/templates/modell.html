@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="{{ sprache() }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="color-scheme" content="light">
+  <title>{{ name }} · Parawerk 3D</title>
+  {# Ziel des QR-Codes in der Bauplan-PDF: Modell drehen, Buchstaben der Teile, AR in Originalgröße. #}
+  <style>
+    :root{--board:#d8c2a0;--mark:#d8c2a0;--soft:#c9ced6;--gurt:#3b3f46}
+    html,body{margin:0;height:100%;background:#eef0f2;overflow:hidden;font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#1c2530}
+    canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+    header{position:fixed;left:0;right:0;top:0;padding:14px 16px;background:linear-gradient(#eef0f2,#eef0f200);pointer-events:none}
+    h1{margin:0;font-size:17px}
+    .hint{margin:2px 0 0;color:#5b6573;font-size:13px}
+    .knoepfe{position:fixed;left:16px;right:16px;bottom:max(16px,env(safe-area-inset-bottom));display:flex;gap:10px;justify-content:center}
+    .knoepfe a{display:inline-flex;align-items:center;gap:8px;padding:12px 18px;border-radius:999px;background:#1c2530;color:#fff;text-decoration:none;font-weight:600}
+    .knoepfe a img{width:20px;height:20px}
+    [hidden]{display:none!important}
+  </style>
+  <script type="importmap">{"imports": {"three": "/static/vendor/three-0.160.0.module.js"}}</script>
+</head>
+<body>
+  <canvas id="viewer" aria-label="{{ t('ui.viewer_aria') }}"></canvas>
+  <header><h1>{{ name }}</h1><p class="hint">{{ t("modell.hinweis") }}</p></header>
+  <div class="knoepfe">
+    {# iPhone/iPad: Safari öffnet AR Quick Look nur bei rel="ar" mit einem Bild im Link #}
+    <a id="ar-ios" rel="ar" href="{{ usdz }}#allowsContentScaling=0" hidden><img src="/static/ar.svg" alt="">{{ t("modell.ar") }}</a>
+    <a id="ar-android" href="intent://arvr.google.com/scene-viewer/1.0?file={{ glb_absolut | urlencode }}&mode=ar_preferred#Intent;scheme=https;package=com.google.ar.core;action=android.intent.action.VIEW;S.browser_fallback_url={{ glb_absolut | urlencode }};end;" hidden>{{ t("modell.ar") }}</a>
+  </div>
+  <script id="modell" type="application/json">{{ modell | tojson }}</script>
+  <script type="module">
+    import { Viewer3D } from '/static/js/viewer3d.js';
+    const viewer = new Viewer3D(document.getElementById('viewer'), { fuellen: true });
+    viewer.zeigen(JSON.parse(document.getElementById('modell').textContent));
+    const a = document.createElement('a');
+    if (a.relList && a.relList.supports && a.relList.supports('ar')) document.getElementById('ar-ios').hidden = false;
+    else if (/android/i.test(navigator.userAgent)) document.getElementById('ar-android').hidden = false;
+  </script>
+</body>
+</html>

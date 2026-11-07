@@ -12,6 +12,7 @@ from datetime import date
 from xml.sax.saxutils import escape
 
 from PIL import Image
+from reportlab.graphics.barcode.qr import QrCodeWidget
 from reportlab.graphics.shapes import Circle, Drawing, Rect, String
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -143,12 +144,6 @@ def _kopf(kopf: dict) -> Table:
     return tab
 
 
-def _kaestchen() -> Drawing:
-    d = Drawing(10, 10)
-    d.add(Rect(1, 0, 9, 9, fillColor=colors.white, strokeColor=GRAU, strokeWidth=0.8))
-    return d
-
-
 def _schrittbild(modell: dict, ids: set[str], vorher: set[str], stellen: list[dict], breite: int = 1500,
                  hoehe: int = 1000) -> Image.Image:
     """Modell bis zu diesem Schritt: neue Teile orange mit Buchstaben, fertige Teile blass, spätere fehlen."""
@@ -171,8 +166,17 @@ def _brauchst(s: dict) -> list:
     return zeilen
 
 
-def bauplan_pdf(ansicht: dict, modell: dict, entwurf: Image.Image | None = None) -> bytes:
-    """``ansicht`` wie ``bauplan_ansicht``, ``modell`` wie ``modell_3d``; ``entwurf`` = gewählter Entwurf (optional)."""
+def _qr(text: str, groesse: float) -> Drawing:
+    w = QrCodeWidget(text, barLevel="M")
+    x0, y0, x1, y1 = w.getBounds()
+    d = Drawing(groesse, groesse, transform=[groesse / (x1 - x0), 0, 0, groesse / (y1 - y0), 0, 0])
+    d.add(w)
+    return d
+
+
+def bauplan_pdf(ansicht: dict, modell: dict, entwurf: Image.Image | None = None, link: str | None = None) -> bytes:
+    """``ansicht`` wie ``bauplan_ansicht``, ``modell`` wie ``modell_3d``; ``entwurf`` = gewählter Entwurf (optional);
+    ``link`` = Adresse des drehbaren 3D-Modells mit AR (kommt als QR-Code und Link auf Seite 1)."""
     puffer = io.BytesIO()
     titel = t("pdf.titel", name=ansicht["name"])
 
@@ -193,33 +197,26 @@ def bauplan_pdf(ansicht: dict, modell: dict, entwurf: Image.Image | None = None)
                      f"{t('bp.einzelteile')}", _klein))
     inhalt += [Spacer(1, 6), _kopf(ansicht["kopf"]), Spacer(1, 8)]
 
-    # Bilder: Entwurf und 3D-Modell nebeneinander (ohne Entwurf das 3D-Modell groß); alles in Holzfarbe
-    modell_img = modell_als_bild({**modell, "teile": [{**x, "stil": "holz"} for x in modell["teile"]]})
+    # Seite 1: das Möbel mit Buchstaben, daneben QR-Code und Link zum drehbaren 3D-Modell, darunter die Teileliste
+    teile_bild = modellbild({"teile": [{**x, "stil": "holz"} for x in modell["teile"]]}, 2400, 1600, beschriften="alle",
+                            hintergrund=(255, 255, 255)).resize((1200, 800), Image.LANCZOS)
+    rechts = []
     if entwurf is not None:
-        halb = (BREITE - 6 * mm) / 2
-        bilder = Table([[_bild(entwurf, halb), _bild(modell_img, halb)],
-                        [_p(t("pdf.entwurf"), _klein), _p(t("pdf.modell"), _klein)]],
-                       colWidths=[halb + 3 * mm, halb + 3 * mm], hAlign="LEFT")
-        bilder.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "BOTTOM"), ("LEFTPADDING", (0, 0), (-1, -1), 0)]))
-        inhalt.append(bilder)
+        rechts += [_bild(entwurf, BREITE * 0.3), _p(t("pdf.entwurf"), _klein), Spacer(1, 6)]
+    if link:
+        rechts += [_qr(link, 30 * mm), Spacer(1, 2), _p(t("pdf.qr"), ParagraphStyle("q", parent=_text, fontName="Helvetica-Bold")),
+                   Paragraph(f'<link href="{link}" color="#1f5fa8"><u>{_sauber(link.split("://")[-1])}</u></link>', _klein)]
+    if rechts:
+        oben = Table([[_bild(teile_bild, BREITE * 0.64), rechts]], colWidths=[BREITE * 0.66, BREITE * 0.34], hAlign="LEFT")
+        oben.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("LEFTPADDING", (0, 0), (-1, -1), 0)]))
+        inhalt.append(oben)
     else:
-        inhalt += [_bild(modell_img, BREITE * 0.72), _p(t("pdf.modell"), _klein)]
-
-    # Überblick der Schritte (zum Abhaken)
-    zeilen = [[_p(f"{s['nr']}.", ParagraphStyle("nr", parent=_text, fontName="Helvetica-Bold")), _p(s["t"]),
-               _p("  ".join(f"{x['n']}× {x['b']}" for x in s["teile"]) or "", _klein), _kaestchen()]
-              for s in ansicht["schritte"]]
-    inhalt += [_p(t("pdf.ueberblick"), _h2), _tabelle(zeilen, [8 * mm, BREITE - 60 * mm, 42 * mm, 10 * mm], kopf=False)]
-
-    # Die Teile: Übersicht mit Buchstaben und Teileliste
-    teile_bild = modellbild({"teile": [{**x, "stil": "holz"} for x in modell["teile"]]}, 2400, 1500, beschriften="alle",
-                            hintergrund=(255, 255, 255))
+        inhalt.append(_bild(teile_bild, BREITE * 0.75))
     zeilen = [[_p(t("pdf.buchstabe")), _p(t("pdf.anzahl")), _p(t("pdf.bezeichnung")), _p(t("pdf.holz")), _p(t("pdf.mass"))]]
     zeilen += [[_p(x["b"], ParagraphStyle("b", parent=_text, fontName="Helvetica-Bold")), _p(f"{x['n']}×"), _p(x["name"]),
                 _p(x["holz"]), _p(x["mass"])] for x in ansicht["teileliste"]]
-    inhalt += [PageBreak(), _p(t("pdf.teile"), _h2), _p(t("pdf.teile_hinweis"), _klein), Spacer(1, 4),
-               _bild(teile_bild.resize((1200, 750), Image.LANCZOS), BREITE * 0.85),
-               _tabelle(zeilen, [12 * mm, 14 * mm, 50 * mm, 58 * mm, BREITE - 134 * mm])]
+    inhalt += [Spacer(1, 4), _p(t("pdf.teile_hinweis"), _klein), Spacer(1, 2),
+               _tabelle(zeilen, [12 * mm, 14 * mm, 50 * mm, 58 * mm, BREITE - 134 * mm]), PageBreak()]
 
     # Einkaufsliste und Werkzeug nebeneinander
     links_b, rechts_b = BREITE * 0.6, BREITE * 0.4
@@ -243,16 +240,15 @@ def bauplan_pdf(ansicht: dict, modell: dict, entwurf: Image.Image | None = None)
     inhalt.append(beide)
 
     # Schritt für Schritt: je Schritt ein Bild (neue Teile orange) und was man dafür braucht
-    inhalt += [PageBreak()]
     vorher: set[str] = set()
     for s in ansicht["schritte"]:
         ids = set(s["ids"])
         if ids:
-            bild = _schrittbild(modell, ids, vorher, s.get("stellen", []))
+            bild = _schrittbild(modell, ids, vorher, s.get("stellen", []), 1200, 760)
         else:  # letzter Schritt: alles fertig
-            bild = modellbild({**modell, "teile": [{**x, "stil": "holz"} for x in modell["teile"]]}, 3000, 2000,
-                              hintergrund=(255, 255, 255)).resize((1500, 1000), Image.LANCZOS)
-        links = BREITE * 0.62
+            bild = modellbild({**modell, "teile": [{**x, "stil": "holz"} for x in modell["teile"]]}, 2400, 1520,
+                              hintergrund=(255, 255, 255)).resize((1200, 760), Image.LANCZOS)
+        links = BREITE * 0.5
         rechts = [_p(t("pdf.brauchst"), _h3)] + _brauchst(s)
         zeile = Table([[_bild(bild, links - 4 * mm), rechts]], colWidths=[links, BREITE - links], hAlign="LEFT")
         zeile.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 0),
@@ -273,7 +269,7 @@ def bauplan_pdf(ansicht: dict, modell: dict, entwurf: Image.Image | None = None)
         vorher |= ids
 
     # Zuschnittplan
-    inhalt += [PageBreak(), _p(t("bp.zuschnittplan"), _h2)]
+    inhalt += [Spacer(1, 6), _p(t("bp.zuschnittplan"), _h2)]
     for g in ansicht["zuschnitt"]:
         teil: list = [_p(g["label"], _h3)]
         if g["art"] == "stab":

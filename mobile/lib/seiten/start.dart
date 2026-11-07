@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../api.dart';
 import '../hilfen.dart';
+import '../konto.dart';
 import '../texte.dart';
 import 'markieren.dart';
 
@@ -37,6 +38,7 @@ class StartSeite extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Align(alignment: Alignment.topRight, child: KontoKnopf(api: widget.api)),
             const Spacer(),
             Text(tr('titel'), style: Theme.of(context).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),

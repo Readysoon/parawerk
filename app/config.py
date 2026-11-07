@@ -32,10 +32,29 @@ class Einstellungen(BaseSettings):
     selbstkontrolle: bool = True  # Claude vergleicht das berechnete Modell mit dem Entwurf und korrigiert
     kontrollrunden: int = 2  # weitere Runden nur, solange die Endkontrolle der Engine noch etwas meldet
     tagesbudget_usd: float = 5.0  # alle zusammen, Notbremse
-    # Testcodes für Tester: "KUMPEL:10,FREUNDE:5:3" = Code:Runden[:Geräte]; ohne Geräte-Angabe genau ein Gerät
+    # Testcodes: "KUMPEL:10,FREUNDE:5:3,PARTNER:0:20:3" = Code:Runden[:Geräte[:Baupläne]]; ohne Geräte-Angabe ein Gerät.
+    # Baupläne = wie viele Baupläne der Code je Gerät bzw. Konto freischaltet (nur wichtig mit BEZAHLUNG_PFLICHT)
     testcodes: str = ""
     admin_schluessel: str = ""
-    oeffentliche_url: str = "https://parawerk.fly.dev"  # für Links und QR-Codes in der PDF  # ?schluessel=… auf der Startseite hebt die Kontingente für diesen Browser auf
+    oeffentliche_url: str = "https://parawerk.fly.dev"  # für Links und QR-Codes in der PDF
+    # Stufen (siehe projekt-docs/entscheidungen): 1. Foto + eine Runde Entwürfe ohne Konto; 2. Anpassen, weitere
+    # Runden und Umwandeln in einen Bauplan nur mit Gratis-Konto; 3. vollständiger Bauplan (Einkauf, Zuschnitt,
+    # Schritte, PDF) nur freigeschaltet. Aus = wie bisher (für die TestFlight-Version ohne Anmeldung).
+    konto_pflicht: bool = False
+    bezahlung_pflicht: bool = False
+    gratis_runden_konto: int = 3  # Runden insgesamt je Konto (statt gratis_runden je Gerät)
+    # Anmelden mit Apple und Google: erlaubte Client-IDs, durch Komma getrennt.
+    # Apple: Bundle-ID der App (at.parawerk.parawerk) und, für die Website, die Services-ID.
+    # Google: OAuth-Client-IDs für iOS, Android und Web aus der Google Cloud Console.
+    apple_client_ids: str = "at.parawerk.parawerk"
+    apple_web_client_id: str = ""  # Services-ID für „Mit Apple anmelden“ auf der Website (leer: Knopf ausgeblendet)
+    google_client_ids: str = ""
+    google_web_client_id: str = ""  # Web-Client-ID für den Google-Knopf auf der Website (leer: Knopf ausgeblendet)
+
+    def client_ids(self, anbieter: str) -> list[str]:
+        roh = {"apple": self.apple_client_ids + "," + self.apple_web_client_id,
+               "google": self.google_client_ids + "," + self.google_web_client_id}.get(anbieter, "")
+        return [x.strip() for x in roh.split(",") if x.strip()]  # ?schluessel=… auf der Startseite hebt die Kontingente für diesen Browser auf
 
     @property
     def codes(self) -> dict[str, tuple[int, int]]:
@@ -43,8 +62,18 @@ class Einstellungen(BaseSettings):
         out: dict[str, tuple[int, int]] = {}
         for eintrag in self.testcodes.split(","):
             teile = [x.strip() for x in eintrag.split(":")]
-            if len(teile) in (2, 3) and teile[0] and all(x.isdigit() for x in teile[1:]):
+            if len(teile) in (2, 3, 4) and teile[0] and all(x.isdigit() for x in teile[1:]):
                 out[teile[0].upper()] = (int(teile[1]), int(teile[2]) if len(teile) == 3 else 1)
+        return out
+
+    @property
+    def code_plaene(self) -> dict[str, int]:
+        """Wie viele Baupläne ein Code freischaltet (4. Feld), {CODE: Anzahl}."""
+        out: dict[str, int] = {}
+        for eintrag in self.testcodes.split(","):
+            teile = [x.strip() for x in eintrag.split(":")]
+            if len(teile) == 4 and teile[0] and all(x.isdigit() for x in teile[1:]):
+                out[teile[0].upper()] = int(teile[3])
         return out
 
     @property

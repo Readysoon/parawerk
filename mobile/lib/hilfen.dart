@@ -1,6 +1,8 @@
 // Kleine Hilfen für alle Seiten: Wartedialog bei langen Aufrufen, Fehler anzeigen.
 import 'package:flutter/material.dart';
 
+import 'api.dart';
+import 'konto.dart';
 import 'texte.dart';
 
 /// Zeigt einen Wartedialog mit [text], solange [arbeit] läuft. Fehler erscheinen als Hinweis unten;
@@ -23,12 +25,25 @@ Future<T?> mitWarten<T>(BuildContext context, String text, Future<T> Function() 
     ),
   );
   try {
-    return await arbeit();
+    final ergebnis = await arbeit();
+    navigator.pop();
+    return ergebnis;
+  } on ApiFehler catch (e) {
+    // Konto nötig (Server meldet 401): anmelden lassen und dann einmal noch versuchen
+    if (e.status == 401 && Api.aktuell != null && !Api.aktuell!.angemeldet) {
+      navigator.pop();
+      if (context.mounted && await anmeldenFragen(context, grund: e.meldung) && context.mounted) {
+        return mitWarten(context, text, arbeit);
+      }
+      return null;
+    }
+    hinweise.showSnackBar(SnackBar(content: Text('$e'), duration: const Duration(seconds: 6)));
+    navigator.pop();
+    return null;
   } catch (e) {
     hinweise.showSnackBar(SnackBar(content: Text('$e'), duration: const Duration(seconds: 6)));
-    return null;
-  } finally {
     navigator.pop();
+    return null;
   }
 }
 

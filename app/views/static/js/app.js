@@ -37,6 +37,7 @@ async function api(pfad, daten, { roh = false, methode = 'POST' } = {}) {
     { method: methode, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(daten) });
   if (roh && res.ok) return res;
   const j = await res.json().catch(() => ({ fehler: tx('serverfehler', { n: res.status }) }));
+  if (res.status === 401 && konto.konto_pflicht && !pfad.startsWith('/konto')) anmeldenZeigen(j.fehler);
   if (!res.ok) throw new Error(j.fehler || tx('serverfehler', { n: res.status }));
   return j;
 }
@@ -51,6 +52,64 @@ async function auftrag(pfad, daten) {
     if (s.status === 'fehler') throw new Error(s.fehler);
   }
 }
+
+// ---------- Konto: Anmelden mit E-Mail-Code ----------
+let konto = { email: null, konto_pflicht: false, bezahlung_pflicht: false };
+async function kontoLaden() {
+  try { konto = await api('/konto', null, { methode: 'GET' }); } catch { return; }
+  $('konto-zeile').hidden = !konto.konto_pflicht && !konto.email;
+  $('konto-email').textContent = konto.email || '';
+  $('konto-knopf').textContent = konto.email ? tx('abmelden') : tx('anmelden');
+}
+function anmeldenZeigen(grund) {
+  $('anmelden-grund').textContent = grund || tx('konto_warum');
+  anmeldeFehler('');
+  $('anmelden-apple').hidden = !konto.apple_web;
+  $('anmelden-google').hidden = !konto.google_web;
+  $('anmelden-demo').hidden = !konto.demo;
+  $('anmelden-keiner').hidden = !!(konto.apple_web || konto.google_web || konto.demo);
+  if (konto.google_web) googleKnopf();
+  $('anmelden').showModal?.();
+}
+const anmeldeFehler = text => { $('anmelden-fehler').textContent = text; $('anmelden-fehler').hidden = !text; };
+const skript = src => new Promise((ok, nein) => {
+  if (document.querySelector(`script[src="${src}"]`)) return ok();
+  const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = nein; document.head.append(s);
+});
+async function mitToken(anbieter, idToken, email = null) {
+  try {
+    await api(`/konto/anmelden/${anbieter}`, { id_token: idToken, email });
+    $('anmelden').close(); await kontoLaden(); kontingentLaden();
+    if (z.graph) berechnen();
+  } catch (e) { anmeldeFehler(e.message); }
+}
+// Google: offizieller Knopf von Google Identity Services, liefert direkt das ID-Token
+async function googleKnopf() {
+  try {
+    await skript('https://accounts.google.com/gsi/client');
+    google.accounts.id.initialize({ client_id: konto.google_web, callback: r => mitToken('google', r.credential) });
+    google.accounts.id.renderButton($('anmelden-google'), { theme: 'outline', size: 'large', text: 'signin_with', width: 280 });
+  } catch { anmeldeFehler(tx('serverfehler', { n: 'Google' })); }
+}
+// Apple: „Sign in with Apple JS“ im Popup; Apple schickt die E-Mail nur beim allerersten Mal mit
+$('apple-knopf').addEventListener('click', async () => {
+  try {
+    await skript(`https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/${document.documentElement.lang === 'de' ? 'de_DE' : 'en_US'}/appleid.auth.js`);
+    AppleID.auth.init({ clientId: konto.apple_web, scope: 'email', redirectURI: location.origin + '/', usePopup: true });
+    const r = await AppleID.auth.signIn();
+    mitToken('apple', r.authorization.id_token, r.user?.email || null);
+  } catch (e) { if (e?.error !== 'popup_closed_by_user') anmeldeFehler(e?.error || e?.message || 'Apple'); }
+});
+$('anmelden-demo').addEventListener('click', () => {  // nur im Demo-Modus: festes Test-Konto je Browser
+  let id = null;
+  try { id = localStorage.getItem('demo-konto'); } catch {}
+  if (!id) { id = Math.random().toString(36).slice(2, 12); try { localStorage.setItem('demo-konto', id); } catch {} }
+  mitToken('demo', 'demo-konto-' + id);
+});
+$('konto-knopf').addEventListener('click', async () => {
+  if (konto.email) { await api('/konto/abmelden', {}); await kontoLaden(); kontingentLaden(); return; }
+  anmeldenZeigen();
+});
 
 // ---------- Gratis-Kontingent ----------
 async function kontingentLaden() {
@@ -318,7 +377,8 @@ $('bauplan-erstellen').addEventListener('click', bauplanErstellen);
 
 async function berechnen() {
   try {
-    const j = await api('/bauplan/berechnen?mit_html=true&mit_glb=false', { graph: z.graph, bereich: z.bereich });
+    const j = await api('/bauplan/berechnen?mit_html=true&mit_glb=false',
+      { graph: z.graph, bereich: z.bereich, entwurf_id: z.entwuerfe?.[z.gewaehlt]?.id || null });
     z.ergebnis = j;
     if (!z.graph.ziel) z.designMasse = j.modell.dims;  // Maße wie im Entwurf: Ausgangspunkt der Regler
     reglerSetzen(j.modell.dims, j.modell.teile.length);
@@ -423,6 +483,13 @@ function herunterladen(name, blob) {
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
+$('bauplan').addEventListener('click', async e => {  // Bauplan freischalten (Code; später auch Kauf)
+  if (e.target.closest('[data-aktion]')?.dataset.aktion !== 'freischalten') return;
+  try {
+    await api('/freischalten', { code: $('frei-code').value, graph: z.graph, entwurf_id: z.entwuerfe?.[z.gewaehlt]?.id || null });
+    berechnen();
+  } catch (err) { fehler(err.message); }
+});
 $('ergebnis').addEventListener('click', async e => {
   const aktion = e.target.closest('[data-aktion]')?.dataset.aktion;
   if (aktion === 'drucken') window.print();
@@ -435,7 +502,7 @@ $('ergebnis').addEventListener('click', async e => {
     } catch (err) { fehler(err.message); }
   }
   if (aktion === 'dxf') {
-    try { herunterladen('parawerk.dxf', await (await api('/bauplan/dxf', { graph: z.graph, bereich: z.bereich }, { roh: true })).blob()); }
+    try { herunterladen('parawerk.dxf', await (await api('/bauplan/dxf', { graph: z.graph, bereich: z.bereich, entwurf_id: z.entwuerfe?.[z.gewaehlt]?.id || null }, { roh: true })).blob()); }
     catch (err) { fehler(err.message); }
   }
   if (aktion === 'json') {
@@ -447,4 +514,5 @@ $('ergebnis').addEventListener('click', async e => {
 document.querySelectorAll('nav.steps button').forEach(b => b.addEventListener('click', () => zeigeSchritt(+b.dataset.schritt)));
 document.querySelectorAll('[data-gehe]').forEach(b => b.addEventListener('click', () => zeigeSchritt(+b.dataset.gehe)));
 zeigeSchritt(0);
+kontoLaden();
 kontingentLaden();

@@ -10,6 +10,8 @@
       {% if demo_bilder or demo_lesen %}
       <span class="pill demo">{{ t("ui.demo") }}: {% if demo_bilder and demo_lesen %}{{ t("ui.demo_beide") }}{% elif demo_bilder %}{{ t("ui.demo_bilder") }}{% else %}{{ t("ui.demo_lesen") }}{% endif %}</span>
       {% endif %}
+      <span class="konto-zeile" id="konto-zeile" hidden><span id="konto-email"></span>
+        <button class="link" id="konto-knopf">{{ t("konto.anmelden") }}</button></span>
       <nav class="sprachen" aria-label="{{ t('ui.sprache') }}">{% for s in SPRACHEN %}<a href="?sprache={{ s }}" lang="{{ s }}" title="{{ SPRACH_NAMEN[s] }}"{% if s == sprache() %} aria-current="true"{% endif %}>{{ s | upper }}</a>{% endfor %}</nav>
     </div>
   </header>
@@ -19,6 +21,21 @@
     <button data-schritt="{{ loop.index0 }}"{% if loop.first %} aria-current="step"{% else %} disabled{% endif %}><b>{{ loop.index }}</b>{{ t(s) }}</button>
     {% endfor %}
   </nav>
+
+  <dialog id="anmelden" aria-labelledby="anmelden-titel">
+    <form method="dialog" class="anmelden">
+      <h3 id="anmelden-titel">{{ t("konto.titel") }}</h3>
+      <p class="hint" id="anmelden-grund">{{ t("konto.warum") }}</p>
+      <div class="anbieter">
+        <div id="anmelden-apple" hidden><button class="b apple" type="button" id="apple-knopf">{{ t("konto.mit_apple") }}</button></div>
+        <div id="anmelden-google" hidden></div>
+        <button class="b" type="button" id="anmelden-demo" hidden>{{ t("konto.demo") }}</button>
+        <p class="hint" id="anmelden-keiner" hidden>{{ t("konto.nicht_eingerichtet") }}</p>
+      </div>
+      <p class="err" id="anmelden-fehler" hidden></p>
+      <div class="btns"><button class="b" value="abbrechen">{{ t("konto.abbrechen") }}</button></div>
+    </form>
+  </dialog>
 
   <div class="status" role="status" id="status" hidden><span class="spinner"></span><span id="status-text"></span></div>
   <p class="err" role="alert" id="fehler" hidden></p>

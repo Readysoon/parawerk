@@ -29,9 +29,11 @@ KOSTEN = {"runde": 0.21, "nachjustieren": 0.045, "lesen": 0.09, "anpassen": 0.04
 
 @dataclass(frozen=True)
 class Kunde:
-    geraet: str
+    geraet: str  # Geräte-ID, oder mit Konto „k-<id>“: Kontingente, Codes und Freischaltungen gelten dann fürs Konto
     ip: str
     admin: bool = False
+    konto: int | None = None
+    email: str | None = None
 
 
 class Gesperrt(Exception):
@@ -54,7 +56,8 @@ class Kostendeckel:
     def _grenzen(self, k: Kunde) -> tuple[int, int, bool]:
         """Runden und Änderungen insgesamt für dieses Gerät, und ob es einen Testcode hat."""
         bonus = self._bonus(k)
-        return self.e.gratis_runden + bonus, self.e.gratis_nachjustieren + 2 * bonus, bonus > 0
+        basis = self.e.gratis_runden_konto if (k.konto and self.e.konto_pflicht) else self.e.gratis_runden
+        return basis + bonus, self.e.gratis_nachjustieren + 2 * bonus, bonus > 0
 
     def stand(self, k: Kunde) -> dict:
         """Was dieses Gerät noch gratis hat (für die Anzeige)."""
@@ -84,6 +87,7 @@ class Kostendeckel:
             raise Gesperrt(503, t("fehler.budget"))
         if k.admin:
             return
+        self.konto_pruefen(art, k)
         if art == "runde":
             runden, _, hat_code = self._grenzen(k)
             if v.anzahl(self.db, "runde", geraet=k.geraet) >= runden:
@@ -104,6 +108,14 @@ class Kostendeckel:
         elif art == "tiefe":
             if v.anzahl(self.db, "tiefe", geraet=k.geraet, seit=heute) >= self.e.fotos_pro_tag:
                 raise Gesperrt(429, t("fehler.tageslimit"))
+
+    def konto_pruefen(self, art: str, k: Kunde) -> None:
+        """Stufe 2: alles außer der ersten Runde braucht ein Gratis-Konto (gilt auch im Demo-Modus)."""
+        if not self.e.konto_pflicht or k.konto or k.admin:
+            return
+        if art in ("nachjustieren", "lesen", "anpassen") or (
+                art == "runde" and v.anzahl(self.db, "runde", geraet=k.geraet) >= self.e.gratis_runden):
+            raise Gesperrt(401, t("fehler.konto_noetig"))
 
     def reservieren(self, art: str, k: Kunde) -> int:
         """Prüft die Regeln und trägt die geschätzten Kosten ein. Gibt die Nummer des Eintrags zurück."""

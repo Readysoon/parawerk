@@ -67,8 +67,23 @@ class MassErgebnis {
   final List<String> hinweise;
 }
 
+/// Angemeldet als … und welche Schranken der Server gerade verlangt.
+class KontoStand {
+  KontoStand(this.email, this.kontoPflicht, this.bezahlungPflicht);
+  final String? email; // null = nicht angemeldet; sonst E-Mail oder „Apple“/„Google“
+  final bool kontoPflicht;
+  final bool bezahlungPflicht;
+}
+
 class Api {
-  Api._(this.geraet, this.sprache);
+  Api._(this.geraet, this.sprache, this._sitzung);
+
+  /// Die eine Verbindung der App (für Hilfen wie die Anmeldung, wenn der Server 401 meldet).
+  static Api? aktuell;
+
+  /// Sitzung nach „Mit Apple/Google anmelden“; gespeichert, damit man angemeldet bleibt.
+  String? _sitzung;
+  bool get angemeldet => _sitzung != null;
 
   /// Geräte-ID: einmal zufällig erzeugt und gespeichert. Darauf zählt der Server die Gratis-Runden.
   final String geraet;
@@ -84,10 +99,57 @@ class Api {
       id = 'app-${List.generate(16, (_) => zufall.nextInt(256).toRadixString(16).padLeft(2, '0')).join()}';
       await prefs.setString('geraet', id);
     }
-    return Api._(id, sprache);
+    return aktuell = Api._(id, sprache, prefs.getString('sitzung'));
   }
 
-  Map<String, String> get _kopf => {'X-Geraet': geraet, 'X-Sprache': sprache, 'Content-Type': 'application/json'};
+  Map<String, String> get _kopf => {
+        'X-Geraet': geraet,
+        'X-Sprache': sprache,
+        'Content-Type': 'application/json',
+        if (_sitzung != null) 'Authorization': 'Bearer $_sitzung',
+      };
+
+  Future<void> _sitzungSpeichern(String? token) async {
+    _sitzung = token;
+    final prefs = await SharedPreferences.getInstance();
+    if (token == null) {
+      await prefs.remove('sitzung');
+    } else {
+      await prefs.setString('sitzung', token);
+    }
+  }
+
+  Future<KontoStand> konto() async {
+    final j = await _get('/api/v1/konto');
+    if (j['email'] == null && _sitzung != null) await _sitzungSpeichern(null); // Sitzung abgelaufen oder gelöscht
+    return KontoStand(j['email'] as String?, j['konto_pflicht'] == true, j['bezahlung_pflicht'] == true);
+  }
+
+  /// ID-Token von Apple oder Google gegen eine Parawerk-Sitzung tauschen. Gibt den Anzeigenamen zurück.
+  Future<String> anmelden(String anbieter, String idToken, {String? email}) async {
+    final j = await _post('/api/v1/konto/anmelden/$anbieter', {'id_token': idToken, if (email != null) 'email': email});
+    await _sitzungSpeichern(j['token'] as String);
+    return (j['email'] ?? '').toString();
+  }
+
+  Future<void> abmelden() async {
+    try {
+      await _post('/api/v1/konto/abmelden', {});
+    } finally {
+      await _sitzungSpeichern(null);
+    }
+  }
+
+  /// Konto mit allen Daten löschen (Apple verlangt, dass das in der App geht).
+  Future<void> kontoLoeschen() async {
+    final r = await http.delete(Uri.parse('$apiBasis/api/v1/konto'), headers: _kopf).timeout(const Duration(seconds: 30));
+    _auswerten(r);
+    await _sitzungSpeichern(null);
+  }
+
+  /// Bauplan mit einem Code freischalten (gilt für diesen Entwurf, inklusive späterer Änderungen).
+  Future<void> freischalten(String code, Map<String, dynamic> graph, {String? entwurfId}) =>
+      _post('/api/v1/freischalten', {'code': code, 'graph': graph, if (entwurfId != null) 'entwurf_id': entwurfId});
 
   Map<String, dynamic> _auswerten(http.Response r) {
     Map<String, dynamic> j;
@@ -231,9 +293,11 @@ class Api {
 
   /// Bauteilgraph → Bauplan (Prüfungen, Einkauf, Zuschnitt, Montage) und 3D-Modell (glb-URL).
   /// [schnell]: Vorschau beim Ziehen eines Reglers (nur Teile, ohne 3D-Dateien, etwas weniger genau).
-  Future<Map<String, dynamic>> berechnen(Map<String, dynamic> graph, List<int> bereich, {bool schnell = false}) =>
+  /// [entwurfId]: für ihn gilt die Freischaltung; ohne Freischaltung kommt der Bauplan gekürzt (``gesperrt``).
+  Future<Map<String, dynamic>> berechnen(Map<String, dynamic> graph, List<int> bereich,
+          {bool schnell = false, String? entwurfId}) =>
       _post(schnell ? '/api/v1/bauplan/berechnen?mit_glb=false&schnell=true' : '/api/v1/bauplan/berechnen',
-          {'graph': graph, 'bereich': bereich});
+          {'graph': graph, 'bereich': bereich, if (entwurfId != null) 'entwurf_id': entwurfId});
 
   /// Bauplan als PDF (mit Entwurf und 3D-Bild). Der Server speichert es; zurück kommt die Adresse zum Öffnen und Teilen.
   Future<Uri> pdf(Map<String, dynamic> graph, List<int> bereich, {String? entwurfId, String? maskeId}) async {

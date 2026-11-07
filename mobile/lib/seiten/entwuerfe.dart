@@ -95,7 +95,7 @@ class _EntwuerfeSeiteState extends State<EntwuerfeSeite> {
         bereich: _s.bereich,
         demoIndex: _s.demo ? _gewaehlt : null,
       );
-      final plan = await _s.api.berechnen(gelesen.graph, _s.bereich);
+      final plan = await _s.api.berechnen(gelesen.graph, _s.bereich, entwurfId: entwurf.id);
       return (graph: gelesen.graph, plan: plan, maengel: gelesen.maengel);
     });
     if (ergebnis == null || !mounted) return;

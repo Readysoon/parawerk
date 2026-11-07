@@ -1,0 +1,31 @@
+{# Bauplan vor dem Freischalten: Eckdaten und 3D/AR gratis, der Rest nach dem Freischalten. #}
+<div class="kopf">
+  <h2>{{ t("bp.titel", name=name) }}</h2>
+  <span class="badge">{{ t("frei.gesperrt") }}</span>
+</div>
+<dl class="kv">
+  <dt>{{ t("bp.aussenmass") }}</dt><dd>{{ aussenmass }} mm</dd>
+  <dt>{{ t("pdf.bauzeit") }}</dt><dd>{{ t("pdf.bauzeit_wert", h=kopf.stunden) }}</dd>
+  <dt>{{ t("pdf.schwierigkeit") }}</dt><dd>{{ kopf.stufe }} / 5</dd>
+  {% if kopf.preis_text %}<dt>{{ t("pdf.material") }}</dt><dd>{{ t("pdf.material_wert", preis=kopf.preis_text) }}</dd>{% endif %}
+  <dt>{{ t("bp.einzelteile") }}</dt><dd>{{ anzahl_teile }}</dd>
+</dl>
+<div class="panel frei">
+  <h3>{{ t("frei.titel") }}</h3>
+  <ul>{% for x in t("frei.inhalt").split("|") %}<li>{{ x }}</li>{% endfor %}</ul>
+  <p class="hint">{{ t("frei.bald") }}</p>
+  <div class="btns noprint">
+    <input id="frei-code" placeholder="{{ t('ui.code_platzhalter') }}" aria-label="{{ t('frei.code') }}" autocapitalize="characters">
+    <button class="b primary" data-aktion="freischalten">{{ t("frei.knopf") }}</button>
+  </div>
+</div>
+
+<template id="ergebnis-vorlage">
+  <h3>{{ t("bp.ergebnis") }}</h3>
+  <dl class="kv">
+    <dt>{{ t("bp.aussenmass") }}</dt><dd>{{ aussenmass }} mm</dd>
+    <dt>{{ t("bp.bereich") }}</dt><dd>{{ bereich }} mm</dd>
+    <dt>{{ t("bp.einzelteile") }}</dt><dd>{{ anzahl_teile }}</dd>
+  </dl>
+  <p class="hint">{{ t("frei.hinweis_kurz") }}</p>
+</template>

@@ -28,7 +28,7 @@ from PIL import Image
 
 from ..config import Einstellungen, einstellungen
 from ..i18n import sprache, t
-from ..models import analyse, speicher
+from ..models import analyse, konten, speicher
 from ..models.bauteilgraph import GraphFehler, bereinigen
 from ..models.dxf import teile_als_dxf
 from ..models.engine import Ergebnis, berechnen as engine_berechnen
@@ -79,6 +79,13 @@ async def reservieren(deckel: Kostendeckel, art: str, k: Kunde) -> int:
     """Kosten vor dem Aufruf eintragen; ist das Kontingent oder Budget erschöpft, gibt es eine lesbare Fehlermeldung."""
     try:
         return await run_in_threadpool(deckel.reservieren, art, k)
+    except Gesperrt as g:
+        raise HTTPException(g.status, str(g)) from g
+
+
+async def konto_pruefen(deckel: Kostendeckel, art: str, k: Kunde) -> None:
+    try:
+        await run_in_threadpool(deckel.konto_pruefen, art, k)
     except Gesperrt as g:
         raise HTTPException(g.status, str(g)) from g
 
@@ -322,6 +329,7 @@ async def _selbstkontrolle(kon: Konstrukteur, entwurf_url: str, graph: dict, ber
 async def lesen(anfrage: LesenV1, kon: Konstrukteur = Depends(konstrukteur), deckel: Kostendeckel = Depends(kostendeckel),
                 k: Kunde = Depends(kunde), e: Einstellungen = Depends(einstellungen)) -> AuftragAntwort:
     """Konstruktion aus dem gewählten Entwurf lesen. Den Ausschnitt um den markierten Bereich schneidet der Server."""
+    await konto_pruefen(deckel, "lesen", k)
     db = _db(e)
     entwurf, maske = _bild(db, anfrage.entwurf_id), _bild(db, anfrage.maske_id).convert("L")
     eintrag = None if kon.demo else await reservieren(deckel, "lesen", k)
@@ -355,6 +363,7 @@ async def anpassen(anfrage: AnpassenAnfrage, kon: Konstrukteur = Depends(konstru
                    deckel: Kostendeckel = Depends(kostendeckel), k: Kunde = Depends(kunde),
                    e: Einstellungen = Depends(einstellungen)) -> AuftragAntwort:
     """Bauteilgraph nach einem Wunsch in Worten ändern."""
+    await konto_pruefen(deckel, "anpassen", k)
     if kon.demo:
         raise HTTPException(501, t("fehler.anpassen_demo"))
     graph = _graph(anfrage.graph)
@@ -382,7 +391,12 @@ async def berechnen(anfrage: BerechnenV1, mit_glb: bool = True, mit_html: bool =
     graph = _graph(anfrage.graph)
     ergebnis = await run_in_threadpool(_rechnen, graph, anfrage.bereich, anfrage.sortiment or e.sortiment, schnell)
     ansicht = bauplan_ansicht(ergebnis, graph, anfrage.bereich)
-    html = templates.get_template("teile/bauplan.html").render(**ansicht) if mit_html else None
+    gesperrt = await run_in_threadpool(_gesperrt, k, e, anfrage.entwurf_id, graph)
+    if gesperrt:  # Stufe 3: 3D, AR und Eckdaten gratis, der vollständige Bauplan erst nach dem Freischalten
+        ansicht = {**{key: ansicht[key] for key in OFFEN if key in ansicht}, "gesperrt": True}
+        html = templates.get_template("teile/bauplan_gesperrt.html").render(**ansicht) if mit_html else None
+    else:
+        html = templates.get_template("teile/bauplan.html").render(**ansicht) if mit_html else None
     ansicht.pop("graph_json", None)
     modell = modell_3d(ergebnis)
     glb = usdz = None
@@ -391,7 +405,23 @@ async def berechnen(anfrage: BerechnenV1, mit_glb: bool = True, mit_html: bool =
         usdz = _url(await run_in_threadpool(speicher.bild_speichern, _db(e), k.geraet, als_usdz(modell),
                                             "model/vnd.usdz+zip")) + "/parawerk.usdz"
     return BauplanAntwort(name=graph["name"], offene_punkte=ergebnis.offene_punkte, bauplan=ansicht,
-                          modell=modell, modell_glb=glb, modell_usdz=usdz, plan=ergebnis.plan, html=html)
+                          modell=modell, modell_glb=glb, modell_usdz=usdz, plan={} if gesperrt else ergebnis.plan,
+                          html=html, gesperrt=gesperrt)
+
+
+# Was vor dem Freischalten sichtbar ist: Eckdaten, die überzeugen, aber nicht zum Bauen reichen
+OFFEN = ("name", "aussenmass", "bereich", "anzahl_teile", "kopf", "offene_punkte", "graph_json")
+
+
+def _gesperrt(k: Kunde, e: Einstellungen, entwurf_id: str | None, graph: dict) -> bool:
+    if not e.bezahlung_pflicht or k.admin:
+        return False
+    return not konten.freigeschaltet(_db(e), k.geraet, konten.plan_schluessel(entwurf_id, graph))
+
+
+async def _nur_freigeschaltet(k: Kunde, e: Einstellungen, entwurf_id: str | None, graph: dict) -> None:
+    if await run_in_threadpool(_gesperrt, k, e, entwurf_id, graph):
+        raise HTTPException(402, t("fehler.nicht_freigeschaltet"))
 
 
 def _dateiname(name: str) -> str:
@@ -409,6 +439,7 @@ async def pdf(anfrage: PdfV1, link: bool = False, k: Kunde = Depends(kunde),
     ``link=true`` (für die App): das PDF wird gespeichert, die Antwort ist ``{"url": …}`` zum Öffnen und Teilen.
     """
     graph = _graph(anfrage.graph)
+    await _nur_freigeschaltet(k, e, anfrage.entwurf_id, graph)
     ergebnis = await run_in_threadpool(_rechnen, graph, anfrage.bereich, anfrage.sortiment or e.sortiment)
     entwurf = None
     if anfrage.entwurf_id:
@@ -441,7 +472,9 @@ async def analyse_export(art: str | None = None, demo: bool = False, k: Kunde = 
 
 
 @router.post("/bauplan/dxf")
-async def dxf(anfrage: BerechnenV1, e: Einstellungen = Depends(einstellungen)) -> Response:
-    ergebnis = await run_in_threadpool(_rechnen, _graph(anfrage.graph), anfrage.bereich, anfrage.sortiment or e.sortiment)
+async def dxf(anfrage: BerechnenV1, k: Kunde = Depends(kunde), e: Einstellungen = Depends(einstellungen)) -> Response:
+    graph = _graph(anfrage.graph)
+    await _nur_freigeschaltet(k, e, anfrage.entwurf_id, graph)
+    ergebnis = await run_in_threadpool(_rechnen, graph, anfrage.bereich, anfrage.sortiment or e.sortiment)
     return Response(teile_als_dxf(ergebnis.members), media_type="application/dxf",
                     headers={"Content-Disposition": 'attachment; filename="parawerk.dxf"'})

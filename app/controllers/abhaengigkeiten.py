@@ -11,6 +11,7 @@ from fastapi import Depends, Request, Response
 
 from ..config import Einstellungen, einstellungen
 from ..services.bild_ki import BildKI, DemoBildKI, ReplicateFluxFill
+from ..models import konten
 from ..models.verbrauch import datenbank
 from ..services.konstrukteur import ClaudeKonstrukteur, DemoKonstrukteur, Konstrukteur
 from ..services.kostendeckel import Kostendeckel, Kunde
@@ -18,6 +19,7 @@ from ..services.tiefe import DemoTiefe, ReplicateTiefe, TiefenKI
 
 GERAET = "geraet"  # Cookie mit der Geräte-ID
 ADMIN = "admin"  # Cookie mit dem Admin-Schlüssel
+SITZUNG = "sitzung"  # Cookie mit dem Sitzungs-Token des Kontos
 JAHR = 365 * 24 * 3600
 
 
@@ -59,7 +61,19 @@ def geraete_id(request: Request, response: Response) -> str:
     return gid
 
 
+def sitzungs_token(request: Request) -> str:
+    """Sitzung: App im Header ``Authorization: Bearer …``, Browser im Cookie."""
+    kopf = request.headers.get("authorization", "")
+    if kopf.lower().startswith("bearer "):
+        return kopf[7:].strip()
+    return request.cookies.get(SITZUNG, "")
+
+
 def kunde(request: Request, response: Response, e: Einstellungen = Depends(einstellungen)) -> Kunde:
     schluessel = request.cookies.get(ADMIN, "")
     admin = bool(e.admin_schluessel) and secrets.compare_digest(schluessel.encode(), e.admin_schluessel.encode())
-    return Kunde(geraet=geraete_id(request, response), ip=client_ip(request), admin=admin)
+    geraet = geraete_id(request, response)
+    gefunden = konten.konto_zur_sitzung(datenbank(e.database_url), sitzungs_token(request))
+    if gefunden:
+        return Kunde(geraet=f"k-{gefunden[0]}", ip=client_ip(request), admin=admin, konto=gefunden[0], email=gefunden[1])
+    return Kunde(geraet=geraet, ip=client_ip(request), admin=admin)

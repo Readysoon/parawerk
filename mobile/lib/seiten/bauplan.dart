@@ -58,7 +58,7 @@ class _BauplanSeiteState extends State<BauplanSeite> {
     _vorschauLaeuft = true;
     final stand = _stand;
     try {
-      final plan = await widget.sitzung.api.berechnen(_mitZiel(), widget.sitzung.bereich, schnell: true);
+      final plan = await widget.sitzung.api.berechnen(_mitZiel(), widget.sitzung.bereich, schnell: true, entwurfId: widget.entwurf.id);
       if (mounted && stand == _stand && _zieht) setState(() => _anzeige = plan['modell'] as Map<String, dynamic>);
     } catch (_) {
       // nur Vorschau; der ganze Bauplan nach dem Loslassen meldet Fehler
@@ -101,7 +101,7 @@ class _BauplanSeiteState extends State<BauplanSeite> {
       _zieht = false;
     });
     try {
-      final plan = await s.api.berechnen(graph, s.bereich);
+      final plan = await s.api.berechnen(graph, s.bereich, entwurfId: widget.entwurf.id);
       if (!mounted) return;
       setState(() {
         _graph = graph;
@@ -132,7 +132,7 @@ class _BauplanSeiteState extends State<BauplanSeite> {
       final graph = await s.api.anpassen(_graph, text);
       if (ziel != null) graph['ziel'] = ziel; // gestreckte Größe beibehalten
       if (sitz != null) graph.putIfAbsent('sitz', () => sitz); // Latten oder Gurte beibehalten
-      final plan = await s.api.berechnen(graph, s.bereich);
+      final plan = await s.api.berechnen(graph, s.bereich, entwurfId: widget.entwurf.id);
       return (graph: graph, plan: plan);
     });
     if (neu == null || !mounted) return;
@@ -173,6 +173,22 @@ class _BauplanSeiteState extends State<BauplanSeite> {
     } catch (_) {
       hinweise.showSnackBar(SnackBar(content: Text(tr('pdf_geht_nicht'))));
     }
+  }
+
+  bool get _gesperrt => _plan['gesperrt'] == true;
+
+  /// Bauplan mit einem Code freischalten, dann neu rechnen (jetzt vollständig).
+  Future<void> _freischalten(String code) async {
+    final s = widget.sitzung;
+    final plan = await mitWarten(context, tr('st_freischalten'), () async {
+      await s.api.freischalten(code, _graph, entwurfId: widget.entwurf.id);
+      return s.api.berechnen(_graph, s.bereich, entwurfId: widget.entwurf.id);
+    });
+    if (plan == null || !mounted) return;
+    setState(() {
+      _plan = plan;
+      _anzeige = plan['modell'] as Map<String, dynamic>;
+    });
   }
 
   List<Map<String, dynamic>> _liste(Map<String, dynamic> b, String key) =>
@@ -276,15 +292,23 @@ class _BauplanSeiteState extends State<BauplanSeite> {
           Abschnitt(tr('ergebnis')),
           _Zeile(tr('aussenmass'), '${b['aussenmass']} mm'),
           _Zeile(tr('einzelteile'), '${b['anzahl_teile']}'),
-          _Zeile(tr('ergaenzt'), '${b['anzahl_ergaenzt']}'),
+          if (b['anzahl_ergaenzt'] != null) _Zeile(tr('ergaenzt'), '${b['anzahl_ergaenzt']}'),
+          if (b['kopf'] is Map) ...[
+            _Zeile(tr('bauzeit'), '${tr('ca')} ${(b['kopf'] as Map)['stunden']} h'),
+            if ((b['kopf'] as Map)['preis_text'] != null) _Zeile(tr('material'), '${tr('ca')} ${(b['kopf'] as Map)['preis_text']}'),
+          ],
           const SizedBox(height: 8),
-          FilledButton.icon(
-            onPressed: _rechnet ? null : _pdf,
-            icon: const Icon(Icons.picture_as_pdf),
-            label: Text(tr('pdf')),
-            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-          ),
+          if (_gesperrt)
+            _Freischalten(onCode: _freischalten, rechnet: _rechnet)
+          else
+            FilledButton.icon(
+              onPressed: _rechnet ? null : _pdf,
+              icon: const Icon(Icons.picture_as_pdf),
+              label: Text(tr('pdf')),
+              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+            ),
 
+          if (!_gesperrt) ...[
           Abschnitt(tr('pruefung')),
           for (final p in _liste(b, 'pruefungen'))
             ListTile(
@@ -319,6 +343,8 @@ class _BauplanSeiteState extends State<BauplanSeite> {
               ...[for (final st in (g['stangen'] as List).cast<Map<String, dynamic>>()) _Stange(st)]
             else
               Text('${(g['platten'] as List).length}×'),
+          ],
+
           ],
 
           Abschnitt(tr('anpassen')),
@@ -392,6 +418,60 @@ class _Stange extends StatelessWidget {
           );
         }),
       ]),
+    );
+  }
+}
+
+
+/// Vor dem Freischalten: was der vollständige Bauplan enthält, und ein Feld für den Code (Kaufen kommt später).
+class _Freischalten extends StatefulWidget {
+  const _Freischalten({required this.onCode, required this.rechnet});
+  final Future<void> Function(String code) onCode;
+  final bool rechnet;
+
+  @override
+  State<_Freischalten> createState() => _FreischaltenState();
+}
+
+class _FreischaltenState extends State<_Freischalten> {
+  final _code = TextEditingController();
+
+  @override
+  void dispose() {
+    _code.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final stil = Theme.of(context).textTheme;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text(tr('frei_titel'), style: stil.titleMedium),
+          const SizedBox(height: 6),
+          for (final x in tr('frei_inhalt').split('|')) Text('• $x'),
+          const SizedBox(height: 8),
+          Text(tr('frei_bald'), style: stil.bodySmall),
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(
+              child: TextField(
+                controller: _code,
+                textCapitalization: TextCapitalization.characters,
+                decoration: InputDecoration(hintText: tr('code_frage'), border: const OutlineInputBorder(), isDense: true),
+              ),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
+              onPressed: widget.rechnet ? null : () => widget.onCode(_code.text.trim()),
+              child: Text(tr('frei_knopf')),
+            ),
+          ]),
+        ]),
+      ),
     );
   }
 }

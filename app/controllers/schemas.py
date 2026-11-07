@@ -81,10 +81,11 @@ class BerechnenV1(BaseModel):
     graph: dict
     bereich: Bereich
     sortiment: Literal["DE", "US"] | None = None
+    entwurf_id: BildId | None = Field(None, max_length=32,
+                                      description="gewählter Entwurf: kommt als Bild ins PDF, und für ihn gilt die Freischaltung")
 
 
 class PdfV1(BerechnenV1):
-    entwurf_id: BildId | None = Field(None, max_length=32, description="gewählter Entwurf, kommt als Bild ins PDF")
     maske_id: BildId | None = Field(None, max_length=32, description="nur für die anonyme Analyse: gleicher Durchgang")
 
 
@@ -111,6 +112,7 @@ class BauplanAntwort(BaseModel):
     modell_usdz: str | None = Field(None, description="URL des 3D-Modells als USDZ (AR Quick Look auf dem iPhone, echte Größe)")
     plan: dict[str, Any] = Field(description="Rohdaten des Bauplans")
     html: str | None = Field(None, description="Nur mit mit_html=true: fertiger Bauplan-Ausschnitt für die Website")
+    gesperrt: bool = Field(False, description="true: Einkauf, Zuschnitt, Schritte und PDF erst nach dem Freischalten")
 
 
 class CodeAnfrage(BaseModel):

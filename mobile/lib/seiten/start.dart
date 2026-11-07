@@ -38,7 +38,7 @@ class StartSeite extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Align(alignment: Alignment.topRight, child: KontoKnopf(api: widget.api)),
+            Align(alignment: Alignment.topRight, child: KontoKnopf(api: api)),
             const Spacer(),
             Text(tr('titel'), style: Theme.of(context).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),

@@ -109,3 +109,16 @@ def test_ohne_schalter_alles_wie_bisher():
     with TestClient(app, headers={"X-Geraet": "konto-test-004"}) as c:
         r = c.post("/api/v1/bauplan/berechnen?mit_glb=false", json={"graph": alte_graphen()[2], "bereich": PLATZ})
         assert not r.json()["gesperrt"] and r.json()["plan"]["lines"]
+
+
+def test_cors_nur_lokal():
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+    c = TestClient(create_app())
+    h = {"Origin": "http://localhost:54123", "Access-Control-Request-Method": "POST",
+         "Access-Control-Request-Headers": "authorization,content-type"}
+    r = c.options("/api/v1/entwuerfe", headers=h)
+    assert r.headers.get("access-control-allow-origin") == "http://localhost:54123"
+    r = c.options("/api/v1/entwuerfe", headers={**h, "Origin": "https://boese.example"})
+    assert "access-control-allow-origin" not in r.headers

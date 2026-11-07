@@ -13,6 +13,7 @@ from urllib.parse import parse_qs
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -60,6 +61,10 @@ def create_app() -> FastAPI:
     app = FastAPI(title="Parawerk", version="0.2.0",
                   description="Foto → Entwürfe → baubarer, stabiler Bauplan aus Baumarkt-Holz.")
     app.add_middleware(SprachMiddleware)
+    # Flutter-App im Browser (flutter run -d chrome) läuft auf localhost:<port> und braucht dafür die Erlaubnis.
+    # Nur lokale Adressen: andere Websites dürfen die API nicht aus dem Browser heraus nutzen.
+    app.add_middleware(CORSMiddleware, allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
+                       allow_methods=["*"], allow_headers=["*"])
     app.mount("/static", StaticFiles(directory=STATIC), name="static")
     app.include_router(seiten.router)
     app.include_router(api_v1.router)

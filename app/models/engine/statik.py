@@ -11,6 +11,8 @@ Lasten (Nutzer bis 110 kg, wie in den Normen)
 
 Holz: Nadelholz C24 (f_m,k 24, f_v,k 4,0, f_c,0,k 21 N/mm², E 11 000, E_0,05 7 400), γ_M = 1,3,
 k_mod 0,9 (kurze Last: Person) bzw. 0,6 (Dauerlast: Bücher), k_def 0,6. Leimholz wird vorsichtig wie C24 gerechnet.
+Biegung mit Höhenbeiwert k_h = min((150/h)^0,2; 1,3) (EC5 3.2), Schub mit wirksamer Breite k_cr · b, k_cr = 0,67
+(EC5 6.1.7). Gegenprobe gegen die Bibliothek eurocodepy: tests/test_statik_eurocodepy.py.
 Schrauben (Bemessungswerte je Schraube, Nadelholz): 6 mm ≈ 1,43 kN, 4 mm ≈ 0,42 kN Abscheren; je Verbindung 2.
 """
 from __future__ import annotations
@@ -34,6 +36,7 @@ F_M_K, F_V_K, F_C0_K = 24.0, 4.0, 21.0
 E_MEAN, E_005 = 11_000.0, 7_400.0
 GAMMA_M = 1.3
 KMOD_KURZ, KMOD_DAUER = 0.9, 0.6
+K_CR = 0.67  # Risse im Holz: für Schub zählt nur 67 % der Breite (EC5 6.1.7)
 K_DEF = 0.6
 DICHTE = 4.5e-7  # kg/mm³ (450 kg/m³)
 SCHRAUBE_RD = {6: 1430.0, 4: 420.0}  # N je Schraube, Abscheren
@@ -65,6 +68,11 @@ class Statik:
 
 def _fd(fk: float, kmod: float) -> float:
     return kmod * fk / GAMMA_M
+
+
+def _kh(h: float) -> float:
+    """Höhenbeiwert für Biegung bei Vollholz: kleine Querschnitte sind etwas fester (EC5 3.2 (3))."""
+    return min((150.0 / h) ** 0.2, 1.3) if 0 < h < 150 else 1.0
 
 
 def _querschnitt(m: Bauteil) -> tuple[float, float]:
@@ -108,7 +116,7 @@ def _balken(m: Bauteil, L: float, auskragung: bool, P: float = 0.0, q: float = 0
     w *= gebrauch
     if kriechen:
         w *= 1 + K_DEF
-    aus = {"biegung": (M / W) / _fd(F_M_K, kmod), "schub": (1.5 * V / (b * h)) / _fd(F_V_K, kmod),
+    aus = {"biegung": (M / W) / (_kh(h) * _fd(F_M_K, kmod)), "schub": (1.5 * V / (K_CR * b * h)) / _fd(F_V_K, kmod),
            "durchbiegung": w / w_grenze if w_grenze > 0 else 0.0}
     art = max(aus, key=aus.get)
     return Nachweis(m, aus[art], art, {"L": round(L), "M": round(M), "V": round(V), "w": round(w, 1),
@@ -193,7 +201,7 @@ def _gurtzug(m: Bauteil, L: float, krag: bool, gurte_oben: list[Bauteil], ms: li
         M_q, M_p = q * c * c / 2, P * c
     else:
         M_q, M_p = q * L * L / 8, P * (2 * L - a) / 8
-    return (M_q / W) / _fd(F_M_K, KMOD_DAUER) + (M_p / W) / _fd(F_M_K, KMOD_KURZ)
+    return ((M_q / W) / _fd(F_M_K, KMOD_DAUER) + (M_p / W) / _fd(F_M_K, KMOD_KURZ)) / _kh(b)
 
 
 def liegend(m: Bauteil, L: float, krag: bool, ms: list[Bauteil], J: list[dict], g: dict,

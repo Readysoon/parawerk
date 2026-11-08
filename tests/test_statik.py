@@ -20,10 +20,11 @@ def _latte(L: float, b: float = 44, h: float = 24, rolle: str = "sitzflaeche", z
 
 def test_biegung_wie_von_hand():
     # Latte 44 breit, 24 hoch, 700 mm frei, 390 N auf 300 mm Länge in der Mitte:
-    # M = 390·(2·700 − 300)/8 = 53 625 Nmm, W = 44·24²/6 = 4224 mm³, σ = 12,70 N/mm², f_m,d = 0,9·24/1,3 = 16,62
+    # M = 390·(2·700 − 300)/8 = 53 625 Nmm, W = 44·24²/6 = 4224 mm³, σ = 12,70 N/mm², f_m,d = 0,9·24/1,3 = 16,62,
+    # Höhenbeiwert k_h = min((150/24)^0,2; 1,3) = 1,3 (kleine Querschnitte sind fester)
     n = _balken(_latte(700), 700, False, P=390)
     assert n.werte["M"] == 53625
-    assert n.werte["biegung"] == pytest.approx(12.695 / 16.615, abs=0.002)
+    assert n.werte["biegung"] == pytest.approx(12.695 / (1.3 * 16.615), abs=0.002)
 
 
 def test_kragarm_ist_kritischer():

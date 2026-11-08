@@ -166,6 +166,9 @@ def _anwenden(c: dict, ziel: Bauteil) -> None:
 def ueberschneidungen_loesen(ms: list[Bauteil], log: list[str]) -> None:
     """Für jede Überschneidung mehrere Korrekturen probieren und die mit den wenigsten Folgekollisionen nehmen."""
     gemeldet: set[str] = set()
+    # Mitte des Möbels (waagrecht): bei sonst gleich guten Korrekturen nach innen schieben statt nach außen
+    # (z. B. Zargen zwischen die Beine, nicht links außen und rechts innen)
+    mitte = [(min(m.min[a] for m in ms) + max(m.max[a] for m in ms)) / 2 for a in (0, 1)] if ms else [0.0, 0.0]
     for _ in range(6):
         changed = False
         for i in range(len(ms)):
@@ -200,7 +203,8 @@ def ueberschneidungen_loesen(ms: list[Bauteil], log: list[str]) -> None:
                     for o in rest:
                         added = added + max(0, depth(probe, o) - depth(c["mv"], o))
                     added = added + depth(probe, partner)
-                    score = added * 1000 + c["amt"] + c["penalty"]
+                    aussen = c["kind"] == "move" and c["ax"] < 2 and (cen(probe, c["ax"]) - mitte[c["ax"]]) * c["dir"] > 0
+                    score = added * 1000 + c["amt"] + c["penalty"] + (0.5 if aussen else 0)
                     if best is None or score < best["score"]:
                         best = {**c, "score": score}
                 if best is None:

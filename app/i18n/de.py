@@ -78,6 +78,7 @@ TEXTE = {
     "plan.klammern": "Tackerklammern 10–14 mm (für Gurte)",
     "plan.schaum": "Polsterschaum {d} mm",
     "montage.gurte": "Polstergurte zuschneiden ({l} mm), an einer Zarge mit {k} Tackerklammern befestigen, um etwa 10 % gespannt zur anderen Zarge ziehen und dort festtackern. Enden umschlagen und nochmals tackern.",
+    "rep.gurtrahmen": "{name}: Sitzrahmen rundum geschlossen (Zargen ergänzt), damit die Gurte auf allen Seiten festen Halt haben und vorne eine feste Sitzkante ist.",
     "rep.gurt_laenger": "{name}: Gurte bis über die Zarge verlängert, damit sie dort festgetackert werden.",
     "montage.rest": "Restliche Teile anbringen",
     "montage.oberflaeche": "Kanten brechen, alles schleifen (Körnung 120, dann 180), Staub abwischen und ölen oder lasieren. Draußen: Holzschutz für außen, Schnittkanten besonders gut.",
@@ -172,6 +173,7 @@ TEXTE = {
     "teil.fussriegel": "Fußriegel",
     "teil.mittelsteg": "Mittelsteg",
     "teil.querriegel": "Querriegel",
+    "teil.gurtzarge": "Zarge für Gurte",
     # ---------- Wörter ----------
     "wort.breite": "Breite",
     "wort.tiefe": "Tiefe",

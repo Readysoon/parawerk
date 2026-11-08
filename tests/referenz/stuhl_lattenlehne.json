@@ -1,0 +1,149 @@
+{
+ "name": "Holzstuhl mit Lattenlehne",
+ "kategorie": "bank",
+ "masse": {
+  "breite": 560,
+  "tiefe": 560,
+  "hoehe": 850
+ },
+ "funktion": {
+  "sitzhoehe": 450,
+  "polster": 0
+ },
+ "anker": {
+  "sitz_oben": 0.53
+ },
+ "teile": [
+  {
+   "id": "hbein",
+   "name": "Hinterbeine mit Lehnenpfosten",
+   "typ": "kantholz",
+   "rolle": "pfosten",
+   "box": [
+    0,
+    1,
+    0.86,
+    1,
+    0,
+    1
+   ],
+   "anzahl": 2,
+   "achse": "x",
+   "querschnitt": [
+    44,
+    44
+   ],
+   "lage": {
+    "x": "anteilig",
+    "y": "ende",
+    "z": "anteilig"
+   },
+   "reihe": "anzahl"
+  },
+  {
+   "id": "vbein",
+   "name": "Vorderbeine",
+   "typ": "kantholz",
+   "rolle": "bein",
+   "box": [
+    0,
+    1,
+    0,
+    0.08,
+    0,
+    0.5
+   ],
+   "anzahl": 2,
+   "achse": "x",
+   "querschnitt": [
+    44,
+    44
+   ],
+   "lage": {
+    "x": "anteilig",
+    "y": "anfang",
+    "z": "anfang"
+   },
+   "reihe": "anzahl"
+  },
+  {
+   "id": "zarge",
+   "name": "Seitenzargen",
+   "typ": "kantholz",
+   "rolle": "zarge",
+   "box": [
+    0,
+    1,
+    0.04,
+    0.96,
+    0.38,
+    0.5
+   ],
+   "anzahl": 2,
+   "achse": "x",
+   "querschnitt": [
+    34,
+    54
+   ],
+   "lage": {
+    "x": "anteilig",
+    "y": "anteilig",
+    "z": "anfang"
+   },
+   "reihe": "anzahl"
+  },
+  {
+   "id": "sitz",
+   "name": "Sitzlatten",
+   "typ": "latte",
+   "rolle": "sitzflaeche",
+   "box": [
+    0,
+    1,
+    0,
+    0.9,
+    0.5,
+    0.53
+   ],
+   "anzahl": 8,
+   "achse": "y",
+   "querschnitt": [
+    24,
+    44
+   ],
+   "lage": {
+    "x": "anteilig",
+    "y": "anteilig",
+    "z": "anfang"
+   },
+   "reihe": "abstand"
+  },
+  {
+   "id": "lehne",
+   "name": "Rückenlatten",
+   "typ": "latte",
+   "rolle": "lehne",
+   "box": [
+    0.08,
+    0.92,
+    0.88,
+    0.95,
+    0.6,
+    0.97
+   ],
+   "anzahl": 5,
+   "achse": "z",
+   "querschnitt": [
+    24,
+    44
+   ],
+   "lage": {
+    "x": "anteilig",
+    "y": "ende",
+    "z": "anteilig"
+   },
+   "reihe": "abstand"
+  }
+ ],
+ "sitz": "latten"
+}

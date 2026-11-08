@@ -78,8 +78,12 @@ TRAG_ROLLEN = {"zarge", "rahmen", "auflage", "mittelsteg", "querriegel", "kufe"}
 
 
 def _gurt_richtung(g: dict, p: dict, R: list[int], exts: list[float]) -> int:
-    """Längsachse der Gurte: quer zu den Zargen darunter (von Zarge zu Zarge). Laufen Zargen in beide Richtungen
-    (Rahmen rundum), über die kürzere Seite: weniger Durchhang."""
+    """Längsachse der Gurte. Stühle und Sessel: von vorne nach hinten, wie bei Polsterstühlen üblich (die vordere
+    Zarge ist die feste Sitzkante). Lange Bänke: von vorne nach hinten zögen die Gurte die langen Zargen nach innen. Liegeflächen: quer zu den Zargen darunter; laufen Zargen in
+    beide Richtungen (Rahmen rundum), über die kürzere Seite: weniger Durchhang. Fehlende Zargen ergänzt
+    ``reparatur.gurtrahmen``."""
+    if p.get("_war") == "sitzflaeche" and exts[0] <= 1.3 * exts[1]:  # Stuhl, Sessel: nicht bei langen Bänken
+        return 1
     box = p["box"]
     stimmen = {0: 0, 1: 0}
     for o in g["teile"]:

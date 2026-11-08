@@ -108,6 +108,122 @@ def _gurte_verlaengern(ms: list[Bauteil], m: Bauteil) -> bool:
             geaendert = True
     return geaendert
 
+def gurtrahmen(S: Sortiment, ms: list[Bauteil]) -> list[str]:
+    """Gurtsitz auf einen geschlossenen Rahmen setzen: Zargen unter beiden Gurtenden (dort wird getackert) und an
+    beiden Seiten. So ziehen die Gurte nicht nur an zwei losen Zargen, und vorne gibt es eine feste Sitzkante.
+    Gibt die Namen der Gurtreihen zurück, an denen etwas ergänzt wurde."""
+    from . import gurte as gu
+    ergaenzt = []
+    for part in einmalig(m.part for m in ms if m.typ == "gurt"):
+        reihe = [m for m in ms if m.part == part]
+        L = reihe[0].long
+        Q = next(a for a in (0, 1) if a != L)
+        lo = [min(m.min[a] for m in reihe) for a in (0, 1, 2)]
+        hi = [max(m.max[a] for m in reihe) for a in (0, 1, 2)]
+        z0 = lo[2]
+
+        def traeger(o: Bauteil) -> bool:
+            return o.typ != "gurt" and o.long != 2 and prio(o) >= 4 and z0 - 25 <= o.max[2] <= z0 + 1.5
+
+        def ueberlappt(o: Bauteil, a: int, von: float, bis: float) -> float:
+            return min(o.max[a], bis) - max(o.min[a], von)
+
+        holz = [o for o in ms if traeger(o)]
+        voll = 0.5 * (hi[Q] - lo[Q])
+        enden = {0: [o for o in holz if o.long == Q and ueberlappt(o, L, lo[L], lo[L] + 150) >= 15
+                     and ueberlappt(o, Q, lo[Q], hi[Q]) >= voll],
+                 1: [o for o in holz if o.long == Q and ueberlappt(o, L, hi[L] - 150, hi[L]) >= 15
+                     and ueberlappt(o, Q, lo[Q], hi[Q]) >= voll]}
+        # Gurte enden auf der äußeren Kante der Endzarge (dort getackert), nicht frei dahinter
+        if enden[0]:
+            kante = min(o.min[L] for o in enden[0])
+            for m in reihe:
+                m.min[L] = max(m.min[L], kante)
+            lo[L] = max(lo[L], kante)
+        if enden[1]:
+            kante = max(o.max[L] for o in enden[1])
+            for m in reihe:
+                m.max[L] = min(m.max[L], kante)
+            hi[L] = min(hi[L], kante)
+        def seite(o: Bauteil, rand: float) -> bool:  # Zarge längs der Gurte am Rand (innen oder außen daneben)
+            return o.long == L and abs(cen(o, Q) - rand) <= 120 and ueberlappt(o, L, lo[L], hi[L]) >= 0.5 * (hi[L] - lo[L])
+        seiten = {0: [o for o in holz if seite(o, lo[Q])], 1: [o for o in holz if seite(o, hi[Q])]}
+        vorbild = next((o for o in [*seiten[0], *seiten[1], *enden[0], *enden[1]] if o.typ == "kantholz"), None)
+        if vorbild is not None:
+            quer = next(a for a in (0, 1) if a != vorbild.long)
+            dick, hoch, prof = ext(vorbild, quer), ext(vorbild, 2), vorbild.prof
+        else:
+            k = naechstes_kantholz(S, 44, 74)
+            dick, hoch, prof = k["a"], k["b"], {"label": k["label"], "a": k["a"], "b": k["b"]}
+        gefunden = [*enden[0], *enden[1], *seiten[0], *seiten[1]]
+        zt = max((o.max[2] for o in gefunden), default=z0)
+        if zt < z0 - 0.5:  # Gurte direkt auf den Rahmen legen
+            d = z0 - zt
+            for m in reihe:
+                m.min[2] -= d
+                m.max[2] -= d
+            if any(depth(m, o) > 0.5 for m in reihe for o in ms if o.part != part):
+                for m in reihe:
+                    m.min[2] += d
+                    m.max[2] += d
+                zt = z0
+        # Gurte zwischen vorhandenen Seitenzargen neu verteilen (nicht längs auf einer Zarge liegen lassen)
+        innen_lo = max((o.max[Q] for o in seiten[0]), default=None)
+        innen_hi = min((o.min[Q] for o in seiten[1]), default=None)
+        if innen_lo is not None or innen_hi is not None:
+            a = lo[Q] if innen_lo is None else innen_lo + 10
+            b = hi[Q] if innen_hi is None else innen_hi - 10
+            if b - a >= gu.GURT_BREITE:
+                n = gu.anzahl(b - a)
+                vorlage = reihe[0]
+                for m in reihe:
+                    ms.remove(m)
+                reihe = []
+                for i in range(n):
+                    m = vorlage.kopie(id=f"{part}-{i + 1}")
+                    m.min[Q] = a + (0 if n == 1 else i * (b - a - gu.GURT_BREITE) / (n - 1))
+                    m.max[Q] = m.min[Q] + gu.GURT_BREITE
+                    reihe.append(m)
+                ms.extend(reihe)
+                lo[Q], hi[Q] = a, b
+        # wie weit der Rahmen quer reicht: Beine und Pfosten, die bis an den Rahmen hochgehen
+        stehend = [o for o in ms if o.long == 2 and o.typ == "kantholz" and o.max[2] >= zt - hoch / 2 and o.min[2] < zt]
+        neu = []
+        for ende in (0, 1):
+            if enden[ende]:
+                continue
+            q = Bauteil(id=f"{t('teil.gurtzarge')} {part} {'AB'[ende]}", part=f"Gurtzarge {part} {'AB'[ende]}",
+                        name=t("teil.gurtzarge"), typ="kantholz", rolle="zarge", prof=prof, long=Q, dax=-1,
+                        origin="reparatur", min=[0, 0, 0], max=[0, 0, 0])
+            q.min[L] = lo[L] if ende == 0 else hi[L] - dick
+            q.max[L] = q.min[L] + dick
+            nah = [o for o in stehend if ueberlappt(o, L, q.min[L] - 60, q.max[L] + 60) > 0]
+            q.min[Q] = min([o.min[Q] for o in nah] + [o.min[Q] for o in seiten[0]] + [lo[Q] - gu.EINZUG])
+            q.max[Q] = max([o.max[Q] for o in nah] + [o.max[Q] for o in seiten[1]] + [hi[Q] + gu.EINZUG])
+            q.min[2], q.max[2] = zt - hoch, zt
+            neu.append(q)
+        for seite in (0, 1):
+            if seiten[seite]:
+                continue
+            q = Bauteil(id=f"{t('teil.gurtzarge')} {part} {'LR'[seite]}", part=f"Gurtzarge {part} {'LR'[seite]}",
+                        name=t("teil.gurtzarge"), typ="kantholz", rolle="zarge", prof=prof, long=L, dax=-1,
+                        origin="reparatur", min=[0, 0, 0], max=[0, 0, 0])
+            q.min[Q] = lo[Q] - gu.EINZUG if seite == 0 else hi[Q] + gu.EINZUG - dick
+            q.max[Q] = q.min[Q] + dick
+            nah = [o for o in stehend if ueberlappt(o, Q, q.min[Q] - 60, q.max[Q] + 60) > 0]
+            q.min[L] = min([o.min[L] for o in nah] + [lo[L]])
+            q.max[L] = max([o.max[L] for o in nah] + [hi[L]])
+            q.min[2], q.max[2] = zt - hoch, zt
+            neu.append(q)
+        for q in neu:
+            ms.append(q)
+        for q in neu:
+            kuerzen(ms, q)
+        if neu:
+            ergaenzt.append(reihe[0].name)
+    return ergaenzt
+
+
 def _beruehrt(J: list[dict], a: Bauteil, b: Bauteil) -> bool:
     return any((j["a"] is a and j["b"] is b) or (j["a"] is b and j["b"] is a) for j in J)
 
@@ -367,6 +483,7 @@ def fussriegel_einsetzen(S: Sortiment, ms: list[Bauteil], ax: int, bad: list[dic
 
 def pruefen_und_reparieren(S: Sortiment, ms: list[Bauteil], groups: dict, g: dict, log: list[str], repairs: list[str]) -> None:
     ausgesteift: set[int] = set()  # Richtungen, in denen schon Fußriegel eingesetzt wurden (je Richtung höchstens einmal)
+    gurtrahmen_fertig = False
     for _ in range(12):
         J = kontakte(ms)
         fixed = False
@@ -536,6 +653,16 @@ def pruefen_und_reparieren(S: Sortiment, ms: list[Bauteil], groups: dict, g: dic
         if fixed:
             setzen(ms, log)
             continue
+
+        # c0) Gurtsitz: Rahmen rundum schließen (einmal)
+        if not gurtrahmen_fertig:
+            gurtrahmen_fertig = True
+            for name in gurtrahmen(S, ms):
+                repairs.append(t("rep.gurtrahmen", name=name))
+                fixed = True
+            if fixed:
+                setzen(ms, log)
+                continue
 
         # c1) Liegende Teile, deren eines Ende neben einem Bein in der Luft hängt (z. B. Armlehne neben dem Vorderbein,
         # weil sie dem Pfosten ausweichen musste): breiter machen, damit sie auf dem Bein liegt, und vor dem Pfosten enden

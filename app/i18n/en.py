@@ -77,6 +77,7 @@ TEXTE = {
     "plan.klammern": "Staples 10–14 mm (for webbing)",
     "plan.schaum": "Upholstery foam {d} mm",
     "montage.gurte": "Cut the webbing ({l} mm), staple one end to a rail with {k} staples, stretch about 10% to the opposite rail and staple. Fold the ends over and staple again.",
+    "rep.gurtrahmen": "{name}: seat frame closed on all sides (rails added) so the webbing is held firmly and the front has a solid edge.",
     "rep.gurt_laenger": "{name}: webbing extended over the rail so it can be stapled there.",
     "montage.rest": "Attach the remaining parts",
     "montage.oberflaeche": "Ease the edges, sand everything (120 grit, then 180), wipe off the dust and oil or stain. Outdoors: use exterior wood protection, especially on cut ends.",
@@ -171,6 +172,7 @@ TEXTE = {
     "teil.fussriegel": "Foot rail",
     "teil.mittelsteg": "Center rail",
     "teil.querriegel": "Cross rail",
+    "teil.gurtzarge": "Webbing rail",
     # ---------- Words ----------
     "wort.breite": "Width",
     "wort.tiefe": "Depth",

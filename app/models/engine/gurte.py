@@ -38,6 +38,7 @@ def umstellen(g: dict) -> dict:
     getroffen = False
     for teil in neu["teile"]:
         if teil.get("rolle") in rollen:
+            teil["_war"] = teil.get("rolle")
             teil["typ"], teil["rolle"] = "gurt", "gurt"
             teil.pop("querschnitt", None)
             teil.pop("_profil", None)

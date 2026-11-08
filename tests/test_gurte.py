@@ -76,3 +76,31 @@ def test_api_dxf_und_ar():
         assert any(t.get("gurt") for t in r.json()["modell"]["teile"])
         dxf = c.post("/api/v1/bauplan/dxf", json={"graph": g, "bereich": PLATZ})
         assert dxf.status_code == 200 and "POLSTERGURT" not in dxf.text.upper()
+
+
+def test_stuhl_gurte_von_vorne_nach_hinten_auf_geschlossenem_rahmen():
+    """Echter Stuhl aus einer Lesung: Gurte laufen von vorne nach hinten und liegen an beiden Enden auf einer Zarge,
+    seitlich ist ebenfalls je eine Zarge (geschlossener Rahmen); Zargen stehen symmetrisch zwischen den Beinen."""
+    import json
+    from pathlib import Path
+
+    from app.models.engine import berechnen
+    g = json.loads((Path(__file__).parent / "referenz" / "stuhl_lattenlehne.json").read_text())
+    g["sitz"] = "gurte"
+    e = berechnen(g)
+    gurte = [m for m in e.members if m.typ == "gurt"]
+    assert gurte and all(m.long == 1 for m in gurte)
+    z0 = min(m.min[2] for m in gurte)
+    zargen = [m for m in e.members if m.typ == "kantholz" and m.long != 2 and abs(m.max[2] - z0) <= 1.5]
+    vorne = min(m.min[1] for m in gurte)
+    hinten = max(m.max[1] for m in gurte)
+    assert any(m.long == 0 and m.min[1] <= vorne + 1 < m.max[1] for m in zargen)  # unter den vorderen Enden
+    assert any(m.long == 0 and m.min[1] < hinten - 1 <= m.max[1] for m in zargen)  # unter den hinteren Enden
+    links = min(m.min[0] for m in gurte)
+    rechts = max(m.max[0] for m in gurte)
+    assert any(m.long == 1 and m.max[0] <= links + 1 for m in zargen)
+    assert any(m.long == 1 and m.min[0] >= rechts - 1 for m in zargen)
+    seiten = sorted((m for m in e.members if m.part == "zarge"), key=lambda m: m.min[0])
+    breite = e.dims[0]
+    assert abs(seiten[0].min[0] - (breite - seiten[1].max[0])) <= 1  # symmetrisch
+    assert e.offene_punkte == 0

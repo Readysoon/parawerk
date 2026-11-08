@@ -227,6 +227,12 @@ Die Geräte-ID ist ein Cookie, das die Startseite vergibt. Mit `ADMIN_SCHLUESSEL
 
 Datenbank: ohne `DATABASE_URL` eine SQLite-Datei im Temp-Ordner. Auf fly.io eine SQLite-Datei auf dem Volume `/data` (siehe `fly.toml`). Für Postgres genügt `DATABASE_URL=postgres://…`; Tabellen legt die App selbst an.
 
+**Lerndaten (Analyse):** Jeder Durchgang wird anonym gespeichert (`app/models/analyse.py`): Wunsch, gelesene Konstruktion, jeder berechnete Bauplan mit Reparaturen und Statik, Freischaltungen, Rückmeldungen („Stimmt was nicht?“) und die gemalten Möbel als Bild, nur die Pixel innerhalb der Markierung (außen weiß). Nie Fotos, Geräte-ID, Konto oder IP. Abrufen mit Admin-Schlüssel: `/api/v1/analyse`, `/api/v1/analyse/bilder`, `/api/v1/analyse/bild/{id}`.
+
+**Sicherung:** zwei Stufen.
+1. fly.io macht täglich einen Schnappschuss des Volumes, aufbewahrt 30 Tage (`snapshot_retention` in `fly.toml`; für ein schon bestehendes Volume einmal `fly volumes update <id> --snapshot-retention 30`).
+2. Jede Nacht holt GitHub Actions (`.github/workflows/sicherung.yml`) eine Kopie ohne Fotos und Gerätedaten (`app/sicherung.py`) und bewahrt sie 30 Tage als Artefakt auf (GitHub → Actions → Sicherung). Liegt damit außerhalb von fly.io.
+
 ## Bild-KI austauschen (z. B. Midjourney)
 
 Eine Bild-KI ist jede Klasse mit `entwerfen(foto, maske, prompt, seeds)` (siehe `services/bild_ki.py`). Eingesetzt wird sie in `controllers/abhaengigkeiten.py`. Midjourney hat derzeit keine offizielle API. Drittanbieter steuern dafür Konten automatisiert, was gegen die Nutzungsbedingungen verstößt. Außerdem bearbeiten sie mit Maske nur Bilder, die Midjourney selbst erzeugt hat. Sobald es eine offizielle API mit Maske gibt, genügt eine neue Klasse.

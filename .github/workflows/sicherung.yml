@@ -1,0 +1,39 @@
+name: Sicherung
+
+# Täglich eine Kopie der Lerndaten, Konten und Freischaltungen von fly.io holen und hier aufbewahren (30 Tage).
+# Ohne Fotos und Gerätedaten, siehe app/sicherung.py. Braucht nur das Secret FLY_API_TOKEN (wie der Deploy).
+# Wiederherstellen: Artefakt herunterladen, entpacken, mit "fly ssh sftp shell" nach /data hochladen.
+
+on:
+  schedule:
+    - cron: "17 2 * * *"  # 02:17 UTC
+  workflow_dispatch:
+
+concurrency: sicherung
+
+jobs:
+  sichern:
+    runs-on: ubuntu-latest
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      APP: parawerk
+    steps:
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Maschine wecken (schläft, wenn niemand die App nutzt)
+        run: |
+          ID=$(flyctl machines list -a "$APP" --json | jq -r '.[0].id')
+          flyctl machine start "$ID" -a "$APP" || true
+          flyctl machine wait "$ID" -a "$APP" --state started --wait-timeout 60s || true
+      - name: Sicherung erstellen
+        run: flyctl ssh console -a "$APP" -C "python -m app.sicherung /tmp/sicherung.db.gz"
+      - name: Herunterladen
+        run: flyctl ssh sftp get /tmp/sicherung.db.gz sicherung.db.gz -a "$APP"
+      - name: Datum
+        id: datum
+        run: echo "tag=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sicherung-${{ steps.datum.outputs.tag }}
+          path: sicherung.db.gz
+          retention-days: 30
+          if-no-files-found: error

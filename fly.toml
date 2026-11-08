@@ -13,6 +13,9 @@ primary_region = "fra"
 [mounts]
   source = "parawerk_daten"
   destination = "/data"
+  # fly.io macht täglich einen Schnappschuss des Volumes; so lange bleibt er (1–60 Tage, Standard 5).
+  # Zusätzlich holt .github/workflows/sicherung.yml jede Nacht eine Kopie außerhalb von fly.io.
+  snapshot_retention = 30
 
 [http_service]
   internal_port = 8080

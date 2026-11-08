@@ -3,3 +3,7 @@ __pycache__/
 .venv/
 .env
 .pytest_cache/
+
+# Kopie der lokalen Datenbank (enthält Fotos)
+lokal.db
+*.db.gz

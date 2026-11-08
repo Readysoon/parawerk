@@ -25,7 +25,8 @@ jobs:
           flyctl machine start "$ID" -a "$APP" || true
           flyctl machine wait "$ID" -a "$APP" --state started --wait-timeout 60s || true
       - name: Sicherung erstellen
-        run: flyctl ssh console -a "$APP" -C "python -m app.sicherung /tmp/sicherung.db.gz"
+        # im App-Ordner /srv starten, sonst findet Python das Paket "app" nicht
+        run: flyctl ssh console -a "$APP" -C "sh -c 'cd /srv && python -m app.sicherung /tmp/sicherung.db.gz'"
       - name: Herunterladen
         run: flyctl ssh sftp get /tmp/sicherung.db.gz sicherung.db.gz -a "$APP"
       - name: Datum

@@ -149,6 +149,8 @@ TEXTE = {
     "bp.ergaenzt": "Für Stabilität ergänzt",
     "bp.drucken": "Bauplan drucken",
     "bp.pdf": "PDF herunterladen",
+    "bp.rueckmeldung": "Stimmt was nicht?",
+    "ui.rueckmeldung_frage": "Was ist unlogisch oder würde so nicht halten?",
     "pdf.titel": "Bauplan: {name}",
     "pdf.fuss": "Erstellt mit Parawerk am {datum} · parawerk.fly.dev",
     "pdf.seite": "Seite {n}",

@@ -493,6 +493,16 @@ $('bauplan').addEventListener('click', async e => {  // Bauplan freischalten (Co
 $('ergebnis').addEventListener('click', async e => {
   const aktion = e.target.closest('[data-aktion]')?.dataset.aktion;
   if (aktion === 'drucken') window.print();
+  if (aktion === 'rueckmeldung') {  // kurzer Text, anonym mit der Konstruktion gespeichert
+    const text = (window.prompt(tx('rueckmeldung_frage')) || '').trim();
+    if (!text) return;
+    try {
+      const j = await api('/rueckmeldung', { text: text.slice(0, 1000), graph: z.graph, bereich: z.bereich,
+        entwurf_id: z.entwuerfe[z.gewaehlt]?.id || null, maske_id: z.maskeId });
+      const knopf = e.target.closest('[data-aktion]');
+      knopf.textContent = j.danke; knopf.disabled = true;
+    } catch (err) { fehler(err.message); }
+  }
   if (aktion === 'pdf') {
     try {
       const entwurf = z.entwuerfe[z.gewaehlt]?.id;

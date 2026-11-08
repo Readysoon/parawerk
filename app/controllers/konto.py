@@ -8,8 +8,8 @@ from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
 from ..config import Einstellungen, einstellungen
-from ..i18n import t
-from ..models import konten
+from ..i18n import sprache, t
+from ..models import analyse, konten
 from ..models import verbrauch as v
 from ..models.verbrauch import datenbank
 from ..services.anmeldung import AnmeldeFehler, Identitaet, pruefen
@@ -138,4 +138,8 @@ async def freischalten(anfrage: FreischaltAnfrage, k: Kunde = Depends(kunde), e:
     if await run_in_threadpool(konten.freischaltungen_mit, db, k.geraet, f"code:{code}") >= plaene:
         raise HTTPException(409, t("fehler.code_plaene_voll", n=plaene))
     await run_in_threadpool(konten.freischalten, db, k.geraet, plan, f"code:{code}")
+    await run_in_threadpool(analyse.eintragen, db, "freigeschaltet", {
+        "quelle": "code", "entwurf": analyse.lauf(anfrage.entwurf_id), "name": str(anfrage.graph.get("name", ""))[:80],
+        "kategorie": anfrage.graph.get("kategorie"), "sitz": anfrage.graph.get("sitz") or "latten"},
+        sprache=sprache(), demo=not e.claude_aktiv)
     return {"freigeschaltet": True}

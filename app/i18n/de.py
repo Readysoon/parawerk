@@ -172,6 +172,7 @@ TEXTE = {
     "teil.auflageleiste": "Auflageleiste",
     "teil.fussriegel": "Fußriegel",
     "teil.mittelsteg": "Mittelsteg",
+    "rueckmeldung.danke": "Danke! Wir schauen uns das an.",
     "teil.querriegel": "Querriegel",
     "teil.gurtzarge": "Zarge für Gurte",
     # ---------- Wörter ----------

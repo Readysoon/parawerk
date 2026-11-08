@@ -190,6 +190,34 @@ class _BauplanSeiteState extends State<BauplanSeite> {
     });
   }
 
+  /// „Stimmt was nicht?“ – kurzer Text, gespeichert mit der Konstruktion (ohne Foto, ohne Gerät).
+  Future<void> _rueckmelden() async {
+    final s = widget.sitzung;
+    final feld = TextEditingController();
+    final text = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr('rueckmeldung')),
+        content: TextField(
+          controller: feld,
+          autofocus: true,
+          maxLines: 4,
+          maxLength: 1000,
+          decoration: InputDecoration(hintText: tr('rueckmeldung_hinweis')),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(tr('abbrechen'))),
+          FilledButton(onPressed: () => Navigator.pop(ctx, feld.text.trim()), child: Text(tr('senden'))),
+        ],
+      ),
+    );
+    if (text == null || text.isEmpty || !mounted) return;
+    final hinweise = ScaffoldMessenger.of(context);
+    final danke = await mitWarten(context, tr('senden'),
+        () => s.api.rueckmeldung(text, _graph, s.bereich, entwurfId: widget.entwurf.id, maskeId: s.maskeId));
+    if (danke != null) hinweise.showSnackBar(SnackBar(content: Text(danke)));
+  }
+
   List<Map<String, dynamic>> _liste(Map<String, dynamic> b, String key) =>
       ((b[key] as List?) ?? const []).cast<Map<String, dynamic>>();
 
@@ -306,6 +334,15 @@ class _BauplanSeiteState extends State<BauplanSeite> {
               label: Text(tr('pdf')),
               style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
             ),
+
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: _rueckmelden,
+              icon: const Icon(Icons.feedback_outlined),
+              label: Text(tr('rueckmeldung')),
+            ),
+          ),
 
           if (!_gesperrt) ...[
           Abschnitt(tr('pruefung')),

@@ -95,3 +95,18 @@ def ausschnitt(entwurf: Image.Image, maske: Image.Image) -> Image.Image:
     mx, my = (x1 - x0) * 0.2, (y1 - y0) * 0.2
     return entwurf.crop((max(0, round(x0 - mx)), max(0, round(y0 - my)),
                          min(entwurf.width, round(x1 + mx)), min(entwurf.height, round(y1 + my))))
+
+
+def nur_moebel(ki_bild: Image.Image, maske: Image.Image, groesse: int = 768) -> Image.Image:
+    """Für die Analyse: nur was die Bild-KI in die Markierung gemalt hat, außen weiß, auf die Markierung zugeschnitten.
+
+    Harte Maske (kein weicher Rand), damit kein Pixel des echten Zimmers mitkommt."""
+    hart = maske.convert("L").point(lambda v: 255 if v > 127 else 0)
+    bild = ki_bild.convert("RGB").resize(hart.size, Image.LANCZOS)
+    weiss = Image.new("RGB", hart.size, "white")
+    aus = Image.composite(bild, weiss, hart)
+    r = hart.getbbox()
+    if r:
+        aus = aus.crop(r)
+    aus.thumbnail((groesse, groesse), Image.LANCZOS)
+    return aus

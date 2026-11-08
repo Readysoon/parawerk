@@ -149,6 +149,8 @@ TEXTE = {
     "bp.einzelteile": "Parts",
     "bp.ergaenzt": "Added for stability",
     "bp.pdf": "Download PDF",
+    "bp.rueckmeldung": "Something wrong?",
+    "ui.rueckmeldung_frage": "What looks wrong or would not hold up like this?",
     "pdf.titel": "Build plan: {name}",
     "pdf.fuss": "Made with Parawerk on {datum} · parawerk.fly.dev",
     "pdf.seite": "Page {n}",

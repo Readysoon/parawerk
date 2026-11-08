@@ -171,6 +171,7 @@ TEXTE = {
     "teil.auflageleiste": "Support cleat",
     "teil.fussriegel": "Foot rail",
     "teil.mittelsteg": "Center rail",
+    "rueckmeldung.danke": "Thanks! We'll take a look.",
     "teil.querriegel": "Cross rail",
     "teil.gurtzarge": "Webbing rail",
     # ---------- Words ----------

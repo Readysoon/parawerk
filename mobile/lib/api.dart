@@ -153,6 +153,17 @@ class Api {
   Future<void> freischalten(String code, Map<String, dynamic> graph, {String? entwurfId}) =>
       _post('/api/v1/freischalten', {'code': code, 'graph': graph, if (entwurfId != null) 'entwurf_id': entwurfId});
 
+  /// „Stimmt was nicht?“: kurzer Text zum Bauplan, landet anonym in der Analyse.
+  Future<String> rueckmeldung(String text, Map<String, dynamic> graph, List<num> bereich,
+      {String? entwurfId, String? maskeId}) async {
+    final j = await _post('/api/v1/rueckmeldung', {
+      'text': text, 'graph': graph, 'bereich': bereich,
+      if (entwurfId != null) 'entwurf_id': entwurfId,
+      if (maskeId != null) 'maske_id': maskeId,
+    });
+    return (j['danke'] ?? '').toString();
+  }
+
   Map<String, dynamic> _auswerten(http.Response r) {
     Map<String, dynamic> j;
     try {

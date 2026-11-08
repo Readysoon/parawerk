@@ -24,7 +24,9 @@ from ..models import verbrauch as v
 # Claude Sonnet 5.5 2 $ / 10 $ je Million Tokens Ein-/Ausgabe
 # lesen inkl. einer Runde Selbstkontrolle; jede weitere Runde ist eine „kontrolle“ (zählt nur fürs Tagesbudget)
 # Depth Pro auf Replicate: ca. 0,002–0,004 $ je Foto
-KOSTEN = {"runde": 0.21, "nachjustieren": 0.045, "lesen": 0.09, "anpassen": 0.04, "kontrolle": 0.05, "tiefe": 0.004}
+KOSTEN = {"runde": 0.21, "nachjustieren": 0.045, "lesen": 0.09, "anpassen": 0.04, "kontrolle": 0.05, "tiefe": 0.004,
+          "rueckmeldung": 0.0}
+RUECKMELDUNGEN_PRO_TAG = 20
 
 
 @dataclass(frozen=True)
@@ -83,6 +85,10 @@ class Kostendeckel:
 
     def _pruefen(self, art: str, k: Kunde) -> None:
         heute = v.heute_beginn()
+        if art == "rueckmeldung":  # kostet nichts, geht auch bei erschöpftem Budget; nur gegen Fluten begrenzt
+            if not k.admin and v.anzahl(self.db, "rueckmeldung", geraet=k.geraet, seit=heute) >= RUECKMELDUNGEN_PRO_TAG:
+                raise Gesperrt(429, t("fehler.tageslimit"))
+            return
         if v.kosten_seit(self.db, heute) + KOSTEN[art] > self.e.tagesbudget_usd:
             raise Gesperrt(503, t("fehler.budget"))
         if k.admin:

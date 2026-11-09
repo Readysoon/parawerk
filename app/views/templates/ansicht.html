@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="color-scheme" content="light">
   <title>Parawerk 3D</title>
-  {# Nur der 3D-Viewer, zum Einbetten in die App. Die App ruft zeigen(modell, kameraHalten) auf. #}
+  {# Nur der 3D-Viewer, zum Einbetten in die App. Die App ruft zeigen(modell, kameraHalten, verzerren) auf. #}
   <style>
     :root{--board:#d8c2a0;--mark:#c2410c;--soft:#c9ced6;--gurt:#3b3f46}
     html,body{margin:0;height:100%;background:#eef0f2;overflow:hidden;-webkit-user-select:none;user-select:none}
@@ -19,14 +19,15 @@
     import { Viewer3D, bedienung, BEDIENUNG_CSS } from '/static/js/viewer3d.js';
     const viewer = new Viewer3D(document.getElementById('viewer'), { fuellen: true });
     document.head.append(Object.assign(document.createElement('style'), { textContent: BEDIENUNG_CSS }));
-    bedienung(viewer, document.body, {{ {"zerlegen": t("ui.zerlegen"), "antippen": t("ui.teil_antippen")} | tojson }});
-    window.zeigen = (modell, kameraHalten = false) => viewer.zeigen(modell, { kameraHalten });
+    bedienung(viewer, document.body, {{ {"zerlegen": t("ui.zerlegen"), "antippen": t("ui.teil_antippen"), "ziehen": t("ui.punkte_ziehen"), "form_zurueck": t("ui.form_zurueck")} | tojson }});
+    window.parawerkViewer = viewer;  // für Tests im Browser
+    window.zeigen = (modell, kameraHalten = false, verzerren = false) => viewer.zeigen(modell, { kameraHalten, verzerren });
     window.Bereit?.postMessage('bereit');  // Kanal der App: jetzt kann sie das Modell schicken
     // Flutter-App im Browser: Ansicht steckt in einem iframe, Daten kommen per postMessage (nur Anzeige, keine Rechte)
     if (window.parent !== window) {
       addEventListener('message', (ev) => {
         const d = ev.data;
-        if (d && d.parawerk === 'zeigen' && d.modell) window.zeigen(d.modell, !!d.kameraHalten);
+        if (d && d.parawerk === 'zeigen' && d.modell) window.zeigen(d.modell, !!d.kameraHalten, !!d.verzerren);
       });
       window.parent.postMessage({ parawerk: 'bereit' }, '*');
     }

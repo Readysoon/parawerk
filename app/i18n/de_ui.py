@@ -92,6 +92,8 @@ TEXTE = {
     "fehler.anmeldung": "Die Anmeldung hat nicht geklappt. Bitte versuch es noch einmal.",
     "ui.zerlegen": "Zerlegen",
     "ui.teil_antippen": "Teil antippen: Name und Maße",
+    "ui.punkte_ziehen": "Orange Punkte ziehen zum Verzerren",
+    "ui.form_zurueck": "Form zurücksetzen",
     "ui.viewer_aria": "Berechnetes 3D-Modell, ziehen zum Drehen",
     "ui.leg_entwurf": "aus dem Entwurf",
     "ui.leg_ergaenzt": "für Stabilität ergänzt",

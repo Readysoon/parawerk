@@ -5,7 +5,7 @@ import '../api.dart';
 import '../hilfen.dart';
 import '../sitzung.dart';
 import '../texte.dart';
-import 'bauplan.dart';
+import 'schritte.dart';
 
 class EntwuerfeSeite extends StatefulWidget {
   const EntwuerfeSeite({super.key, required this.sitzung});
@@ -85,9 +85,15 @@ class _EntwuerfeSeiteState extends State<EntwuerfeSeite> {
     }
   }
 
+  /// Bauplan: erst anmelden (einmal), dann rechnet der Server, dann 3D-Schritt und Bezahlen.
   Future<void> _bauplan() async {
     if (_gewaehlt < 0) return;
     final entwurf = _s.entwuerfe[_gewaehlt];
+    if (!_s.anmeldungErledigt && !_s.api.angemeldet) {
+      final ok = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => AnmeldeSchritt(sitzung: _s)));
+      if (ok != true || !mounted) return;
+      _s.anmeldungErledigt = true;
+    }
     final ergebnis = await mitWarten(context, tr('st_lesen'), () async {
       final gelesen = await _s.api.lesen(
         entwurfId: entwurf.id,
@@ -101,7 +107,7 @@ class _EntwuerfeSeiteState extends State<EntwuerfeSeite> {
     if (ergebnis == null || !mounted) return;
     Navigator.of(context).push(MaterialPageRoute<void>(
       builder: (_) =>
-          BauplanSeite(sitzung: _s, entwurf: entwurf, graph: ergebnis.graph, plan: ergebnis.plan, maengel: ergebnis.maengel),
+          ModellSchritt(sitzung: _s, entwurf: entwurf, graph: ergebnis.graph, plan: ergebnis.plan, maengel: ergebnis.maengel),
     ));
   }
 

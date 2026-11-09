@@ -92,6 +92,8 @@ TEXTE = {
     "fehler.anmeldung": "Sign-in did not work. Please try again.",
     "ui.zerlegen": "Take apart",
     "ui.teil_antippen": "Tap a part: name and size",
+    "ui.punkte_ziehen": "Drag the orange points to distort",
+    "ui.form_zurueck": "Reset shape",
     "ui.viewer_aria": "Calculated 3D model, drag to rotate",
     "ui.leg_entwurf": "from the design",
     "ui.leg_ergaenzt": "added for stability",

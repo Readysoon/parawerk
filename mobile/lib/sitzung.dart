@@ -25,6 +25,10 @@ class Sitzung {
   List<Entwurf> entwuerfe = [];
   bool demo = false;
 
+  // Schritte vor dem Bauplan: einmal angemeldet (vorerst Demo oder Code) und je Entwurf bezahlt (Demo oder Code)
+  bool anmeldungErledigt = false;
+  final Set<String> bezahlt = {};
+
   /// Neue Runde Entwürfe; das Foto wird nur beim ersten Mal hochgeladen.
   Future<void> entwerfen() async {
     fotoId ??= (await hochgeladen)?.fotoId; // schon hochgeladen: nicht noch einmal schicken

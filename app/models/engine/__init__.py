@@ -14,6 +14,7 @@ from .aufbau import RAND_MM, _strecken, aufbauen, skalieren
 from .bauplan import bauplan, polster
 from .grundlagen import Bauteil, einmalig, gesetzt, mm, zahl
 from .pruefung import endkontrolle
+from . import sicherheit
 from .reparatur import pruefen_und_reparieren
 from .setzen import kontakte, setzen
 
@@ -310,6 +311,12 @@ def _rechnen(S: Sortiment, g: dict, bereich, soll: list[float] | None, rand: flo
     schaum = (g.get("funktion") or {}).get("polster") if any(m.typ == "gurt" for m in out.members) else None
     out.plan = bauplan(S, out.members, out.joints, schaum)
     out.soft = polster(g, out.members, out.dims)
+    if sicherheit.braucht_kippsicherung(out.members, g):
+        out.plan["hardware"].append({"n": 2, "text": t("kippsicherung.hw"), "preis": sicherheit.KIPPSICHERUNG_PREIS})
+        if out.plan.get("preis") is not None:
+            out.plan["preis"] = round(out.plan["preis"] + sicherheit.KIPPSICHERUNG_PREIS, 2)
+        out.plan["steps"].append({"t": t("montage.kippsicherung"), "n": 2, "key": "montage.kippsicherung"})
+        out.fc["checks"].append({"ok": True, "t": t("chk.kippsicherung")})
     return out
 
 

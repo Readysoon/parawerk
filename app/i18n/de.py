@@ -173,6 +173,11 @@ TEXTE = {
     "teil.fussriegel": "Fußriegel",
     "teil.mittelsteg": "Mittelsteg",
     "rueckmeldung.danke": "Danke! Wir schauen uns das an.",
+    "kippsicherung.hw": 'Kippsicherung (Wandwinkel mit Dübeln und Schrauben, passend zur Wand)',
+    "montage.kippsicherung": 'Kippsicherung: Das Möbel an seinen Platz stellen, ausrichten und oben mit 2 Kippsicherungen an der Wand befestigen. Dübel passend zur Wand wählen (Beton, Ziegel, Gipskarton).',
+    "chk.kippsicherung": 'Kippsicherung: Das Möbel ist 60 cm oder höher und wird oben an der Wand befestigt (in Einkaufsliste und Anleitung).',
+    "tipp.kippsicherung": 'Vor dem Bohren mit einem Leitungssucher prüfen, ob in der Wand Strom- oder Wasserleitungen liegen.',
+    "fehler.hochbett": 'Hoch- und Etagenbetten (Liegefläche ab 60 cm, hier {h} mm) kann Parawerk noch nicht sicher planen: Dafür gelten eigene Regeln für Absturzsicherung und Leiter (EN 747). Bitte die Liegefläche niedriger wählen.',
     "teil.querriegel": "Querriegel",
     "teil.gurtzarge": "Zarge für Gurte",
     # ---------- Wörter ----------

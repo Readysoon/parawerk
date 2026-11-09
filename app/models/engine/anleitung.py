@@ -146,6 +146,11 @@ def anleitung(ms: list[Bauteil], J: list[dict], plan: dict, dims: list[int], pol
     aus.append({"nr": len(aus) + 1, "t": t(OBERFLAECHE), "ids": [], "n": 0, "teile": [], "gurte": 0, "schrauben": [],
                 "wie": [], "stellen": [],
                 "werkzeug": [t("werkzeug.schleifpapier"), t("werkzeug.pinsel")], "tipp": t("tipp.oberflaeche")})
+    if any(st.get("key") == "montage.kippsicherung" for st in plan["steps"]):
+        aus.append({"nr": len(aus) + 1, "t": t("montage.kippsicherung"), "ids": [], "n": 0, "teile": [], "gurte": 0,
+                    "schrauben": [{"n": 2, "text": t("kippsicherung.hw")}], "wie": [], "stellen": [],
+                    "werkzeug": [t("werkzeug.wasserwaage"), t("werkzeug.duebel")],
+                    "tipp": t("tipp.kippsicherung")})
 
     # Kopf: Schwierigkeit, Zeit, Personen, Kosten
     holzteile = [m for m in ms if m.typ != "gurt"]

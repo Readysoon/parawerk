@@ -32,7 +32,7 @@ from ..i18n import sprache, t
 from ..models import analyse, konten, speicher
 from ..models.bauteilgraph import GraphFehler, bereinigen
 from ..models.dxf import teile_als_dxf
-from ..models.engine import Ergebnis, berechnen as engine_berechnen
+from ..models.engine import Ergebnis, berechnen as engine_berechnen, sicherheit
 from ..models.ansicht import modellbild
 from ..models.gltf import als_glb
 from ..models.usdz import als_usdz
@@ -71,9 +71,13 @@ def _graph(roh: dict) -> dict:
 
 def _rechnen(graph: dict, bereich: list[float], sortiment: str, schnell: bool = False) -> Ergebnis:
     try:
-        return engine_berechnen(graph, bereich, sortiment, schnell)
+        ergebnis = engine_berechnen(graph, bereich, sortiment, schnell)
     except (ValueError, KeyError, IndexError, ZeroDivisionError) as err:
         raise HTTPException(422, t("fehler.modell", art=type(err).__name__)) from err
+    hoch = sicherheit.ist_hochbett(ergebnis.members, graph)
+    if hoch is not None:  # EN 747 (Hoch- und Etagenbetten) prüft die Engine noch nicht
+        raise HTTPException(422, t("fehler.hochbett", h=hoch))
+    return ergebnis
 
 
 async def reservieren(deckel: Kostendeckel, art: str, k: Kunde, kostenlos: bool = False) -> int:

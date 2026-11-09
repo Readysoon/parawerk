@@ -172,6 +172,11 @@ TEXTE = {
     "teil.fussriegel": "Foot rail",
     "teil.mittelsteg": "Center rail",
     "rueckmeldung.danke": "Thanks! We'll take a look.",
+    "kippsicherung.hw": 'Anti-tip kit (wall bracket with plugs and screws to suit the wall)',
+    "montage.kippsicherung": 'Anti-tip: put the piece in place, level it and fix it to the wall at the top with 2 anti-tip brackets. Choose plugs to suit the wall (concrete, brick, plasterboard).',
+    "chk.kippsicherung": 'Anti-tip: the piece is 60 cm or taller and is fixed to the wall at the top (in shopping list and instructions).',
+    "tipp.kippsicherung": 'Before drilling, check the wall for power and water lines with a detector.',
+    "fehler.hochbett": "Parawerk can't safely plan loft and bunk beds yet (sleeping surface 60 cm or higher, here {h} mm): they need their own rules for guard rails and ladders (EN 747). Please choose a lower sleeping surface.",
     "teil.querriegel": "Cross rail",
     "teil.gurtzarge": "Webbing rail",
     # ---------- Words ----------

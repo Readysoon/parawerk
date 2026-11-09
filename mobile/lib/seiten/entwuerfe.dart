@@ -19,6 +19,7 @@ class _EntwuerfeSeiteState extends State<EntwuerfeSeite> {
   int _gewaehlt = -1;
   final _aenderung = TextEditingController();
   final Map<int, List<Entwurf>> _verlauf = {}; // je Entwurf die Vorversionen, für „Rückgängig“
+  bool _einzeln = false; // nach dem Anpassen: nur der gewählte Entwurf, groß
   String? _freiNj;
 
   Sitzung get _s => widget.sitzung;
@@ -62,7 +63,7 @@ class _EntwuerfeSeiteState extends State<EntwuerfeSeite> {
     setState(() {
       (_verlauf[i] ??= []).add(_s.entwuerfe[i]);
       _s.entwuerfe[i] = neu;
-      _aenderung.clear();
+      _einzeln = true; // Text bleibt im Feld, damit man sieht, was geändert wurde, und weiter anpassen kann
     });
   }
 
@@ -81,6 +82,8 @@ class _EntwuerfeSeiteState extends State<EntwuerfeSeite> {
       setState(() {
         _gewaehlt = -1;
         _verlauf.clear();
+        _einzeln = false;
+        _aenderung.clear();
       });
     }
   }
@@ -123,6 +126,21 @@ class _EntwuerfeSeiteState extends State<EntwuerfeSeite> {
       ),
       body: SafeArea(
         child: ListView(padding: const EdgeInsets.all(12), children: [
+          if (_einzeln && _gewaehlt >= 0) ...[
+            // nach dem Anpassen: nur dieses Bild, groß
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: Image.network(_s.entwuerfe[_gewaehlt].vollUrl, fit: BoxFit.contain),
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => setState(() => _einzeln = false),
+                icon: const Icon(Icons.grid_view),
+                label: Text(tr('alle_entwuerfe')),
+              ),
+            ),
+          ] else ...[
           Text(tr('entwurf_hinweis')),
           const SizedBox(height: 8),
           GridView.count(
@@ -138,10 +156,14 @@ class _EntwuerfeSeiteState extends State<EntwuerfeSeite> {
                   entwurf: e,
                   titel: tr('entwurf', {'n': i + 1}),
                   gewaehlt: i == _gewaehlt,
-                  onTap: () => setState(() => _gewaehlt = i),
+                  onTap: () => setState(() {
+                    if (_gewaehlt != i) _aenderung.clear(); // anderer Entwurf: Anpassungstext gehört zum alten
+                    _gewaehlt = i;
+                  }),
                 ),
             ],
           ),
+          ],
           if (_gewaehlt >= 0) ...[
             // Hauptweg: Entwurf passt → gleich den Bauplan. Ändern ist nur eine Option darunter.
             const SizedBox(height: 16),
@@ -152,10 +174,11 @@ class _EntwuerfeSeiteState extends State<EntwuerfeSeite> {
             ),
             const SizedBox(height: 8),
             ExpansionTile(
+              key: ValueKey(_einzeln), // nach dem Anpassen aufgeklappt
               title: Text(tr('nachjustieren')),
               tilePadding: EdgeInsets.zero,
               childrenPadding: const EdgeInsets.only(bottom: 8),
-              initiallyExpanded: hatVerlauf,
+              initiallyExpanded: hatVerlauf || _einzeln,
               children: [
                 TextField(
                   controller: _aenderung,

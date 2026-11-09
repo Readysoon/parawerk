@@ -5,9 +5,6 @@ import gzip
 import json
 from pathlib import Path
 
-import pytest
-from fastapi import HTTPException
-
 from app.models.engine import berechnen, sicherheit
 from app.models.engine.grundlagen import Bauteil
 
@@ -23,15 +20,17 @@ def test_hochbett_ab_600_mm():
     assert sicherheit.ist_hochbett([bein, _teil("sitzflaeche", 700, 720)], {"kategorie": "bank"}) is None
 
 
-def test_api_sperrt_hochbett(monkeypatch):
-    from app.controllers import api_v1
-
-    class E:
-        members = [Bauteil(min=[0, 0, 0], max=[60, 60, 1600], long=2, rolle="bein"), _teil("liegeflaeche", 1300, 1320)]
-    monkeypatch.setattr(api_v1, "engine_berechnen", lambda *a: E())
-    with pytest.raises(HTTPException) as f:
-        api_v1._rechnen({"kategorie": "bett"}, [2000, 1000, 2000], "DE")
-    assert f.value.status_code == 422 and "1320" in f.value.detail
+def test_hochbett_nur_warnung(monkeypatch):
+    """Kein Sperren: der Plan entsteht, die Prüfung warnt deutlich (offener Punkt)."""
+    from app.models.engine import __init__ as eng  # noqa: F401
+    import app.models.engine as engine
+    monkeypatch.setattr(engine.sicherheit, "ist_hochbett", lambda ms, g: 1320)
+    faelle = json.loads(gzip.open(Path(__file__).parent / "referenz" / "engine_faelle.json.gz", "rt").read())
+    f = faelle[0]
+    e = berechnen(f["graph"], f["bereich"], f["sortiment"])
+    assert e.plan["lines"]
+    w = [c for c in e.checks if "EN 747" in c["t"]]
+    assert w and w[0]["ok"] is False and "1320" in w[0]["t"]
 
 
 def test_hohes_regal_bekommt_kippsicherung():

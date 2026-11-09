@@ -177,7 +177,7 @@ TEXTE = {
     "montage.kippsicherung": 'Kippsicherung: Das Möbel an seinen Platz stellen, ausrichten und oben mit 2 Kippsicherungen an der Wand befestigen. Dübel passend zur Wand wählen (Beton, Ziegel, Gipskarton).',
     "chk.kippsicherung": 'Kippsicherung: Das Möbel ist 60 cm oder höher und wird oben an der Wand befestigt (in Einkaufsliste und Anleitung).',
     "tipp.kippsicherung": 'Vor dem Bohren mit einem Leitungssucher prüfen, ob in der Wand Strom- oder Wasserleitungen liegen.',
-    "fehler.hochbett": 'Hoch- und Etagenbetten (Liegefläche ab 60 cm, hier {h} mm) kann Parawerk noch nicht sicher planen: Dafür gelten eigene Regeln für Absturzsicherung und Leiter (EN 747). Bitte die Liegefläche niedriger wählen.',
+    "chk.hochbett": "Hoch- oder Etagenbett (Liegefläche {h} mm über dem Boden): Dafür gilt die Norm EN 747 mit eigenen Regeln für Absturzsicherung (Rausfallschutz), Spaltmaße und Leiter. Parawerk prüft diese Punkte noch nicht – bitte selbst nach EN 747 planen oder fachkundig prüfen lassen, besonders wenn Kinder darin schlafen.",
     "teil.querriegel": "Querriegel",
     "teil.gurtzarge": "Zarge für Gurte",
     # ---------- Wörter ----------

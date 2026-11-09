@@ -317,6 +317,9 @@ def _rechnen(S: Sortiment, g: dict, bereich, soll: list[float] | None, rand: flo
             out.plan["preis"] = round(out.plan["preis"] + sicherheit.KIPPSICHERUNG_PREIS, 2)
         out.plan["steps"].append({"t": t("montage.kippsicherung"), "n": 2, "key": "montage.kippsicherung"})
         out.fc["checks"].append({"ok": True, "t": t("chk.kippsicherung")})
+    hoch = sicherheit.ist_hochbett(out.members, g)
+    if hoch is not None:  # EN 747 prüft die Engine noch nicht: deutlich warnen, aber nicht sperren
+        out.fc["checks"].append({"ok": False, "t": t("chk.hochbett", h=hoch)})
     return out
 
 

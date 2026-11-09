@@ -2,7 +2,7 @@
 
 Hochbetten und Etagenbetten: Für Betten, deren Liegefläche (Oberkante Lattenrost/Liegefläche) 600 mm oder höher
 über dem Boden liegt, gilt EN 747-1:2024 (Absturzsicherung, Spaltmaße, Leiter, eigene Lasten). Das prüft die Engine
-noch nicht, deshalb werden solche Betten vorerst nicht berechnet.
+noch nicht; der Plan wird erstellt, aber mit einer deutlichen Warnung in der Prüfung.
 
 Kippsicherung: Regale und andere Aufbewahrungsmöbel ab 600 mm Höhe ohne Wandleiste bekommen eine Wandbefestigung
 (2 Kippsicherungen mit Dübeln) in Einkaufsliste und Anleitung, und die Prüfung weist darauf hin. Kinder klettern an

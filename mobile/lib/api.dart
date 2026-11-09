@@ -6,6 +6,7 @@ import 'dart:math';
 import 'dart:typed_data';
 import 'dart:ui' show Offset;
 
+import 'package:flutter/foundation.dart' show ValueNotifier;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -76,8 +77,28 @@ class KontoStand {
   final bool demo; // Server ohne KI-Schlüssel (lokal): dann gibt es „Demo-Anmeldung“ zum Durchspielen der Stufen
 }
 
+/// Ein gespeicherter Bauplan unter „Meine Projekte“.
+class Projekt {
+  Projekt(this.id, this.name, this.masse, this.bildUrl, this.geaendert);
+  factory Projekt.ausJson(Map<String, dynamic> j) => Projekt(
+        j['id'] as String,
+        (j['name'] ?? '').toString(),
+        [for (final v in (j['masse'] as List?) ?? const []) (v as num).round()],
+        j['bild_url'] as String?,
+        DateTime.tryParse((j['geaendert'] ?? '').toString())?.toLocal(),
+      );
+  final String id;
+  final String name;
+  final List<int> masse;
+  final String? bildUrl;
+  final DateTime? geaendert;
+
+  String? get vollBildUrl => bildUrl == null ? null : '$apiBasis$bildUrl';
+}
+
 class Api {
-  Api._(this.geraet, this.sprache, this._sitzung);
+  Api._(this.geraet, this.sprache, this._sitzung, bool demoAngemeldet)
+      : projekteAn = ValueNotifier(_sitzung != null || demoAngemeldet);
 
   /// Die eine Verbindung der App (für Hilfen wie die Anmeldung, wenn der Server 401 meldet).
   static Api? aktuell;
@@ -85,6 +106,16 @@ class Api {
   /// Sitzung nach „Mit Apple/Google anmelden“; gespeichert, damit man angemeldet bleibt.
   String? _sitzung;
   bool get angemeldet => _sitzung != null;
+
+  /// Nach dem Anmelde-Schritt (echt oder vorerst Demo): Baupläne werden als Projekte gespeichert und sind unter
+  /// „Meine Projekte“ zu sehen. Bleibt nach dem Neustart der App erhalten.
+  final ValueNotifier<bool> projekteAn;
+
+  Future<void> demoAnmelden() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('demo_angemeldet', true);
+    projekteAn.value = true;
+  }
 
   /// Geräte-ID: einmal zufällig erzeugt und gespeichert. Darauf zählt der Server die Gratis-Runden.
   final String geraet;
@@ -100,7 +131,7 @@ class Api {
       id = 'app-${List.generate(16, (_) => zufall.nextInt(256).toRadixString(16).padLeft(2, '0')).join()}';
       await prefs.setString('geraet', id);
     }
-    return aktuell = Api._(id, sprache, prefs.getString('sitzung'));
+    return aktuell = Api._(id, sprache, prefs.getString('sitzung'), prefs.getBool('demo_angemeldet') ?? false);
   }
 
   Map<String, String> get _kopf => {
@@ -115,9 +146,11 @@ class Api {
     final prefs = await SharedPreferences.getInstance();
     if (token == null) {
       await prefs.remove('sitzung');
+      await prefs.remove('demo_angemeldet');
     } else {
       await prefs.setString('sitzung', token);
     }
+    projekteAn.value = token != null;
   }
 
   Future<KontoStand> konto() async {
@@ -309,8 +342,28 @@ class Api {
   /// [entwurfId]: für ihn gilt die Freischaltung; ohne Freischaltung kommt der Bauplan gekürzt (``gesperrt``).
   Future<Map<String, dynamic>> berechnen(Map<String, dynamic> graph, List<int> bereich,
           {bool schnell = false, String? entwurfId}) =>
-      _post(schnell ? '/api/v1/bauplan/berechnen?mit_glb=false&schnell=true' : '/api/v1/bauplan/berechnen',
-          {'graph': graph, 'bereich': bereich, if (entwurfId != null) 'entwurf_id': entwurfId});
+      _post(schnell ? '/api/v1/bauplan/berechnen?mit_glb=false&schnell=true' : '/api/v1/bauplan/berechnen', {
+        'graph': graph,
+        'bereich': bereich,
+        if (entwurfId != null) 'entwurf_id': entwurfId,
+        // nach der Anmeldung als Projekt ablegen (je Entwurf eins, Änderungen überschreiben es)
+        if (entwurfId != null && !schnell && projekteAn.value) 'speichern': true,
+      });
+
+  Future<List<Projekt>> projekte() async {
+    final j = await _get('/api/v1/projekte');
+    return [for (final p in (j['projekte'] as List?) ?? const []) Projekt.ausJson(p as Map<String, dynamic>)];
+  }
+
+  /// Graph, Bereich und Entwurf eines Projekts; damit wird der Bauplan neu gerechnet.
+  Future<Map<String, dynamic>> projektOeffnen(String id) => _get('/api/v1/projekte/$id');
+
+  Future<void> projektLoeschen(String id) async {
+    final r = await http
+        .delete(Uri.parse('$apiBasis/api/v1/projekte/$id'), headers: _kopf)
+        .timeout(const Duration(seconds: 30));
+    _auswerten(r);
+  }
 
   /// Bauplan als PDF (mit Entwurf und 3D-Bild). Der Server speichert es; zurück kommt die Adresse zum Öffnen und Teilen.
   Future<Uri> pdf(Map<String, dynamic> graph, List<int> bereich, {String? entwurfId, String? maskeId}) async {

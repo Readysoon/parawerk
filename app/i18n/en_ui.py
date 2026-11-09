@@ -191,6 +191,7 @@ TEXTE = {
     # ---------- Cost cap ----------
     "fehler.bild_kaputt": "The image could not be opened. Please send a JPG or PNG.",
     "fehler.nichts_markiert": "No area is marked on the mask.",
+    "fehler.projekt_fehlt": "This project does not exist (any more).",
     "fehler.bild_fehlt": "This image does not exist (any more). Please upload it again.",
     "fehler.auftrag_fehlt": "This job does not exist.",
     "fehler.intern": "internal error",

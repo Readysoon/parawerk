@@ -190,6 +190,7 @@ TEXTE = {
     # ---------- Kostendeckel ----------
     "fehler.bild_kaputt": "Das Bild ließ sich nicht öffnen. Bitte ein JPG oder PNG schicken.",
     "fehler.nichts_markiert": "Auf der Maske ist kein Bereich markiert.",
+    "fehler.projekt_fehlt": "Dieses Projekt gibt es nicht (mehr).",
     "fehler.bild_fehlt": "Dieses Bild gibt es nicht (mehr). Bitte neu hochladen.",
     "fehler.auftrag_fehlt": "Diesen Auftrag gibt es nicht.",
     "fehler.intern": "interner Fehler",

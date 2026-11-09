@@ -17,6 +17,7 @@ from datetime import timedelta
 from sqlalchemy import Column, DateTime, Engine, Integer, String, Table, UniqueConstraint, func, insert, select, update
 from sqlalchemy.exc import IntegrityError
 
+from .projekte import projekte
 from .verbrauch import jetzt, metadata
 
 SITZUNG_GUELTIG = timedelta(days=365)
@@ -97,6 +98,7 @@ def konto_loeschen(db: Engine, konto: int) -> None:
     with db.begin() as c:
         c.execute(sitzungen.delete().where(sitzungen.c.konto == konto))
         c.execute(freischaltungen.delete().where(freischaltungen.c.wer == f"k-{konto}"))
+        c.execute(projekte.delete().where(projekte.c.wer == f"k-{konto}"))
         c.execute(konten.delete().where(konten.c.id == konto))
 
 

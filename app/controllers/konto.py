@@ -9,7 +9,7 @@ from starlette.concurrency import run_in_threadpool
 
 from ..config import Einstellungen, einstellungen
 from ..i18n import sprache, t
-from ..models import analyse, konten
+from ..models import analyse, konten, projekte
 from ..models import verbrauch as v
 from ..models.verbrauch import datenbank
 from ..services.anmeldung import AnmeldeFehler, Identitaet, pruefen
@@ -97,6 +97,7 @@ async def anmelden(anbieter: str, anfrage: AnmeldeAnfrage, request: Request, res
     token = await run_in_threadpool(konten.anmelden, db, ich.anbieter, ich.sub, ich.email or anfrage.email)
     konto_id, name = konten.konto_zur_sitzung(db, token)
     await run_in_threadpool(_uebernehmen, db, geraete_id(request, response), konto_id)
+    await run_in_threadpool(projekte.uebernehmen, db, geraete_id(request, response), f"k-{konto_id}")
     response.set_cookie(SITZUNG, token, max_age=JAHR, httponly=True, samesite="lax", secure=request.url.scheme == "https")
     return {"token": token, "email": name}
 

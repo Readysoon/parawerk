@@ -29,7 +29,7 @@ from pydantic import BaseModel, Field
 
 from ..config import Einstellungen, einstellungen
 from ..i18n import sprache, t
-from ..models import analyse, konten, speicher
+from ..models import analyse, konten, projekte, speicher
 from ..models.bauteilgraph import GraphFehler, bereinigen
 from ..models.dxf import teile_als_dxf
 from ..models.engine import Ergebnis, berechnen as engine_berechnen
@@ -411,6 +411,9 @@ async def berechnen(anfrage: BerechnenV1, mit_glb: bool = True, mit_html: bool =
     if not schnell:  # Vorschau beim Ziehen nicht, nur das Ergebnis
         await run_in_threadpool(analyse.eintragen, _db(e), "berechnet", _bauplan_daten(ergebnis, graph, anfrage),
                                 sprache=sprache(), demo=not e.claude_aktiv)
+    projekt_id = None
+    if anfrage.speichern and anfrage.entwurf_id and not schnell:
+        projekt_id = await run_in_threadpool(_projekt_ablegen, _db(e), k.geraet, anfrage, graph, ergebnis.dims)
     ansicht = bauplan_ansicht(ergebnis, graph, anfrage.bereich)
     gesperrt = await run_in_threadpool(_gesperrt, k, e, anfrage.entwurf_id, graph)
     if gesperrt:  # Stufe 3: 3D, AR und Eckdaten gratis, der vollständige Bauplan erst nach dem Freischalten
@@ -427,7 +430,55 @@ async def berechnen(anfrage: BerechnenV1, mit_glb: bool = True, mit_html: bool =
                                             "model/vnd.usdz+zip")) + "/parawerk.usdz"
     return BauplanAntwort(name=graph["name"], offene_punkte=ergebnis.offene_punkte, bauplan=ansicht,
                           modell=modell, modell_glb=glb, modell_usdz=usdz, plan={} if gesperrt else ergebnis.plan,
-                          html=html, gesperrt=gesperrt)
+                          html=html, gesperrt=gesperrt, projekt_id=projekt_id)
+
+
+def _projekt_ablegen(db, wer: str, anfrage: BerechnenV1, graph: dict, masse: list) -> str:
+    gefunden = speicher.bild_laden(db, anfrage.entwurf_id)
+    bild = None
+    if gefunden:
+        b = ba.aus_bytes(gefunden[0])
+        b.thumbnail((1200, 1200))
+        bild = ba.jpeg(b, 82)
+    return projekte.speichern(db, wer, anfrage.entwurf_id, graph["name"], graph, anfrage.bereich, masse, bild)
+
+
+@router.get("/projekte")
+async def projekte_liste(k: Kunde = Depends(kunde), e: Einstellungen = Depends(einstellungen)) -> dict:
+    """Meine Projekte, neuestes zuerst."""
+    liste = await run_in_threadpool(projekte.liste, _db(e), k.geraet)
+    for p in liste:
+        p["bild_url"] = f"/api/v1/projekte/{p['id']}/bild" if p.pop("hat_bild") else None
+    return {"projekte": liste}
+
+
+@router.get("/projekte/{pid}")
+async def projekt_oeffnen(pid: str, k: Kunde = Depends(kunde), e: Einstellungen = Depends(einstellungen)) -> dict:
+    """Graph und Entwurf eines Projekts; die App rechnet damit den Bauplan neu. Ist das Entwurfsbild schon
+    aufgeräumt, wird es aus der Projektkopie wiederhergestellt (für PDF und Anzeige)."""
+    db = _db(e)
+    p = await run_in_threadpool(projekte.laden, db, k.geraet, pid[:32])
+    if not p:
+        raise HTTPException(404, t("fehler.projekt_fehlt"))
+    if p["bild"] and not await run_in_threadpool(speicher.bild_laden, db, p["entwurf_id"]):
+        await run_in_threadpool(speicher.bild_wiederherstellen, db, p["entwurf_id"], k.geraet, p["bild"], "image/jpeg")
+    return {"id": p["id"], "name": p["name"], "graph": p["graph"], "bereich": p["bereich"], "masse": p["masse"],
+            "entwurf": {"id": p["entwurf_id"], "url": _url(p["entwurf_id"])}}
+
+
+@router.get("/projekte/{pid}/bild")
+async def projekt_bild(pid: str, e: Einstellungen = Depends(einstellungen)) -> Response:
+    daten = await run_in_threadpool(projekte.bild, _db(e), pid[:32])
+    if not daten:
+        raise HTTPException(404, t("fehler.bild_fehlt"))
+    return Response(daten, media_type="image/jpeg", headers={"Cache-Control": "private, max-age=86400"})
+
+
+@router.delete("/projekte/{pid}")
+async def projekt_loeschen(pid: str, k: Kunde = Depends(kunde), e: Einstellungen = Depends(einstellungen)) -> dict:
+    if not await run_in_threadpool(projekte.loeschen, _db(e), k.geraet, pid[:32]):
+        raise HTTPException(404, t("fehler.projekt_fehlt"))
+    return {"ok": True}
 
 
 def _moebelbild(db, art: str, gemalt: Image.Image, maske: Image.Image, lauf_id: str | None, entwurf_id: str,

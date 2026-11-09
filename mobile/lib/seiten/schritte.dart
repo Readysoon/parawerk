@@ -99,7 +99,7 @@ class _CodeFeldState extends State<_CodeFeld> {
   }
 }
 
-/// Schritt 1: Anmelden. true = weiter.
+/// Schritt 1: Anmelden. Ergebnis 'demo' (angemeldet, Projekte werden gespeichert) oder 'code' (ohne Anmeldung weiter).
 class AnmeldeSchritt extends StatelessWidget {
   const AnmeldeSchritt({super.key, required this.sitzung});
   final Sitzung sitzung;
@@ -118,7 +118,7 @@ class AnmeldeSchritt extends StatelessWidget {
           Text(tr('anmelden_warum')),
           const SizedBox(height: 20),
           FilledButton.icon(
-            onPressed: () => Navigator.of(context).pop(true),
+            onPressed: () => Navigator.of(context).pop('demo'),
             icon: const Icon(Icons.science_outlined),
             label: Text(tr('demo_anmelden')),
             style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
@@ -130,7 +130,7 @@ class AnmeldeSchritt extends StatelessWidget {
           const SizedBox(height: 8),
           _CodeFeld(einloesen: (code) async {
             await sitzung.api.codeEinloesen(code);
-            if (context.mounted) Navigator.of(context).pop(true);
+            if (context.mounted) Navigator.of(context).pop('code');
           }),
         ]),
       ),

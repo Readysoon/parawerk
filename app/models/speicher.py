@@ -74,6 +74,13 @@ def bild_speichern(db: Engine, geraet: str, daten: bytes, mime: str) -> str:
     return bid
 
 
+def bild_wiederherstellen(db: Engine, bid: str, geraet: str, daten: bytes, mime: str) -> None:
+    """Bild unter seiner alten ID wieder ablegen (z. B. Entwurf eines Projekts nach dem Aufräumen)."""
+    with db.begin() as c:
+        if not c.execute(select(bilder.c.id).where(bilder.c.id == bid)).first():
+            c.execute(insert(bilder).values(id=bid, geraet=geraet, mime=mime, daten=daten, erstellt=jetzt()))
+
+
 def bild_laden(db: Engine, bid: str) -> tuple[bytes, str] | None:
     with db.connect() as c:
         z = c.execute(select(bilder.c.daten, bilder.c.mime).where(bilder.c.id == bid)).first()

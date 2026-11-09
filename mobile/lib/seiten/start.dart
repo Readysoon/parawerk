@@ -9,6 +9,7 @@ import '../hilfen.dart';
 import '../konto.dart';
 import '../texte.dart';
 import 'markieren.dart';
+import 'projekte.dart';
 
 class StartSeite extends StatelessWidget {
   const StartSeite({super.key, required this.api});
@@ -58,6 +59,22 @@ class StartSeite extends StatelessWidget {
               icon: const Icon(Icons.photo_library),
               label: Text(tr('galerie')),
               style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+            ),
+            // nach der Anmeldung: gespeicherte Baupläne
+            ValueListenableBuilder<bool>(
+              valueListenable: api.projekteAn,
+              builder: (context, an, _) => !an
+                  ? const SizedBox.shrink()
+                  : Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: TextButton.icon(
+                        onPressed: () => Navigator.of(context)
+                            .push(MaterialPageRoute<void>(builder: (_) => ProjekteSeite(api: api))),
+                        icon: const Icon(Icons.folder_open),
+                        label: Text(tr('meine_projekte')),
+                        style: TextButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                      ),
+                    ),
             ),
             const SizedBox(height: 24),
           ]),

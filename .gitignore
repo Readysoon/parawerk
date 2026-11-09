@@ -4,6 +4,7 @@ __pycache__/
 .env
 .pytest_cache/
 
-# Kopie der lokalen Datenbank (enthält Fotos)
+# Lokale Datenbank und Kopie der Sicherung (enthalten Fotos)
+parawerk.db
 lokal.db
 *.db.gz

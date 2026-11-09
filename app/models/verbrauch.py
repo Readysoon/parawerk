@@ -5,7 +5,6 @@ Kontingente und Tagesbudget sind Zählungen und Summen über sie.
 """
 from __future__ import annotations
 
-import tempfile
 from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
@@ -38,7 +37,8 @@ einloesungen = Table(
     UniqueConstraint("code", "geraet", name="uq_einloesung"),
 )
 
-STANDARD_URL = f"sqlite:///{Path(tempfile.gettempdir()) / 'parawerk.db'}"
+# lokal: im Projektordner, damit man sie sieht (auf fly.io gilt DATABASE_URL)
+STANDARD_URL = f"sqlite:///{Path(__file__).resolve().parents[2] / 'parawerk.db'}"
 
 
 def _url(url: str) -> str:

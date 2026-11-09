@@ -225,7 +225,7 @@ Jeder bezahlte KI-Aufruf wird vorher in der Tabelle `verbrauch` eingetragen (`se
 
 Die Geräte-ID ist ein Cookie, das die Startseite vergibt. Mit `ADMIN_SCHLUESSEL` gesetzt hebt `/?schluessel=…` die Kontingente für diesen Browser auf (nicht das Tagesbudget). `GET /api/v1/kontingent` zeigt, was das Gerät noch gratis hat.
 
-Datenbank: ohne `DATABASE_URL` eine SQLite-Datei im Temp-Ordner. Auf fly.io eine SQLite-Datei auf dem Volume `/data` (siehe `fly.toml`). Für Postgres genügt `DATABASE_URL=postgres://…`; Tabellen legt die App selbst an.
+Datenbank: ohne `DATABASE_URL` die SQLite-Datei `parawerk.db` im Projektordner (von Git ignoriert, enthält Fotos). Auf fly.io eine SQLite-Datei auf dem Volume `/data` (siehe `fly.toml`). Für Postgres genügt `DATABASE_URL=postgres://…`; Tabellen legt die App selbst an.
 
 **Lerndaten (Analyse):** Jeder Durchgang wird anonym gespeichert (`app/models/analyse.py`): Wunsch, gelesene Konstruktion, jeder berechnete Bauplan mit Reparaturen und Statik, Freischaltungen, Rückmeldungen („Stimmt was nicht?“) und die gemalten Möbel als Bild, nur die Pixel innerhalb der Markierung (außen weiß). Nie Fotos, Geräte-ID, Konto oder IP. Abrufen mit Admin-Schlüssel: `/api/v1/analyse`, `/api/v1/analyse/bilder`, `/api/v1/analyse/bild/{id}`.
 

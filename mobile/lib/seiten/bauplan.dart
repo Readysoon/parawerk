@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
 import '../hilfen.dart';
+import '../mass_felder.dart';
 import '../modell_ansicht.dart';
 import '../sitzung.dart';
 import '../texte.dart';
@@ -35,40 +36,10 @@ class _BauplanSeiteState extends State<BauplanSeite> {
   late Map<String, dynamic> _plan = widget.plan;
   final _wunsch = TextEditingController();
 
-  // Strecken/Stauchen: Maße wie im Entwurf (Ausgangspunkt der Regler) und die gerade eingestellten
-  late final List<int> _design = _masse(widget.plan);
+  // Strecken/Stauchen: die gerade eingestellten Maße
   late List<double> _regler = [for (final v in _masse(widget.plan)) v.toDouble()];
   bool _rechnet = false;
-  // Live-Vorschau beim Ziehen: Teile, die gerade angezeigt werden, und ob schon eine Vorschau unterwegs ist
   late Map<String, dynamic> _anzeige = widget.plan['modell'] as Map<String, dynamic>;
-  bool _zieht = false;
-  bool _vorschauLaeuft = false;
-  bool _vorschauWartet = false;
-  int _stand = 0; // zählt hoch, sobald der ganze Bauplan neu gerechnet wird; ältere Vorschauen werden verworfen
-
-  Map<String, dynamic> _mitZiel() => {..._graph, 'ziel': [for (final v in _regler) v.round()]};
-
-  /// Während des Ziehens: schnelle Vorschau (nur Teile), immer nur eine gleichzeitig, danach der neueste Stand.
-  Future<void> _vorschau() async {
-    if (_vorschauLaeuft) {
-      _vorschauWartet = true;
-      return;
-    }
-    _vorschauLaeuft = true;
-    final stand = _stand;
-    try {
-      final plan = await widget.sitzung.api.berechnen(_mitZiel(), widget.sitzung.bereich, schnell: true, entwurfId: widget.entwurf.id);
-      if (mounted && stand == _stand && _zieht) setState(() => _anzeige = plan['modell'] as Map<String, dynamic>);
-    } catch (_) {
-      // nur Vorschau; der ganze Bauplan nach dem Loslassen meldet Fehler
-    } finally {
-      _vorschauLaeuft = false;
-      if (_vorschauWartet && mounted && _zieht) {
-        _vorschauWartet = false;
-        _vorschau();
-      }
-    }
-  }
 
   bool get _hatSitz {
     final matratze = (_graph['funktion'] as Map?)?['matratze'] is List;
@@ -81,7 +52,7 @@ class _BauplanSeiteState extends State<BauplanSeite> {
   static List<int> _masse(Map<String, dynamic> plan) =>
       [for (final v in ((plan['modell'] as Map<String, dynamic>)['dims'] as List)) (v as num).round()];
 
-  /// Regler losgelassen: mit den neuen Maßen neu rechnen. Das Design bleibt, Holzstärken auch;
+  /// Neue Maße eingegeben: neu rechnen. Das Design bleibt, Holzstärken auch;
   /// Latten und Stäbe behalten ihren Abstand, es kommen welche dazu oder fallen weg.
   Future<void> _strecken({bool zurueck = false, String? sitz}) async {
     final s = widget.sitzung;
@@ -94,11 +65,7 @@ class _BauplanSeiteState extends State<BauplanSeite> {
     } else {
       graph['ziel'] = [for (final v in _regler) v.round()];
     }
-    _stand++;
-    setState(() {
-      _rechnet = true;
-      _zieht = false;
-    });
+    setState(() => _rechnet = true);
     try {
       final plan = await s.api.berechnen(graph, s.bereich, entwurfId: widget.entwurf.id);
       if (!mounted) return;
@@ -248,7 +215,7 @@ class _BauplanSeiteState extends State<BauplanSeite> {
             const SizedBox(height: 12),
             ClipRRect(
               borderRadius: BorderRadius.circular(6),
-              child: ModellAnsicht(modell: _anzeige, kameraHalten: _zieht),
+              child: ModellAnsicht(modell: _anzeige, kameraHalten: true),
             ),
             Text(tr('modell_3d'), style: stil.bodySmall),
             // AR: das Möbel in echter Größe im Zimmer (iPhone: AR Quick Look öffnet die USDZ-Datei)
@@ -266,26 +233,15 @@ class _BauplanSeiteState extends State<BauplanSeite> {
           // Größe: Strecken und Stauchen
           Abschnitt(tr('groesse')),
           Text(tr('groesse_hinweis'), style: stil.bodySmall),
-          for (final (i, key) in const ['breite', 'tiefe', 'hoehe'].indexed) ...[
-            Row(children: [
-              Expanded(child: Text(tr(key))),
-              Text('${_regler[i].round()} mm', style: const TextStyle(fontFeatures: [FontFeature.tabularFigures()])),
-            ]),
-            Slider(
-              min: (_design[i] * 0.5).clamp(250, 4000).toDouble(),
-              max: (_design[i] * 2.0).clamp(500, 4000).toDouble(),
-              divisions: 100,
-              value: _regler[i].clamp((_design[i] * 0.5).clamp(250, 4000), (_design[i] * 2.0).clamp(500, 4000)).toDouble(),
-              onChanged: (v) {
-                setState(() {
-                  _zieht = true;
-                  _regler[i] = (v / 10).round() * 10.0;
-                });
-                _vorschau();
-              },
-              onChangeEnd: (_) => _strecken(),
-            ),
-          ],
+          const SizedBox(height: 10),
+          MassFelder(
+            werte: [for (final v in _regler) v.round()],
+            gesperrt: _rechnet,
+            geaendert: (neu) {
+              setState(() => _regler = [for (final v in neu) v.toDouble()]);
+              _strecken();
+            },
+          ),
           Row(children: [
             TextButton(
               onPressed: _rechnet || _graph['ziel'] == null ? null : () => _strecken(zurueck: true),

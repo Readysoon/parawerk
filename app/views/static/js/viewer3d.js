@@ -205,7 +205,11 @@ export class Viewer3D {
   auseinander(f, neu = true) {
     this.f = Math.max(0, Math.min(1, f));
     for (const s of this.stuecke) {
-      s.mesh.position.copy(s.mitte).multiplyScalar(this.f * 0.9);
+      // weg von der Mitte; Teile nahe der Mitte bekommen einen Mindestweg, sonst bleiben sie liegen
+      const weg = s.mitte.clone(), l = weg.length(), min = Math.max(...this.dims) * 0.12;
+      if (l > 1) weg.multiplyScalar((l * 1.1 + min) / l * this.f); else weg.set(0, min * this.f, 0);
+      s.mesh.position.copy(weg);
+      if (s.weich) { s.mesh.material.opacity = 0.5 * (1 - this.f); s.mesh.visible = this.f < 0.95; }
       s.kante?.position.copy(s.mesh.position);
     }
     if (neu) this.zeichnen();
@@ -234,8 +238,8 @@ export class Viewer3D {
     const w = this.el.clientWidth || 600, h = this.fuellen ? (this.el.clientHeight || Math.round(w / 1.5)) : Math.round(w / 1.5);
     this.r.setSize(w, h, false); this.cam.aspect = w / h; this.cam.updateProjectionMatrix();
     this.grp.rotation.set(this.rot.rx, this.rot.ry, 0);
-    // Beim Strecken die Kamera nicht mitzoomen, sonst sieht man das Möbel nicht wachsen; beim Zerlegen weiter weg
-    const weite = Math.max(...this.dims) * 2.4 * (1 + this.f * 0.8);
+    // Beim Strecken die Kamera nicht mitzoomen, sonst sieht man das Möbel nicht wachsen; beim Zerlegen nur etwas weiter weg, damit die Teile sichtbar auseinandergehen
+    const weite = Math.max(...this.dims) * 2.4 * (1 + this.f * 0.3);
     this.weite = this.halten && this.weite ? Math.max(this.weite, weite) : weite;
     this.cam.position.set(0, 0, this.weite); this.cam.lookAt(0, 0, 0);
     this.grp.updateMatrixWorld();

@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 
 import '../api.dart';
 import '../hilfen.dart';
+import '../mass_felder.dart';
 import '../modell_ansicht.dart';
 import '../sitzung.dart';
 import '../texte.dart';
@@ -176,15 +177,13 @@ class _ModellSchrittState extends State<ModellSchritt> {
   late final List<int> _design = [for (final v in _modell['dims'] as List) (v as num).round()];
   late List<double> _regler = [for (final v in _design) v.toDouble()];
   late Map<String, dynamic> _anzeige = _modell;
-  bool _zieht = false;
   bool _verzerren = false;
 
   bool get _geaendert => [for (final (i, v) in _regler.indexed) v.round() != _design[i]].contains(true);
 
-  void _ziehen(int i, double v) {
+  void _neueMasse(List<int> neu) {
     setState(() {
-      _zieht = true;
-      _regler[i] = (v / 10).round() * 10.0;
+      _regler = [for (final v in neu) v.toDouble()];
       _anzeige = skaliert(_modell, [for (final (j, r) in _regler.indexed) r / _design[j]]);
     });
   }
@@ -220,7 +219,6 @@ class _ModellSchrittState extends State<ModellSchritt> {
   @override
   Widget build(BuildContext context) {
     final stil = Theme.of(context).textTheme;
-    final masse = _regler.map((v) => v.round()).join(' × ');
     return Scaffold(
       appBar: AppBar(title: Text(tr('schritt_3d_titel'))),
       body: SafeArea(
@@ -229,26 +227,14 @@ class _ModellSchrittState extends State<ModellSchritt> {
           const SizedBox(height: 16),
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
-            child: ModellAnsicht(modell: _anzeige, kameraHalten: _zieht, verzerren: _verzerren, seitenverhaeltnis: 1.0),
+            child: ModellAnsicht(modell: _anzeige, kameraHalten: true, verzerren: _verzerren, seitenverhaeltnis: 1.0),
           ),
           const SizedBox(height: 6),
           Text(tr('schritt_3d_hinweis'), style: stil.bodySmall),
           Abschnitt(tr('groesse')),
-          Text('$masse mm', style: stil.titleMedium?.copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
-          for (final (i, key) in const ['breite', 'tiefe', 'hoehe'].indexed) ...[
-            Row(children: [
-              Expanded(child: Text(tr(key))),
-              Text('${_regler[i].round()} mm', style: const TextStyle(fontFeatures: [FontFeature.tabularFigures()])),
-            ]),
-            Slider(
-              min: (_design[i] * 0.5).clamp(250, 4000).toDouble(),
-              max: (_design[i] * 2.0).clamp(500, 4000).toDouble(),
-              divisions: 100,
-              value: _regler[i].clamp((_design[i] * 0.5).clamp(250, 4000), (_design[i] * 2.0).clamp(500, 4000)).toDouble(),
-              onChanged: (v) => _ziehen(i, v),
-              onChangeEnd: (_) => setState(() => _zieht = false),
-            ),
-          ],
+          Text(tr('masse_eingeben'), style: stil.bodySmall),
+          const SizedBox(height: 10),
+          MassFelder(werte: [for (final v in _regler) v.round()], geaendert: _neueMasse),
           Align(
             alignment: Alignment.centerLeft,
             child: TextButton(onPressed: _geaendert ? _zurueck : null, child: Text(tr('groesse_zurueck'))),

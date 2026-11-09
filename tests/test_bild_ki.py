@@ -67,3 +67,25 @@ def test_bearbeiten_mit_kontext():
     bild = asyncio.run(_ki(api, pausen).bearbeiten(FOTO, "Make the backrest higher.", 7))
     assert bild.startswith("data:image/png;base64,")
     assert api.kontext == {"prompt": "Make the backrest higher.", "input_image": FOTO, "aspect_ratio": "match_input_image", "seed": 7}
+
+
+def test_nachjustieren_ausschnitt_und_zurueckkleben():
+    """Die Bild-KI bekommt nur die Markierung plus Rand; zurückgeklebt ändert sich außerhalb nichts."""
+    from PIL import Image, ImageDraw
+    from app.services import bildarbeit as ba
+    maske = Image.new("L", (1000, 750), 0)
+    ImageDraw.Draw(maske).rectangle((400, 300, 600, 450), fill=255)
+    box = ba.bearbeitungs_rahmen(maske, (2000, 1500))
+    assert box == (659, 494, 1343, 1008)  # Bildmaßstab ×2, 35 % Rand um die Markierung
+    teil = ba.vergroessern(Image.new("RGB", (box[2] - box[0], box[3] - box[1])))
+    assert max(teil.size) == 1024
+    bild = Image.new("RGB", (2000, 1500), (10, 20, 30))
+    aus = ba.zurueckkleben(bild, Image.new("RGB", teil.size, (0, 0, 255)), box)
+    assert aus.getpixel((1000, 750)) == (0, 0, 255) and aus.getpixel((100, 100)) == (10, 20, 30)
+
+
+def test_bearbeitungs_eingabe_je_modell():
+    from app.services.bild_ki import bearbeitungs_eingabe
+    assert bearbeitungs_eingabe("black-forest-labs/flux-kontext-pro", "B", "p", 1)["input_image"] == "B"
+    assert bearbeitungs_eingabe("google/nano-banana-pro", "B", "p", 1)["image_input"] == ["B"]
+    assert bearbeitungs_eingabe("black-forest-labs/flux-2-pro", "B", "p", 1)["input_images"] == ["B"]

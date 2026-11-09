@@ -12,7 +12,9 @@ class Einstellungen(BaseSettings):
     # Bildgenerierung (Entwürfe) über Replicate, FLUX Fill Pro
     replicate_api_token: str = ""
     replicate_model: str = "black-forest-labs/flux-fill-pro"
-    replicate_edit_model: str = "black-forest-labs/flux-kontext-pro"  # Nachjustieren eines Entwurfs per Text
+    # Nachjustieren eines Entwurfs per Text. Getestet: FLUX Kontext; die Eingaben für andere Modelle (Nano Banana,
+    # FLUX 2, Seedream, Qwen) stehen in bild_ki.bearbeitungs_eingabe – zum Vergleichen scripts/anpassen_vergleich.py
+    replicate_edit_model: str = "black-forest-labs/flux-kontext-pro"
     # Tiefe aus dem Foto (für Raummaße): Apple Depth Pro; kein offizielles Modell, darum mit Version
     replicate_tiefe_model: str = "ibrahimpenekli/depth-pro:8bee17f621ab23567c836703be980b3aa1552127b252b7ef9f6ce6db6c4619ef"
     # Konstruktion lesen und anpassen über die Claude-API
@@ -31,6 +33,7 @@ class Einstellungen(BaseSettings):
     fotos_pro_tag: int = 20  # je Gerät: Tiefe schätzen (sehr billig, nur gegen Missbrauch)
     selbstkontrolle: bool = True  # Claude vergleicht das berechnete Modell mit dem Entwurf und korrigiert
     kontrollrunden: int = 2  # weitere Runden nur, solange die Endkontrolle der Engine noch etwas meldet
+    nj_kontrolle: bool = True  # Nachjustieren: Claude prüft, ob die Änderung zu sehen ist; sonst ein zweiter Versuch
     tagesbudget_usd: float = 5.0  # alle zusammen, Notbremse
     # Testcodes: "KUMPEL:10,FREUNDE:5:3,PARTNER:0:20:3" = Code:Runden[:Geräte[:Baupläne]]; ohne Geräte-Angabe ein Gerät.
     # Baupläne = wie viele Baupläne der Code je Gerät bzw. Konto freischaltet (nur wichtig mit BEZAHLUNG_PFLICHT)

@@ -54,6 +54,11 @@ def test_ganzer_ablauf(echt):
     neu = warten(c, r.json()["auftrag"])["ergebnis"]["entwurf"]
     px = Image.open(io.BytesIO(c.get(neu["url"]).content)).convert("RGB").getpixel((380, 380))
     assert px[2] > 240 and px[0] < 30
+    # Kontrolle: Änderung nicht zu sehen → zweiter Versuch mit der deutlicheren Anweisung
+    r = c.post("/api/v1/entwuerfe/nachjustieren", headers=GERAET, json={
+        "foto_id": ids["foto_id"], "maske_id": ids["maske_id"], "entwurf_id": neu["id"], "anpassung": "zweimal"})
+    zweiter = warten(c, r.json()["auftrag"])["ergebnis"]
+    assert zweiter["versuche"] == 2 and zweiter["prompt"].startswith("Make it much more visible.")
 
     # Lesen und Berechnen
     r = c.post("/api/v1/bauplan/lesen", headers=GERAET,

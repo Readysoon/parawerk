@@ -267,7 +267,7 @@ async def entwuerfe(anfrage: EntwuerfeV1, ki: BildKI = Depends(bild_ki), kon: Ko
         await run_in_threadpool(analyse.eintragen, db, "entwuerfe", {"wunsch": anfrage.wunsch, "prompt": prompt,
                                                                       "anzahl": len(ids)},
                                 lauf_id=lauf_id, sprache=sprache(), demo=ki.demo)
-        return {"demo": ki.demo, "prompt": prompt,
+        return {"demo": ki.demo, "prompt": prompt, "foto_id": foto_id, "maske_id": maske_id,
                 "entwuerfe": [{"id": i, "url": _url(i), "index": n} for n, i in enumerate(ids)]}
 
     aid = await starten(db, k.geraet, "entwuerfe", arbeit, "fehler.entwuerfe", lambda: erstatten(deckel, eintrag))
@@ -287,13 +287,29 @@ async def nachjustieren(anfrage: NachjustierenV1, ki: BildKI = Depends(bild_ki),
     eintrag = await reservieren(deckel, "nachjustieren", k)
 
     async def arbeit() -> dict:
-        entwurf_url = ba.als_data_url(ba.jpeg(entwurf, 90), "image/jpeg")
+        # Nur der Ausschnitt um die Markierung, vergrößert: Das Möbel ist groß im Bild, die Änderung landet am
+        # richtigen Teil. Danach wird der Ausschnitt zurückgeklebt und wie immer nur die Markierung übernommen.
+        box = ba.bearbeitungs_rahmen(maske, entwurf.size)
+        teil = ba.vergroessern(entwurf.convert("RGB").crop(box))
+        teil_url = ba.als_data_url(ba.jpeg(teil, 92), "image/jpeg")
         try:
-            prompt = await kon.bearbeitungs_prompt(anfrage.wunsch, anfrage.anpassung, entwurf_url)
+            prompt = await kon.bearbeitungs_prompt(anfrage.wunsch, anfrage.anpassung, teil_url)
         except DienstFehler:
             prompt = bearbeitung_prompt(anfrage.anpassung)
-        neu = await ki.bearbeiten(entwurf_url, prompt, secrets.randbelow(10**9))
-        gemalt = _quelle(neu)
+        neu = await ki.bearbeiten(teil_url, prompt, secrets.randbelow(10**9))
+        versuche = 1
+        # Kontrolle: Ist die Änderung zu sehen? Sonst ein zweiter Versuch mit deutlicherer Anweisung (Tagesbudget)
+        if not kon.demo and e.nj_kontrolle:
+            try:
+                pruefung = await kon.aenderung_pruefen(anfrage.anpassung, teil_url, neu)
+                if not pruefung["umgesetzt"] and pruefung["anweisung"]:
+                    await run_in_threadpool(deckel.reservieren, "kontrolle", k)
+                    prompt = pruefung["anweisung"]
+                    neu = await ki.bearbeiten(teil_url, prompt, secrets.randbelow(10**9))
+                    versuche = 2
+            except (DienstFehler, Gesperrt) as err:  # Kontrolle ist ein Zusatz, kein Muss
+                log.info("Kontrolle beim Nachjustieren übersprungen: %s", err)
+        gemalt = await run_in_threadpool(ba.zurueckkleben, entwurf, _quelle(neu), box)
         fertig = await run_in_threadpool(ba.einsetzen, foto, maske, gemalt)
         bid = await run_in_threadpool(speicher.bild_speichern, db, k.geraet, ba.jpeg(fertig, 90), "image/jpeg")
         await run_in_threadpool(_moebelbild, db, "nachjustiert", gemalt, maske, analyse.lauf(anfrage.maske_id), bid)
@@ -302,7 +318,7 @@ async def nachjustieren(anfrage: NachjustierenV1, ki: BildKI = Depends(bild_ki),
                                                                          "vorher": analyse.lauf(anfrage.entwurf_id),
                                                                          "entwurf": analyse.lauf(bid)},
                                 lauf_id=analyse.lauf(anfrage.maske_id), sprache=sprache())
-        return {"prompt": prompt, "entwurf": {"id": bid, "url": _url(bid)}}
+        return {"prompt": prompt, "versuche": versuche, "entwurf": {"id": bid, "url": _url(bid)}}
 
     aid = await starten(db, k.geraet, "nachjustieren", arbeit, "fehler.nachjustieren", lambda: erstatten(deckel, eintrag))
     return AuftragAntwort(auftrag=aid)

@@ -120,6 +120,17 @@ def bearbeitung_prompt(anpassung: str) -> str:
     return f"Change only the newly built wooden furniture: {anpassung.strip()}. {KONTEXT_REGELN}"
 
 
+def aenderung_pruef_anweisung(anpassung: str) -> str:
+    """Claude prüft nach dem Nachjustieren, ob die Änderung sichtbar umgesetzt ist (Bild 1 vorher, Bild 2 nachher)."""
+    return f"""Bild 1 zeigt ein selbstgebautes Holzmöbel vorher, Bild 2 nachher. Gewünscht war: "{anpassung.strip()}".
+Ist die Änderung in Bild 2 deutlich und am richtigen Möbel bzw. an der richtigen Stelle umgesetzt?
+Antworte NUR mit JSON: {{"umgesetzt": true oder false, "grund": "ein kurzer Satz", "anweisung": "nur bei false: eine neue,
+deutlichere englische Bearbeitungsanweisung für FLUX Kontext, höchstens 60 Wörter"}}
+Für die neue Anweisung: das Möbel und die Stelle eindeutig benennen (sichtbare Merkmale, links/rechts/vorne), die Änderung als
+sichtbares Ergebnis beschreiben statt in Zentimetern (z. B. "the bench seat ends just above the bed frame, its side supports are
+half as tall as now"), und nicht verlangen, dass die betroffenen Maße gleich bleiben."""
+
+
 def bearbeitung_anweisung(wunsch: str | None, anpassung: str) -> str:
     """Claude formuliert die Änderung als präzise englische Bearbeitungsanweisung für FLUX Kontext."""
     w = (wunsch or "").strip() or "ein selbstgebautes Holzmöbel"
@@ -128,6 +139,8 @@ Die Person möchte jetzt nachjustieren: "{anpassung.strip()}"
 
 Schreibe EINE englische Bearbeitungsanweisung für die Bild-KI FLUX Kontext, höchstens 50 Wörter, NUR die Anweisung:
 - nenne das Möbel eindeutig mit sichtbaren Merkmalen (z. B. "the light wooden daybed below the window")
-- beschreibe nur die gewünschte Änderung, konkret (Farbe genau, Größe relativ: "about 20 cm higher")
-- ändere nichts anderes am Möbel als gewünscht
+- beschreibe die gewünschte Änderung als sichtbares Ergebnis, deutlich (Farbe genau; Größe so, dass man sie sieht:
+  "much lower, the seat now only reaches the top of the bed frame" statt nur "10 cm lower")
+- neue Teile genau verorten (an welchem Möbel, welche Seite, welche Fläche)
+- sage nicht, dass Maße gleich bleiben sollen, die sich durch die Änderung ändern müssen
 Die App hängt selbst an: {KONTEXT_REGELN}"""

@@ -16,7 +16,7 @@ import httpx
 from ..i18n import name, t
 from ..models.bauteilgraph import JSON_SCHEMA, bereinigen, json_aus_text
 from .fehler import DienstFehler, NichtVerfuegbar
-from .prompts import (KONTEXT_REGELN, anpass_prompt, bearbeitung_anweisung, bearbeitung_prompt, bildprompt_anweisung,
+from .prompts import (KONTEXT_REGELN, aenderung_pruef_anweisung, anpass_prompt, bearbeitung_anweisung, bearbeitung_prompt, bildprompt_anweisung,
                       inpaint_prompt, inpaint_prompt_aus, lese_prompt, pruef_prompt)
 
 # Antwort der Selbstkontrolle: passt es, was ist falsch, korrigierter Graph
@@ -41,6 +41,8 @@ class Konstrukteur(Protocol):
                       meldungen: list[str] | None = None) -> dict: ...
 
     async def bearbeitungs_prompt(self, wunsch: str, anpassung: str, bild: str) -> str: ...
+
+    async def aenderung_pruefen(self, anpassung: str, vorher: str, nachher: str) -> dict: ...
 
 
 DATA_URL = re.compile(r"^data:(image/[a-z]+);base64,(.*)$", re.S)
@@ -125,6 +127,16 @@ class ClaudeKonstrukteur:
             raise DienstFehler(t("fehler.keine_anweisung"))
         return f"{text} {KONTEXT_REGELN}"
 
+    async def aenderung_pruefen(self, anpassung: str, vorher: str, nachher: str) -> dict:
+        """Nach dem Nachjustieren: Ist die Änderung zu sehen? Sonst eine deutlichere Anweisung für den zweiten Versuch."""
+        antwort = json_aus_text(await self._fragen(aenderung_pruef_anweisung(anpassung), [vorher, nachher], max_tokens=400))
+        if not isinstance(antwort, dict):
+            raise DienstFehler(t("fehler.keine_anweisung"))
+        umgesetzt = antwort.get("umgesetzt") is not False
+        anweisung = str(antwort.get("anweisung") or "").strip().strip('"')
+        return {"umgesetzt": umgesetzt or not anweisung, "grund": str(antwort.get("grund") or ""),
+                "anweisung": f"{anweisung} {KONTEXT_REGELN}" if anweisung else None}
+
 
 @lru_cache
 def demo_graphen() -> list[dict]:
@@ -157,3 +169,6 @@ class DemoKonstrukteur:
 
     async def bearbeitungs_prompt(self, wunsch: str, anpassung: str, bild: str) -> str:
         return bearbeitung_prompt(anpassung)
+
+    async def aenderung_pruefen(self, anpassung: str, vorher: str, nachher: str) -> dict:
+        return {"umgesetzt": True, "grund": "", "anweisung": None}

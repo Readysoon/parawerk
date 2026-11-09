@@ -84,6 +84,13 @@ class KonstrukteurAttrappe:
             raise DienstFehler("Claude nicht erreichbar")
         return f"Make the backrest of the sofa {anpassung}."
 
+    async def aenderung_pruefen(self, anpassung, vorher, nachher):
+        """Kontrolle nach dem Nachjustieren: bei „zweimal“ beim ersten Mal nicht umgesetzt."""
+        self.nj_pruefungen = getattr(self, "nj_pruefungen", 0) + 1
+        if "zweimal" in anpassung:
+            return {"umgesetzt": False, "grund": "nichts zu sehen", "anweisung": "Make it much more visible."}
+        return {"umgesetzt": True, "grund": "", "anweisung": None}
+
 
 class BildKIAttrappe:
     """Malt den ganzen Entwurf rot (Nachjustieren: blau); eingesetzt werden darf nur der markierte Bereich."""
@@ -96,6 +103,7 @@ class BildKIAttrappe:
 
     async def bearbeiten(self, bild, anweisung, seed):
         assert bild.startswith("data:image/")
+        self.anweisungen = getattr(self, "anweisungen", []) + [anweisung]
         return data_url(Image.new("RGB", (512, 384), (0, 0, 255)))
 
 

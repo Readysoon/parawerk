@@ -97,6 +97,34 @@ def ausschnitt(entwurf: Image.Image, maske: Image.Image) -> Image.Image:
                          min(entwurf.width, round(x1 + mx)), min(entwurf.height, round(y1 + my))))
 
 
+def bearbeitungs_rahmen(maske: Image.Image, groesse: tuple[int, int], rand: float = 0.35) -> tuple[int, int, int, int]:
+    """Bereich fürs Nachjustieren: Markierung plus Rand, in Koordinaten eines Bildes der Größe ``groesse``.
+
+    Die Bild-KI bekommt nur diesen Ausschnitt (vergrößert). So ist das Möbel groß im Bild und die Änderung landet
+    am richtigen Teil statt irgendwo im Zimmer."""
+    r = rahmen(maske)
+    w, h = groesse
+    if not r:
+        return 0, 0, w, h
+    sx, sy = w / maske.width, h / maske.height
+    x0, y0, x1, y1 = r[0] * sx, r[1] * sy, r[2] * sx, r[3] * sy
+    mx, my = (x1 - x0) * rand, (y1 - y0) * rand
+    return (max(0, round(x0 - mx)), max(0, round(y0 - my)), min(w, round(x1 + mx)), min(h, round(y1 + my)))
+
+
+def vergroessern(bild: Image.Image, lang: int = 1024) -> Image.Image:
+    """Kleine Ausschnitte auf mindestens ``lang`` Pixel an der langen Seite bringen (die Bild-KI arbeitet ~1 MP)."""
+    f = lang / max(bild.size)
+    return bild.resize((round(bild.width * f), round(bild.height * f)), Image.LANCZOS) if f > 1 else bild
+
+
+def zurueckkleben(bild: Image.Image, teil: Image.Image, box: tuple[int, int, int, int]) -> Image.Image:
+    """Bearbeiteten Ausschnitt an seine Stelle im ganzen Bild setzen."""
+    aus = bild.convert("RGB").copy()
+    aus.paste(teil.convert("RGB").resize((box[2] - box[0], box[3] - box[1]), Image.LANCZOS), box[:2])
+    return aus
+
+
 def nur_moebel(ki_bild: Image.Image, maske: Image.Image, groesse: int = 768) -> Image.Image:
     """Für die Analyse: nur was die Bild-KI in die Markierung gemalt hat, außen weiß, auf die Markierung zugeschnitten.
 

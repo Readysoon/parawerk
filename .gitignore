@@ -8,3 +8,6 @@ __pycache__/
 parawerk.db
 lokal.db
 *.db.gz
+
+# Ausgabe von scripts/anpassen_vergleich.py (enthält Fotos)
+vergleich/

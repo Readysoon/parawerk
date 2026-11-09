@@ -104,6 +104,21 @@ class ReplicateBasis:
         return out[0] if isinstance(out, list) else out
 
 
+def bearbeitungs_eingabe(model: str, bild: str, anweisung: str, seed: int) -> dict:
+    """Eingabe für das Bearbeitungs-Modell auf Replicate; jedes Modell nennt das Eingangsbild anders."""
+    name = model.split(":")[0].lower()
+    if "flux-kontext" in name:
+        return {"prompt": anweisung, "input_image": bild, "aspect_ratio": "match_input_image", "seed": seed}
+    if "nano-banana" in name or "seedream" in name:
+        return {"prompt": anweisung, "image_input": [bild], "aspect_ratio": "match_input_image", "output_format": "jpg"}
+    if "flux-2" in name:
+        return {"prompt": anweisung, "input_images": [bild], "aspect_ratio": "match_input_image", "seed": seed,
+                "output_format": "jpg"}
+    if "qwen-image-edit" in name:
+        return {"prompt": anweisung, "image": [bild], "seed": seed, "output_format": "jpg"}
+    return {"prompt": anweisung, "image": bild, "seed": seed}
+
+
 class ReplicateFluxFill(ReplicateBasis):
     """FLUX Fill Pro über Replicate.
 
@@ -144,8 +159,8 @@ class ReplicateFluxFill(ReplicateBasis):
         try:
             async with httpx.AsyncClient(timeout=120, transport=self._transport) as client:
                 eingabe = await self._eingabe(client, bild, "entwurf.jpg")
-                pred = await self._starten(client, {"prompt": anweisung, "input_image": eingabe,
-                                                    "aspect_ratio": "match_input_image", "seed": seed}, self.edit_model)
+                pred = await self._starten(client, bearbeitungs_eingabe(self.edit_model, eingabe, anweisung, seed),
+                                           self.edit_model)
                 return await self._fertigstellen(client, pred)
         except httpx.HTTPError as err:
             raise DienstFehler(t("fehler.replicate_weg", art=type(err).__name__)) from err

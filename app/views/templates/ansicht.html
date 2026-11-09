@@ -16,8 +16,10 @@
 <body>
   <canvas id="viewer" aria-label="{{ t('ui.viewer_aria') }}"></canvas>
   <script type="module">
-    import { Viewer3D } from '/static/js/viewer3d.js';
+    import { Viewer3D, bedienung, BEDIENUNG_CSS } from '/static/js/viewer3d.js';
     const viewer = new Viewer3D(document.getElementById('viewer'), { fuellen: true });
+    document.head.append(Object.assign(document.createElement('style'), { textContent: BEDIENUNG_CSS }));
+    bedienung(viewer, document.body, {{ {"zerlegen": t("ui.zerlegen"), "antippen": t("ui.teil_antippen")} | tojson }});
     window.zeigen = (modell, kameraHalten = false) => viewer.zeigen(modell, { kameraHalten });
     window.Bereit?.postMessage('bereit');  // Kanal der App: jetzt kann sie das Modell schicken
     // Flutter-App im Browser: Ansicht steckt in einem iframe, Daten kommen per postMessage (nur Anzeige, keine Rechte)

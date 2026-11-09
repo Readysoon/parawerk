@@ -90,6 +90,8 @@ TEXTE = {
     "konto.demo": "Demo-Anmeldung (nur Testbetrieb)",
     "konto.nicht_eingerichtet": "Die Anmeldung auf der Website ist noch nicht eingerichtet. Nutze die App.",
     "fehler.anmeldung": "Die Anmeldung hat nicht geklappt. Bitte versuch es noch einmal.",
+    "ui.zerlegen": "Zerlegen",
+    "ui.teil_antippen": "Teil antippen: Name und Maße",
     "ui.viewer_aria": "Berechnetes 3D-Modell, ziehen zum Drehen",
     "ui.leg_entwurf": "aus dem Entwurf",
     "ui.leg_ergaenzt": "für Stabilität ergänzt",

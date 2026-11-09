@@ -95,3 +95,4 @@ def test_ansicht_fuer_die_app():
     from app.main import app
     r = TestClient(app).get("/ansicht?sprache=en")
     assert r.status_code == 200 and "window.zeigen" in r.text and "viewer3d.js" in r.text and 'lang="en"' in r.text
+    assert "bedienung(viewer" in r.text and "Take apart" in r.text

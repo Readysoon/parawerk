@@ -187,6 +187,7 @@ def bereinigen(j: Any) -> dict:
         if str(t.get("reihe") or "").lower() in ("abstand", "anzahl"):
             teil["reihe"] = str(t["reihe"]).lower()
         teile.append(teil)
+    teile = [neu for teil in teile for neu in _stehende_verteilen(teil)]
     ids: set[str] = set()
     for teil in teile:
         while teil["id"] in ids:
@@ -214,3 +215,30 @@ def bereinigen(j: Any) -> dict:
     if isinstance(ziel, list) and len(ziel) == 3 and all((_zahl(v) or 0) > 0 for v in ziel):
         out["ziel"] = [max(200, min(6000, mm(_zahl(v)))) for v in ziel]
     return out
+
+
+STEHEND = {"bein", "pfosten"}
+
+
+def _stehende_verteilen(teil: dict) -> list[dict]:
+    """Beine und Pfosten stehen senkrecht; „achse“ heißt aber „entlang dieser Achse verteilen“.
+
+    Schreibt das Bild-Modell bei mehreren Beinen achse "z" (gemeint: hochkant), würde die Engine sie übereinander
+    stapeln. Stattdessen: 4 oder mehr Beine über eine Fläche → zwei Reihen (vorne und hinten), je die Hälfte entlang
+    der längeren Seite; sonst entlang der längeren Seite verteilen.
+    """
+    if teil["rolle"] not in STEHEND or teil["achse"] != "z" or teil["anzahl"] < 2:
+        return [teil]
+    x0, x1, y0, y1 = teil["box"][:4]
+    lang = "x" if (x1 - x0) >= (y1 - y0) else "y"
+    n = teil["anzahl"]
+    flaeche = min(x1 - x0, y1 - y0) > 0.3
+    if n < 4 or n % 2 or not flaeche:
+        return [{**teil, "achse": lang}]
+    rand = 0.02
+    if lang == "x":
+        reihen = [("v", [x0, x1, y0, y0 + rand]), ("h", [x0, x1, y1 - rand, y1])]
+    else:
+        reihen = [("l", [x0, x0 + rand, y0, y1]), ("r", [x1 - rand, x1, y0, y1])]
+    return [{**teil, "id": f"{teil['id']}_{seite}", "box": box + teil["box"][4:], "anzahl": n // 2, "achse": lang}
+            for seite, box in reihen]

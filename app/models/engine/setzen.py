@@ -10,6 +10,9 @@ from .grundlagen import (
     ATTACH, GAP, GRAVITY, TOL, Bauteil, cen, depth, mm, others, ov, pen_sum, prio, quader, seite, touches,
 )
 
+STEHEND = {"bein", "pfosten"}  # wachsen oben bis unter das, was sie tragen
+RAHMEN = {"rahmen", "zarge"}  # Rahmenbalken, die sich in Ecken treffen
+
 
 def _merke(stats: dict, m: Bauteil, betrag: float) -> None:
     stats.setdefault("ids", set()).add(m.id)
@@ -31,7 +34,9 @@ def enden_anschliessen(ms: list[Bauteil], stats: dict) -> None:
                 continue  # Ende sitzt schon an
             best = None
             for o in ms:
-                if o is m or prio(o) < prio(m) or o.part == m.part:
+                # Beine und Pfosten wachsen oben bis unter das, was sie tragen (auch wenn es „schwächer“ ist)
+                tragen = L == 2 and side == "max" and m.rolle in STEHEND
+                if o is m or (prio(o) < prio(m) and not tragen) or o.part == m.part:
                     continue
                 if ov(m, o, c1) <= 2 or ov(m, o, c2) <= 2:
                     continue
@@ -185,7 +190,11 @@ def ueberschneidungen_loesen(ms: list[Bauteil], log: list[str]) -> None:
                             amt = mv.max[ax] - other.min[ax] if richtung < 0 else other.max[ax] - mv.min[ax]
                             if amt > TOL or amt <= 0:
                                 continue
-                            cands.append({"mv": mv, "ax": ax, "kind": "move", "amt": amt, "penalty": pen, "dir": richtung})
+                            # einen Balken entlang seiner Länge zu schieben verrückt den ganzen Rahmen (an der anderen
+                            # Ecke steht er dann über); kürzen oder quer davorsetzen ist meist richtig
+                            laengs = amt if ax == mv.long and {mv.rolle, other.rolle} <= RAHMEN else 0
+                            cands.append({"mv": mv, "ax": ax, "kind": "move", "amt": amt, "penalty": pen + laengs,
+                                          "dir": richtung})
                         if ax == mv.long and (other.min[ax] <= mv.min[ax] + 1 or other.max[ax] >= mv.max[ax] - 1):
                             at_min = cen(other, ax) < cen(mv, ax)
                             amt = other.max[ax] - mv.min[ax] if at_min else mv.max[ax] - other.min[ax]

@@ -53,3 +53,20 @@ def test_niedriges_regal_und_wandregal_ohne():
     wand = Bauteil(min=[0, 280, 1500], max=[800, 300, 1560], long=0, rolle="wandleiste")
     assert sicherheit.braucht_kippsicherung([boden, hoch], {"kategorie": "regal"})
     assert not sicherheit.braucht_kippsicherung([boden, hoch, wand], {"kategorie": "regal"})
+
+
+def test_bett_mit_vier_fuessen_steht():
+    """Claude schrieb bei 4 Füßen achse "z" (hochkant gemeint): Füße kommen in die Ecken und tragen den Rahmen."""
+    from app.models.bauteilgraph import bereinigen
+    g = json.loads((Path(__file__).parent / "referenz" / "bett_fuesse_hochkant.json").read_text(encoding="utf-8"))
+    e = berechnen(bereinigen(g), [1800, 900, 900])
+    fuesse = [m for m in e.members if m.rolle == "bein"]
+    assert len(fuesse) == 4
+    assert all(m.max[2] - m.min[2] > m.max[0] - m.min[0] for m in fuesse)  # stehen senkrecht
+    ecken = {(m.min[0] < e.dims[0] / 2, m.min[1] < e.dims[1] / 2) for m in fuesse}
+    assert len(ecken) == 4
+    falsch = [c["t"] for c in e.checks if c["ok"] is False and "Bereich" not in c["t"]]
+    assert not falsch, falsch
+    # Rahmen bündig: kein Balken steht über die Außenkante
+    rahmen = [m for m in e.members if m.part.startswith("rahmen")]
+    assert max(m.max[0] for m in rahmen) == max(m.max[0] for m in fuesse)

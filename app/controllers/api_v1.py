@@ -42,6 +42,7 @@ from ..services import bildarbeit as ba
 from ..services.auftraege import starten
 from ..services.bild_ki import BildKI
 from ..services.fehler import DienstFehler
+from ..services.freisteller import Freisteller
 from ..services.konstrukteur import Konstrukteur
 from ..services.kostendeckel import Gesperrt, Kostendeckel, Kunde
 from ..services.prompts import bearbeitung_prompt, inpaint_prompt
@@ -49,7 +50,7 @@ from ..services.tiefe import TiefenKI
 from ..views import STATIC, templates
 from ..views.pdf import bauplan_pdf
 from ..views.praesentation import bauplan_ansicht, modell_3d
-from .abhaengigkeiten import bild_ki, konstrukteur, kostendeckel, kunde, tiefen_ki
+from .abhaengigkeiten import bild_ki, freisteller, konstrukteur, kostendeckel, kunde, tiefen_ki
 from .schemas import (AnpassenAnfrage, BildId, CodeAnfrage, AuftragAntwort, AuftragStand, BauplanAntwort, BerechnenV1, EntwuerfeV1,
                       FotoV1, LesenV1, MasseAntwort, MasseV1, NachjustierenV1, PdfV1)
 
@@ -229,7 +230,8 @@ async def masse(anfrage: MasseV1, e: Einstellungen = Depends(einstellungen)) -> 
 @router.post("/entwuerfe", response_model=AuftragAntwort, status_code=202)
 async def entwuerfe(anfrage: EntwuerfeV1, ki: BildKI = Depends(bild_ki), kon: Konstrukteur = Depends(konstrukteur),
                     deckel: Kostendeckel = Depends(kostendeckel), k: Kunde = Depends(kunde),
-                    e: Einstellungen = Depends(einstellungen)) -> AuftragAntwort:
+                    e: Einstellungen = Depends(einstellungen),
+                    frei: Freisteller | None = Depends(freisteller)) -> AuftragAntwort:
     """Foto und Maske speichern, dann im Hintergrund Entwürfe malen lassen und ins Foto einsetzen."""
     db = _db(e)
     await run_in_threadpool(speicher.aufraeumen, db)
@@ -263,7 +265,7 @@ async def entwuerfe(anfrage: EntwuerfeV1, ki: BildKI = Depends(bild_ki), kon: Ko
             fertig = await run_in_threadpool(ba.einsetzen, foto, maske, gemalt)
             bid = await run_in_threadpool(speicher.bild_speichern, db, k.geraet, ba.jpeg(fertig, 90), "image/jpeg")
             ids.append(bid)
-            await run_in_threadpool(_moebelbild, db, "entwurf", gemalt, maske, lauf_id, bid, ki.demo)
+            await _moebelbild(db, "entwurf", gemalt, maske, lauf_id, bid, frei, ki.demo)
         await run_in_threadpool(analyse.eintragen, db, "entwuerfe", {"wunsch": anfrage.wunsch, "prompt": prompt,
                                                                       "anzahl": len(ids)},
                                 lauf_id=lauf_id, sprache=sprache(), demo=ki.demo)
@@ -277,7 +279,8 @@ async def entwuerfe(anfrage: EntwuerfeV1, ki: BildKI = Depends(bild_ki), kon: Ko
 @router.post("/entwuerfe/nachjustieren", response_model=AuftragAntwort, status_code=202)
 async def nachjustieren(anfrage: NachjustierenV1, ki: BildKI = Depends(bild_ki), kon: Konstrukteur = Depends(konstrukteur),
                         deckel: Kostendeckel = Depends(kostendeckel), k: Kunde = Depends(kunde),
-                        e: Einstellungen = Depends(einstellungen)) -> AuftragAntwort:
+                        e: Einstellungen = Depends(einstellungen),
+                        frei: Freisteller | None = Depends(freisteller)) -> AuftragAntwort:
     """Einen Entwurf per Text ändern; eingesetzt wird wieder nur der markierte Bereich."""
     await konto_pruefen(deckel, "nachjustieren", k)
     if ki.demo:
@@ -312,7 +315,7 @@ async def nachjustieren(anfrage: NachjustierenV1, ki: BildKI = Depends(bild_ki),
         gemalt = await run_in_threadpool(ba.zurueckkleben, entwurf, _quelle(neu), box)
         fertig = await run_in_threadpool(ba.einsetzen, foto, maske, gemalt)
         bid = await run_in_threadpool(speicher.bild_speichern, db, k.geraet, ba.jpeg(fertig, 90), "image/jpeg")
-        await run_in_threadpool(_moebelbild, db, "nachjustiert", gemalt, maske, analyse.lauf(anfrage.maske_id), bid)
+        await _moebelbild(db, "nachjustiert", gemalt, maske, analyse.lauf(anfrage.maske_id), bid, frei, ki.demo)
         await run_in_threadpool(analyse.eintragen, db, "nachjustiert", {"wunsch": anfrage.wunsch,
                                                                          "anpassung": anfrage.anpassung,
                                                                          "vorher": analyse.lauf(anfrage.entwurf_id),
@@ -510,15 +513,26 @@ async def projekt_loeschen(pid: str, k: Kunde = Depends(kunde), e: Einstellungen
     return {"ok": True}
 
 
-def _moebelbild(db, art: str, gemalt: Image.Image, maske: Image.Image, lauf_id: str | None, entwurf_id: str,
-                demo: bool = False) -> None:
-    """Analyse: das gemalte Möbel ohne Zimmer (siehe ``bildarbeit.nur_moebel``)."""
-    try:
-        bild = ba.nur_moebel(gemalt, maske)
-    except Exception:  # noqa: BLE001  (Analyse ist kein Muss)
-        log.exception("Möbelbild für die Analyse nicht erstellt")
-        return
-    analyse.bild_eintragen(db, art, ba.jpeg(bild, 85), lauf_id=lauf_id, entwurf=analyse.lauf(entwurf_id), demo=demo)
+async def _moebelbild(db, art: str, gemalt: Image.Image, maske: Image.Image, lauf_id: str | None, entwurf_id: str,
+                      frei: Freisteller | None, demo: bool = False) -> None:
+    """Analyse: das gemalte Möbel ohne Zimmer. Mit Freisteller als PNG mit transparentem Hintergrund (nur das Möbel,
+    ohne Wand und Boden in der Markierung), sonst grob über die Markierung (``bildarbeit.nur_moebel``, JPEG)."""
+    daten = None
+    if frei is not None and not demo:
+        try:
+            teil, markierung = await run_in_threadpool(ba.moebel_ausschnitt, gemalt, maske)
+            deckkraft = await frei.deckkraft(teil)
+            daten = await run_in_threadpool(lambda: ba.png(ba.freigestellt(teil, deckkraft, markierung)))
+        except Exception:  # noqa: BLE001  (Analyse ist kein Muss: dann grob)
+            log.exception("Freistellen fürs Möbelbild fehlgeschlagen")
+    if daten is None:
+        try:
+            daten = await run_in_threadpool(lambda: ba.jpeg(ba.nur_moebel(gemalt, maske), 85))
+        except Exception:  # noqa: BLE001
+            log.exception("Möbelbild für die Analyse nicht erstellt")
+            return
+    await run_in_threadpool(lambda: analyse.bild_eintragen(db, art, daten, lauf_id=lauf_id,
+                                                           entwurf=analyse.lauf(entwurf_id), demo=demo))
 
 
 def _bauplan_daten(ergebnis, graph: dict, anfrage) -> dict:
@@ -611,7 +625,7 @@ async def analyse_bild(bid: int, k: Kunde = Depends(kunde), e: Einstellungen = D
     daten = await run_in_threadpool(analyse.bild_laden, _db(e), bid) if k.admin else None
     if daten is None:
         raise HTTPException(404, "Not Found")
-    return Response(daten, media_type="image/jpeg")
+    return Response(daten, media_type="image/png" if daten[:4] == b"\x89PNG" else "image/jpeg")
 
 
 class RueckmeldungV1(BaseModel):

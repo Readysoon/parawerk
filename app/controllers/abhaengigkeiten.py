@@ -3,6 +3,7 @@
 In Tests lassen sie sich über ``app.dependency_overrides`` ersetzen.
 """
 from __future__ import annotations
+from ..services.freisteller import FalBiRefNet, Freisteller
 
 import re
 import secrets
@@ -25,6 +26,10 @@ JAHR = 365 * 24 * 3600
 
 def bild_ki(e: Einstellungen = Depends(einstellungen)) -> BildKI:
     return ReplicateFluxFill(e.replicate_api_token, e.replicate_model, e.replicate_edit_model) if e.bild_ki_aktiv else DemoBildKI()
+
+
+def freisteller(e: Einstellungen = Depends(einstellungen)) -> Freisteller | None:
+    return FalBiRefNet(e.fal_key, e.freistell_model) if e.fal_key else None
 
 
 def tiefen_ki(e: Einstellungen = Depends(einstellungen)) -> TiefenKI:

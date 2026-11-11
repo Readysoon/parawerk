@@ -161,6 +161,11 @@ fly secrets set DATEN_SCHLUESSEL=...
 ```
 Ältere, unverschlüsselte Bilder bleiben lesbar.
 
+**Möbel freistellen** (Lerndaten als PNG mit durchsichtigem Hintergrund, später Eingabe für die 3D-Erzeugung): mit `FAL_KEY` nutzt der Server BiRefNet auf fal.ai (`app/services/freisteller.py`), ohne Schlüssel schneidet er grob über die Markierung aus.
+```bash
+fly secrets set FAL_KEY=...
+```
+
 ## API (v1, für Website und Flutter-App)
 
 Unter `/api/v1` gibt es alles als JSON; Bildarbeit (Entwurf einsetzen, Ausschnitt fürs Lesen) und das 3D-Modell (glb) macht der Server. Beschreibung mit allen Feldern: `/docs` bzw. `/openapi.json`.

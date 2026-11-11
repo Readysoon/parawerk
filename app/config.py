@@ -35,7 +35,10 @@ class Einstellungen(BaseSettings):
     kontrollrunden: int = 2  # weitere Runden nur, solange die Endkontrolle der Engine noch etwas meldet
     nj_kontrolle: bool = True
     # Fotos und Bilder verschlüsselt speichern (32 Byte, base64; siehe app/models/tresor.py). Leer = unverschlüsselt
-    daten_schluessel: str = ""  # Nachjustieren: Claude prüft, ob die Änderung zu sehen ist; sonst ein zweiter Versuch
+    daten_schluessel: str = ""
+    # Freistellen des gemalten Möbels (Lerndaten, später Eingabe der 3D-Erzeugung); leer = grob über die Markierung
+    fal_key: str = ""
+    freistell_model: str = "fal-ai/birefnet/v2"  # Nachjustieren: Claude prüft, ob die Änderung zu sehen ist; sonst ein zweiter Versuch
     tagesbudget_usd: float = 5.0  # alle zusammen, Notbremse
     # Testcodes: "KUMPEL:10,FREUNDE:5:3,PARTNER:0:20:3" = Code:Runden[:Geräte[:Baupläne]]; ohne Geräte-Angabe ein Gerät.
     # Baupläne = wie viele Baupläne der Code je Gerät bzw. Konto freischaltet (nur wichtig mit BEZAHLUNG_PFLICHT)

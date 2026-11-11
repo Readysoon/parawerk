@@ -100,3 +100,57 @@ def test_nur_moebel_ohne_zimmer():
     assert aus.getpixel((2, 2)) == (255, 255, 255)  # Ecke außerhalb der Ellipse
     r, g, b = aus.getpixel((100, 100))
     assert r > 150 and g < 80
+
+
+class FreistellerAttrappe:
+    """Findet ein rundes „Objekt“ im Ausschnitt; die Ecken sind Hintergrund."""
+
+    async def deckkraft(self, bild):
+        from PIL import Image, ImageDraw
+        d = Image.new("L", bild.size, 0)
+        ImageDraw.Draw(d).ellipse((0, 0, bild.width - 1, bild.height - 1), fill=255)
+        return d
+
+
+def test_moebelbild_freigestellt(tmp_path):
+    """Mit Freisteller: Lerndaten-Bild ist ein PNG mit durchsichtigem Hintergrund."""
+    from io import BytesIO
+
+    from PIL import Image
+
+    from app.controllers.abhaengigkeiten import freisteller
+    app.dependency_overrides[einstellungen] = lambda: Einstellungen(
+        _env_file=None, database_url=f"sqlite:///{tmp_path / 'f.db'}", replicate_api_token="x", anthropic_api_key="x",
+        admin_schluessel="geheim-123", gratis_runden=5)
+    app.dependency_overrides[bild_ki] = lambda: BildKIAttrappe()
+    app.dependency_overrides[konstrukteur] = lambda: KonstrukteurAttrappe()
+    app.dependency_overrides[freisteller] = lambda: FreistellerAttrappe()
+    try:
+        with TestClient(app, headers=GERAET) as c:
+            r = c.post("/api/v1/entwuerfe", json={"foto": FOTO, "maske": MASKE, "wunsch": "Stuhl"})
+            warten(c, r, GERAET)
+            c.get("/?schluessel=geheim-123")
+            bilder = c.get("/api/v1/analyse/bilder").json()
+            antwort = c.get(f"/api/v1/analyse/bild/{bilder[0]['id']}")
+    finally:
+        app.dependency_overrides.clear()
+    assert antwort.headers["content-type"] == "image/png"
+    bild = Image.open(BytesIO(antwort.content))
+    assert bild.mode == "RGBA"
+    alpha = bild.getchannel("A")
+    assert alpha.getextrema() == (0, 255)  # Objekt deckend, Rest durchsichtig
+
+
+def test_freigestellt_nur_in_der_markierung():
+    """Findet der Freisteller außerhalb der Markierung etwas (anderes Möbel im Zimmer), bleibt es durchsichtig."""
+    from PIL import Image, ImageDraw
+
+    from app.services import bildarbeit as ba
+    teil = Image.new("RGB", (200, 100), (120, 80, 40))
+    markierung = Image.new("L", (200, 100), 0)
+    ImageDraw.Draw(markierung).rectangle((50, 20, 150, 80), fill=255)
+    alles = Image.new("L", (200, 100), 255)  # Freisteller: „alles ist Objekt“
+    aus = ba.freigestellt(teil, alles, markierung)
+    assert aus.mode == "RGBA" and aus.size[0] < 130  # auf die Markierung (plus wenige Pixel) zugeschnitten
+    voll, roh = ba.moebel_ausschnitt(Image.new("RGB", (400, 300)), Image.new("L", (400, 300), 0))
+    assert voll.size == (400, 300)  # ohne Markierung: ganzes Bild

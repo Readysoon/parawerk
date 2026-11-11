@@ -9,7 +9,7 @@ import base64
 import io
 import re
 
-from PIL import Image, ImageFilter, ImageOps
+from PIL import Image, ImageChops, ImageFilter, ImageOps
 
 from ..i18n import t
 from .fehler import DienstFehler
@@ -122,6 +122,28 @@ def zurueckkleben(bild: Image.Image, teil: Image.Image, box: tuple[int, int, int
     """Bearbeiteten Ausschnitt an seine Stelle im ganzen Bild setzen."""
     aus = bild.convert("RGB").copy()
     aus.paste(teil.convert("RGB").resize((box[2] - box[0], box[3] - box[1]), Image.LANCZOS), box[:2])
+    return aus
+
+
+def moebel_ausschnitt(ki_bild: Image.Image, maske: Image.Image, rand: float = 0.12) -> tuple[Image.Image, Image.Image]:
+    """Zum Freistellen: Ausschnitt um die Markierung (mit etwas Rand) und die harte Markierung im selben Ausschnitt."""
+    hart = maske.convert("L").point(lambda v: 255 if v > 127 else 0)
+    bild = ki_bild.convert("RGB").resize(hart.size, Image.LANCZOS)
+    box = bearbeitungs_rahmen(hart, hart.size, rand)
+    return bild.crop(box), hart.crop(box)
+
+
+def freigestellt(teil: Image.Image, deckkraft: Image.Image, markierung: Image.Image, groesse: int = 1024) -> Image.Image:
+    """Möbel mit transparentem Hintergrund: Deckkraft des Freistellers, aber nur innerhalb der (leicht erweiterten)
+    Markierung – so kommt nichts vom echten Zimmer mit, auch wenn der Freisteller dort etwas findet."""
+    erlaubt = markierung.convert("L").filter(ImageFilter.MaxFilter(9))
+    alpha = ImageChops.darker(deckkraft.convert("L").resize(teil.size), erlaubt.resize(teil.size))
+    aus = teil.convert("RGB").copy()
+    aus.putalpha(alpha)
+    r = alpha.point(lambda v: 255 if v > 16 else 0).getbbox()
+    if r:
+        aus = aus.crop(r)
+    aus.thumbnail((groesse, groesse), Image.LANCZOS)
     return aus
 
 

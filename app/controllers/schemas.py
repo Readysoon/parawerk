@@ -84,6 +84,9 @@ class BerechnenV1(BaseModel):
     entwurf_id: BildId | None = Field(None, max_length=32,
                                       description="gewählter Entwurf: kommt als Bild ins PDF, und für ihn gilt die Freischaltung")
     speichern: bool = Field(False, description="als Projekt unter „Meine Projekte“ ablegen (nach der Anmeldung)")
+    foto_id: BildId | None = Field(None, max_length=32, description="mit speichern: Wohnungsfoto fürs spätere Anpassen")
+    maske_id: BildId | None = Field(None, max_length=32)
+    wunsch: str = Field("", max_length=500)
 
 
 class PdfV1(BerechnenV1):

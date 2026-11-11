@@ -8,18 +8,21 @@ import '../texte.dart';
 import 'schritte.dart';
 
 class EntwuerfeSeite extends StatefulWidget {
-  const EntwuerfeSeite({super.key, required this.sitzung});
+  const EntwuerfeSeite({super.key, required this.sitzung, this.einzeln = false});
   final Sitzung sitzung;
+
+  /// gleich nur den ersten Entwurf groß zeigen (altes Projekt weiter anpassen)
+  final bool einzeln;
 
   @override
   State<EntwuerfeSeite> createState() => _EntwuerfeSeiteState();
 }
 
 class _EntwuerfeSeiteState extends State<EntwuerfeSeite> {
-  int _gewaehlt = -1;
+  late int _gewaehlt = widget.einzeln ? 0 : -1;
   final _aenderung = TextEditingController();
   final Map<int, List<Entwurf>> _verlauf = {}; // je Entwurf die Vorversionen, für „Rückgängig“
-  bool _einzeln = false; // nach dem Anpassen: nur der gewählte Entwurf, groß
+  late bool _einzeln = widget.einzeln; // nach dem Anpassen: nur der gewählte Entwurf, groß
   String? _freiNj;
 
   Sitzung get _s => widget.sitzung;
@@ -106,7 +109,7 @@ class _EntwuerfeSeiteState extends State<EntwuerfeSeite> {
         bereich: _s.bereich,
         demoIndex: _s.demo ? _gewaehlt : null,
       );
-      final plan = await _s.api.berechnen(gelesen.graph, _s.bereich, entwurfId: entwurf.id);
+      final plan = await _s.berechnen(gelesen.graph, entwurfId: entwurf.id);
       return (graph: gelesen.graph, plan: plan, maengel: gelesen.maengel);
     });
     if (ergebnis == null || !mounted) return;

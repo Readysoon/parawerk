@@ -11,6 +11,7 @@ from datetime import timedelta
 
 from sqlalchemy import Column, DateTime, Engine, Index, LargeBinary, String, Table, Text, delete, insert, select, update
 
+from . import tresor
 from .verbrauch import jetzt, metadata
 
 AUFBEWAHRUNG = timedelta(days=7)
@@ -70,21 +71,24 @@ def neue_id() -> str:
 def bild_speichern(db: Engine, geraet: str, daten: bytes, mime: str) -> str:
     bid = neue_id()
     with db.begin() as c:
-        c.execute(insert(bilder).values(id=bid, geraet=geraet, mime=mime, daten=daten, erstellt=jetzt()))
+        c.execute(insert(bilder).values(id=bid, geraet=geraet, mime=mime, daten=tresor.zu(daten), erstellt=jetzt()))
     return bid
 
 
 def bild_wiederherstellen(db: Engine, bid: str, geraet: str, daten: bytes, mime: str) -> None:
-    """Bild unter seiner alten ID wieder ablegen (z. B. Entwurf eines Projekts nach dem Aufräumen)."""
+    """Bild unter seiner alten ID wieder ablegen (z. B. Entwurf eines Projekts nach dem Aufräumen); ist es noch da,
+    beginnen die 7 Tage bis zum Aufräumen neu. ``daten`` unverschlüsselt."""
     with db.begin() as c:
-        if not c.execute(select(bilder.c.id).where(bilder.c.id == bid)).first():
-            c.execute(insert(bilder).values(id=bid, geraet=geraet, mime=mime, daten=daten, erstellt=jetzt()))
+        if c.execute(select(bilder.c.id).where(bilder.c.id == bid)).first():
+            c.execute(update(bilder).where(bilder.c.id == bid).values(erstellt=jetzt()))
+        else:
+            c.execute(insert(bilder).values(id=bid, geraet=geraet, mime=mime, daten=tresor.zu(daten), erstellt=jetzt()))
 
 
 def bild_laden(db: Engine, bid: str) -> tuple[bytes, str] | None:
     with db.connect() as c:
         z = c.execute(select(bilder.c.daten, bilder.c.mime).where(bilder.c.id == bid)).first()
-    return (bytes(z.daten), z.mime) if z else None
+    return (tresor.auf(z.daten), z.mime) if z else None
 
 
 def auftrag_anlegen(db: Engine, geraet: str, art: str) -> str:

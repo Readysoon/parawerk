@@ -38,4 +38,8 @@ class Sitzung {
     entwuerfe = e.entwuerfe;
     demo = e.demo;
   }
+
+  /// Bauplan rechnen; nach der Anmeldung wird er mit Foto und Markierung als Projekt gespeichert.
+  Future<Map<String, dynamic>> berechnen(Map<String, dynamic> graph, {String? entwurfId}) =>
+      api.berechnen(graph, bereich, entwurfId: entwurfId, fotoId: fotoId, maskeId: maskeId, wunsch: wunsch);
 }

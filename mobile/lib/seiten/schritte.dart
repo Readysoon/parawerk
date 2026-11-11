@@ -198,7 +198,7 @@ class _ModellSchrittState extends State<ModellSchritt> {
     var graph = widget.graph, plan = widget.plan;
     if (_geaendert) {
       final g = {...widget.graph, 'ziel': [for (final v in _regler) v.round()]};
-      final neu = await mitWarten(context, tr('st_rechnen'), () => s.api.berechnen(g, s.bereich, entwurfId: widget.entwurf.id));
+      final neu = await mitWarten(context, tr('st_rechnen'), () => s.berechnen(g, entwurfId: widget.entwurf.id));
       if (neu == null || !mounted) return;
       graph = g;
       plan = neu;
@@ -318,7 +318,7 @@ class BezahlSchritt extends StatelessWidget {
           _CodeFeld(einloesen: (code) async {
             await sitzung.api.freischalten(code, graph, entwurfId: entwurf.id);
             // neu rechnen: jetzt vollständig freigeschaltet
-            final neu = await sitzung.api.berechnen(graph, sitzung.bereich, entwurfId: entwurf.id);
+            final neu = await sitzung.berechnen(graph, entwurfId: entwurf.id);
             if (context.mounted) _zumBauplan(context, neu);
           }),
         ]),

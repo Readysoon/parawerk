@@ -67,7 +67,7 @@ class _BauplanSeiteState extends State<BauplanSeite> {
     }
     setState(() => _rechnet = true);
     try {
-      final plan = await s.api.berechnen(graph, s.bereich, entwurfId: widget.entwurf.id);
+      final plan = await s.berechnen(graph, entwurfId: widget.entwurf.id);
       if (!mounted) return;
       setState(() {
         _graph = graph;
@@ -98,7 +98,7 @@ class _BauplanSeiteState extends State<BauplanSeite> {
       final graph = await s.api.anpassen(_graph, text);
       if (ziel != null) graph['ziel'] = ziel; // gestreckte Größe beibehalten
       if (sitz != null) graph.putIfAbsent('sitz', () => sitz); // Latten oder Gurte beibehalten
-      final plan = await s.api.berechnen(graph, s.bereich, entwurfId: widget.entwurf.id);
+      final plan = await s.berechnen(graph, entwurfId: widget.entwurf.id);
       return (graph: graph, plan: plan);
     });
     if (neu == null || !mounted) return;
@@ -148,7 +148,7 @@ class _BauplanSeiteState extends State<BauplanSeite> {
     final s = widget.sitzung;
     final plan = await mitWarten(context, tr('st_freischalten'), () async {
       await s.api.freischalten(code, _graph, entwurfId: widget.entwurf.id);
-      return s.api.berechnen(_graph, s.bereich, entwurfId: widget.entwurf.id);
+      return s.berechnen(_graph, entwurfId: widget.entwurf.id);
     });
     if (plan == null || !mounted) return;
     setState(() {

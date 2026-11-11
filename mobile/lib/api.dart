@@ -341,13 +341,17 @@ class Api {
   /// [schnell]: Vorschau beim Ziehen eines Reglers (nur Teile, ohne 3D-Dateien, etwas weniger genau).
   /// [entwurfId]: für ihn gilt die Freischaltung; ohne Freischaltung kommt der Bauplan gekürzt (``gesperrt``).
   Future<Map<String, dynamic>> berechnen(Map<String, dynamic> graph, List<int> bereich,
-          {bool schnell = false, String? entwurfId}) =>
+          {bool schnell = false, String? entwurfId, String? fotoId, String? maskeId, String wunsch = ''}) =>
       _post(schnell ? '/api/v1/bauplan/berechnen?mit_glb=false&schnell=true' : '/api/v1/bauplan/berechnen', {
         'graph': graph,
         'bereich': bereich,
         if (entwurfId != null) 'entwurf_id': entwurfId,
         // nach der Anmeldung als Projekt ablegen (je Entwurf eins, Änderungen überschreiben es)
-        if (entwurfId != null && !schnell && projekteAn.value) 'speichern': true,
+        if (entwurfId != null && !schnell && projekteAn.value) ...{
+          'speichern': true,
+          // Foto und Markierung kommen mit ins Projekt (verschlüsselt), damit man es später weiter anpassen kann
+          if (fotoId != null && maskeId != null) ...{'foto_id': fotoId, 'maske_id': maskeId, 'wunsch': wunsch},
+        },
       });
 
   Future<List<Projekt>> projekte() async {

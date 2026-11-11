@@ -9,6 +9,7 @@ import '../hilfen.dart';
 import '../sitzung.dart';
 import '../texte.dart';
 import 'bauplan.dart';
+import 'entwuerfe.dart';
 
 class ProjekteSeite extends StatefulWidget {
   const ProjekteSeite({super.key, required this.api});
@@ -27,26 +28,47 @@ class _ProjekteSeiteState extends State<ProjekteSeite> {
     await f;
   }
 
-  Future<void> _oeffnen(Projekt p) async {
+  /// Projekt laden: der Server legt Entwurf, Wohnungsfoto und Markierung wieder bereit.
+  Future<(Sitzung, Entwurf, Map<String, dynamic>)> _laden(Projekt p) async {
     final api = widget.api;
-    final geladen = await mitWarten(context, tr('st_rechnen'), () async {
-      final j = await api.projektOeffnen(p.id);
-      final bereich = [for (final v in j['bereich'] as List) (v as num).round()];
-      final graph = j['graph'] as Map<String, dynamic>;
-      final e = j['entwurf'] as Map<String, dynamic>;
-      final entwurf = Entwurf(e['id'] as String, e['url'] as String);
-      final plan = await api.berechnen(graph, bereich, entwurfId: entwurf.id);
-      return (bereich, graph, entwurf, plan);
-    });
-    if (geladen == null || !mounted) return;
-    final (bereich, graph, entwurf, plan) = geladen;
-    // eigene Sitzung ohne Foto: Bauplan, Größe ändern, PDF gehen mit Entwurf und Bereich
+    final j = await api.projektOeffnen(p.id);
+    final e = j['entwurf'] as Map<String, dynamic>;
+    final entwurf = Entwurf(e['id'] as String, e['url'] as String);
+    // eigene Sitzung ohne Foto-Bytes: alles Weitere geht über die IDs auf dem Server
     final s = Sitzung(api: api, foto: Uint8List(0), maske: Uint8List(0), bildBreite: 0, bildHoehe: 0)
-      ..bereich = bereich
+      ..bereich = [for (final v in j['bereich'] as List) (v as num).round()]
+      ..fotoId = j['foto_id'] as String?
+      ..maskeId = j['maske_id'] as String?
+      ..wunsch = (j['wunsch'] ?? '').toString()
+      ..entwuerfe = [entwurf]
       ..anmeldungErledigt = true
       ..bezahlt.add(entwurf.id);
+    return (s, entwurf, j['graph'] as Map<String, dynamic>);
+  }
+
+  Future<void> _oeffnen(Projekt p) async {
+    final geladen = await mitWarten(context, tr('st_rechnen'), () async {
+      final (s, entwurf, graph) = await _laden(p);
+      return (s, entwurf, graph, await s.berechnen(graph, entwurfId: entwurf.id));
+    });
+    if (geladen == null || !mounted) return;
+    final (s, entwurf, graph, plan) = geladen;
     await Navigator.of(context).push(MaterialPageRoute<void>(
         builder: (_) => BauplanSeite(sitzung: s, entwurf: entwurf, graph: graph, plan: plan, maengel: const [])));
+    if (mounted) _neuLaden();
+  }
+
+  /// Entwurf weiter anpassen (Text), danach wie gewohnt zum Bauplan.
+  Future<void> _anpassen(Projekt p) async {
+    final geladen = await mitWarten(context, tr('st_laden'), () => _laden(p));
+    if (geladen == null || !mounted) return;
+    final (s, _, _) = geladen;
+    if (s.fotoId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('projekt_ohne_foto'))));
+      return;
+    }
+    await Navigator.of(context)
+        .push(MaterialPageRoute<void>(builder: (_) => EntwuerfeSeite(sitzung: s, einzeln: true)));
     if (mounted) _neuLaden();
   }
 
@@ -121,11 +143,18 @@ class _ProjekteSeiteState extends State<ProjekteSeite> {
                         .join(' · '),
                     style: stil.bodySmall,
                   ),
-                  trailing: IconButton(
-                    tooltip: tr('projekt_loeschen'),
-                    icon: const Icon(Icons.delete_outline),
-                    onPressed: () => _loeschen(p),
-                  ),
+                  trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                    IconButton(
+                      tooltip: tr('projekt_anpassen'),
+                      icon: const Icon(Icons.edit_outlined),
+                      onPressed: () => _anpassen(p),
+                    ),
+                    IconButton(
+                      tooltip: tr('projekt_loeschen'),
+                      icon: const Icon(Icons.delete_outline),
+                      onPressed: () => _loeschen(p),
+                    ),
+                  ]),
                 );
               },
             );

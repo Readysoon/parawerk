@@ -60,6 +60,8 @@ class StartSeite extends StatelessWidget {
               label: Text(tr('galerie')),
               style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
             ),
+            const SizedBox(height: 8),
+            Text(tr('foto_hinweis'), style: Theme.of(context).textTheme.bodySmall, textAlign: TextAlign.center),
             // nach der Anmeldung: gespeicherte Baupläne
             ValueListenableBuilder<bool>(
               valueListenable: api.projekteAn,

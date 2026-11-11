@@ -31,15 +31,23 @@ def _entwurf(e) -> str:
     return speicher.bild_speichern(datenbank(e.database_url), "geraet-p1", buf.getvalue(), "image/jpeg")
 
 
+def _foto_und_maske(e) -> tuple[str, str]:
+    db = datenbank(e.database_url)
+    return (speicher.bild_speichern(db, "geraet-p1", b"FOTO-BYTES", "image/jpeg"),
+            speicher.bild_speichern(db, "geraet-p1", b"MASKE-BYTES", "image/png"))
+
+
 def test_projekt_speichern_oeffnen_loeschen(e):
     eid = _entwurf(e)
+    fid, mid = _foto_und_maske(e)
     g = alte_graphen()[0]
     with TestClient(app, headers={"X-Geraet": "geraet-p1"}) as c:
         # ohne speichern: kein Projekt
         c.post("/api/v1/bauplan/berechnen?mit_glb=false", json={"graph": g, "bereich": PLATZ, "entwurf_id": eid})
         assert c.get("/api/v1/projekte").json()["projekte"] == []
         r = c.post("/api/v1/bauplan/berechnen?mit_glb=false",
-                   json={"graph": g, "bereich": PLATZ, "entwurf_id": eid, "speichern": True})
+                   json={"graph": g, "bereich": PLATZ, "entwurf_id": eid, "speichern": True,
+                         "foto_id": fid, "maske_id": mid, "wunsch": "Sitzbank"})
         pid = r.json()["projekt_id"]
         # gleicher Entwurf, neue Größe: dasselbe Projekt
         r2 = c.post("/api/v1/bauplan/berechnen?mit_glb=false",
@@ -55,6 +63,11 @@ def test_projekt_speichern_oeffnen_loeschen(e):
         p = c.get(f"/api/v1/projekte/{pid}").json()
         assert p["graph"]["ziel"] == [1500, 800, 700] and p["entwurf"]["id"] == eid
         assert c.get(p["entwurf"]["url"]).status_code == 200
+        # Wohnungsfoto und Markierung sind wieder da (zum Weiteranpassen), mit Wunsch
+        assert (p["foto_id"], p["maske_id"], p["wunsch"]) == (fid, mid, "Sitzbank")
+        db = datenbank(e.database_url)
+        assert speicher.bild_laden(db, fid) == (b"FOTO-BYTES", "image/jpeg")
+        assert speicher.bild_laden(db, mid) == (b"MASKE-BYTES", "image/png")
     # ein anderes Gerät sieht es nicht
     with TestClient(app, headers={"X-Geraet": "geraet-p2"}) as c2:
         assert c2.get("/api/v1/projekte").json()["projekte"] == []

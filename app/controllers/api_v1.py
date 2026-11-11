@@ -456,7 +456,14 @@ def _projekt_ablegen(db, wer: str, anfrage: BerechnenV1, graph: dict, masse: lis
         b = ba.aus_bytes(gefunden[0])
         b.thumbnail((1200, 1200))
         bild = ba.jpeg(b, 82)
-    return projekte.speichern(db, wer, anfrage.entwurf_id, graph["name"], graph, anfrage.bereich, masse, bild)
+    # Wohnungsfoto und Markierung mit ins Projekt, damit man es später weiter anpassen kann
+    fotos = None
+    foto = speicher.bild_laden(db, anfrage.foto_id) if anfrage.foto_id else None
+    maske = speicher.bild_laden(db, anfrage.maske_id) if anfrage.maske_id else None
+    if foto and maske:
+        fotos = {"foto_id": anfrage.foto_id, "foto": foto[0], "foto_mime": foto[1], "maske_id": anfrage.maske_id,
+                 "maske": maske[0], "maske_mime": maske[1], "wunsch": anfrage.wunsch}
+    return projekte.speichern(db, wer, anfrage.entwurf_id, graph["name"], graph, anfrage.bereich, masse, bild, fotos)
 
 
 @router.get("/projekte")
@@ -476,10 +483,16 @@ async def projekt_oeffnen(pid: str, k: Kunde = Depends(kunde), e: Einstellungen 
     p = await run_in_threadpool(projekte.laden, db, k.geraet, pid[:32])
     if not p:
         raise HTTPException(404, t("fehler.projekt_fehlt"))
-    if p["bild"] and not await run_in_threadpool(speicher.bild_laden, db, p["entwurf_id"]):
+    if p["bild"]:
         await run_in_threadpool(speicher.bild_wiederherstellen, db, p["entwurf_id"], k.geraet, p["bild"], "image/jpeg")
+    f = p["fotos"]
+    if f:  # Foto und Markierung wieder bereitlegen: Weiteranpassen und neue Entwürfe gehen wie am ersten Tag
+        await run_in_threadpool(speicher.bild_wiederherstellen, db, f["foto_id"], k.geraet, f["foto"], f["foto_mime"])
+        await run_in_threadpool(speicher.bild_wiederherstellen, db, f["maske_id"], k.geraet, f["maske"], f["maske_mime"])
     return {"id": p["id"], "name": p["name"], "graph": p["graph"], "bereich": p["bereich"], "masse": p["masse"],
-            "entwurf": {"id": p["entwurf_id"], "url": _url(p["entwurf_id"])}}
+            "entwurf": {"id": p["entwurf_id"], "url": _url(p["entwurf_id"])},
+            "foto_id": f["foto_id"] if f else None, "maske_id": f["maske_id"] if f else None,
+            "wunsch": f["wunsch"] if f else ""}
 
 
 @router.get("/projekte/{pid}/bild")

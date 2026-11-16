@@ -93,6 +93,8 @@ TEXTE = {
     "ui.zerlegen": "Take apart",
     "ui.teil_antippen": "Tap a part: name and size",
     "ui.verzerren": "Distort",
+    "ui.punkt_waehlen": "Tap a point to select it · preview only",
+    "ui.punkt_ziehen": "Drag to move the point · tap elsewhere to release",
     "ui.punkte_ziehen": "Drag the points · preview only",
     "ui.form_zurueck": "Reset shape",
     "ui.viewer_aria": "Calculated 3D model, drag to rotate",

@@ -93,6 +93,8 @@ TEXTE = {
     "ui.zerlegen": "Zerlegen",
     "ui.teil_antippen": "Teil antippen: Name und Maße",
     "ui.verzerren": "Verzerren",
+    "ui.punkt_waehlen": "Punkt antippen zum Auswählen · nur Vorschau",
+    "ui.punkt_ziehen": "Ziehen verschiebt den Punkt · daneben tippen löst ihn",
     "ui.punkte_ziehen": "Punkte ziehen · nur Vorschau",
     "ui.form_zurueck": "Form zurücksetzen",
     "ui.viewer_aria": "Berechnetes 3D-Modell, ziehen zum Drehen",

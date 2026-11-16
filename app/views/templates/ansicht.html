@@ -19,7 +19,7 @@
     import { Viewer3D, bedienung, BEDIENUNG_CSS } from '/static/js/viewer3d.js';
     const viewer = new Viewer3D(document.getElementById('viewer'), { fuellen: true });
     document.head.append(Object.assign(document.createElement('style'), { textContent: BEDIENUNG_CSS }));
-    bedienung(viewer, document.body, {{ {"zerlegen": t("ui.zerlegen"), "antippen": t("ui.teil_antippen"), "ziehen": t("ui.punkte_ziehen"), "form_zurueck": t("ui.form_zurueck"), "verzerren": t("ui.verzerren")} | tojson }});
+    bedienung(viewer, document.body, {{ {"zerlegen": t("ui.zerlegen"), "antippen": t("ui.teil_antippen"), "ziehen": t("ui.punkte_ziehen"), "form_zurueck": t("ui.form_zurueck"), "verzerren": t("ui.verzerren"), "punkt_waehlen": t("ui.punkt_waehlen"), "punkt_ziehen": t("ui.punkt_ziehen")} | tojson }});
     window.parawerkViewer = viewer;  // für Tests im Browser
     window.zeigen = (modell, kameraHalten = false, verzerren) => viewer.zeigen(modell, { kameraHalten, verzerren });
     window.Bereit?.postMessage('bereit');  // Kanal der App: jetzt kann sie das Modell schicken

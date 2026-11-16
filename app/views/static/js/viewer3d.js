@@ -1,6 +1,7 @@
 // 3D-Ansicht des berechneten Modells (x Breite, y Tiefe, z Höhe in mm). Ziehen dreht, Antippen wählt ein Teil,
 // auseinander(f) zerlegt das Möbel (jedes Teil rückt von der Mitte weg), verzerren(true) zeigt ein Gitter aus
-// 3×3×3 Punkten: Zieht man einen Punkt, verformt sich das ganze Möbel weich mit (nur Vorschau, nicht baubar).
+// 3×3×3 Punkten: Punkt antippen wählt ihn aus, danach verschiebt jedes Ziehen (egal wo) diesen Punkt und das Möbel
+// verformt sich weich mit (nur Vorschau, nicht baubar). Daneben tippen löst die Auswahl, dann dreht Ziehen wieder.
 import * as THREE from 'three';
 
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
@@ -8,6 +9,7 @@ const LEUCHTEN = 0x8a3410;  // gewähltes Teil
 const N = 3;                // Gitterpunkte je Richtung
 const idx = (i, j, k) => (i * N + j) * N + k;
 const bern = t => [(1 - t) * (1 - t), 2 * t * (1 - t), t * t];  // Bernstein-Polynome 2. Grades
+const spiegel = n => idx(N - 1 - Math.floor(n / (N * N)), Math.floor(n / N) % N, n % N);  // gleicher Punkt, andere Seite
 
 /** Außenmaß eines Teils in mm, größtes zuerst (Länge × Breite × Stärke). */
 export const masse = t => [0, 1, 2].map(i => Math.round(t.max[i] - t.min[i])).sort((a, b) => b - a);
@@ -24,6 +26,8 @@ export class Viewer3D {
     this.beiVerzerren = null; // Rückruf (an: bool)
     this.stuecke = [];
     this.verzerrAn = false;
+    this.aktiv = null;       // ausgewählter Gitterpunkt (Index) oder null
+    this.beiPunkt = null;    // Rückruf (index | null)
     // Verschiebung der Gitterpunkte als Anteil der Außenmaße: bleibt beim Strecken erhalten
     this.versatz = Array.from({ length: N ** 3 }, () => new THREE.Vector3());
     this.r = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
@@ -37,7 +41,8 @@ export class Viewer3D {
     canvas.addEventListener('pointerdown', e => {
       canvas.setPointerCapture(e.pointerId);
       start = [e.clientX, e.clientY];
-      if (this.punktGreifen(e)) { drag = null; return; }
+      // Punkt ausgewählt: Ziehen verschiebt ihn (statt zu drehen)
+      if (this.verzerrAn && this.aktiv !== null && this.grp) { this.ziehenBeginnen(e); drag = null; return; }
       drag = start;
     });
     canvas.addEventListener('pointermove', e => {
@@ -49,10 +54,16 @@ export class Viewer3D {
     });
     canvas.addEventListener('pointerup', e => {
       drag = null;
-      if (this.ziehe) { this.ziehe = null; this.kantenNeu(); this.zeichnen(); start = null; return; }
-      // kaum bewegt: das war ein Antippen, kein Drehen
-      if (start && Math.hypot(e.clientX - start[0], e.clientY - start[1]) < 6) this.antippen(e);
+      // kaum bewegt: das war ein Antippen, kein Drehen oder Ziehen
+      const tipp = start && Math.hypot(e.clientX - start[0], e.clientY - start[1]) < 6;
       start = null;
+      if (this.ziehe) {
+        const bewegt = this.ziehe.bewegt;
+        this.ziehe = null;
+        if (bewegt) { this.kantenNeu(); this.zeichnen(); }
+        if (!tipp) return;
+      }
+      if (tipp) this.antippen(e);
     });
     window.addEventListener('resize', () => this.zeichnen());
   }
@@ -89,8 +100,20 @@ export class Viewer3D {
     for (const p of modell.polster || []) add(p, css('--soft'), true);
     // Gitterpunkte
     const kugel = new THREE.SphereGeometry(Math.max(W, D, H) * 0.022, 14, 10);
-    const farbe = new THREE.MeshBasicMaterial({ color: 0xc2410c });
-    this.punkte = this.versatz.map((_, n) => { const p = new THREE.Mesh(kugel, farbe); p.userData.n = n; this.grp.add(p); return p; });
+    this.punktFarben = {
+      normal: new THREE.MeshBasicMaterial({ color: 0xc2410c }),
+      // immer sichtbar, auch hinter Holz; „transparent“, damit er nach dem Ring (auch transparent) gezeichnet wird
+      aktiv: new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false, transparent: true }),
+      partner: new THREE.MeshBasicMaterial({ color: 0xf59e6b }),
+    };
+    this.punkte = this.versatz.map((_, n) => {
+      const p = new THREE.Mesh(kugel, this.punktFarben.normal); p.userData.n = n; this.grp.add(p); return p;
+    });
+    // ein weißer Ring um den ausgewählten Punkt, damit man ihn auch vor hellem Holz sieht
+    this.ring = new THREE.Mesh(new THREE.SphereGeometry(Math.max(W, D, H) * 0.05, 18, 12),
+      new THREE.MeshBasicMaterial({ color: 0xc2410c, transparent: true, opacity: 0.45, depthTest: false }));
+    this.ring.renderOrder = 2;  // hinter dem weißen Punkt, vor dem Holz
+    this.ring.visible = false; this.grp.add(this.ring);
     this.linien = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xc2410c, transparent: true, opacity: 0.45 }));
     this.grp.add(this.linien);
     this.verzerren(typeof verzerren === 'boolean' ? verzerren : this.verzerrAn, false);
@@ -109,9 +132,41 @@ export class Viewer3D {
     if (!this.verzerrAn) this.versatz.forEach(v => v.set(0, 0, 0));
     for (const p of this.punkte || []) p.visible = this.verzerrAn;
     if (this.linien) this.linien.visible = this.verzerrAn;
+    this.punktWaehlen(this.verzerrAn ? this.aktiv : null, false);
     if (this.grp) { this.formen(); this.kantenNeu(); }
     this.beiVerzerren?.(this.verzerrAn);
     if (neu) this.zeichnen();
+  }
+
+  /** Gitterpunkt auswählen (null = keiner). Der Spiegelpunkt auf der anderen Seite wird mit hervorgehoben. */
+  punktWaehlen(n, neu = true) {
+    this.aktiv = n;
+    if (this.punkte) {
+      const gegen = n === null ? null : spiegel(n);
+      this.punkte.forEach((p, i) => {
+        const art = i === n ? 'aktiv' : i === gegen ? 'partner' : 'normal';
+        p.material = this.punktFarben[art];
+        p.scale.setScalar(art === 'aktiv' ? 1.5 : art === 'partner' ? 1.2 : 1);
+        p.renderOrder = art === 'aktiv' ? 3 : 0;
+      });
+      this.ring.visible = n !== null && this.verzerrAn;
+      if (n !== null) this.ring.position.copy(this.punkte[n].position);
+    }
+    this.beiPunkt?.(n);
+    if (neu) this.zeichnen();
+  }
+
+  /** Gitterpunkt am Finger: der nächste auf dem Bildschirm, höchstens 32 Pixel entfernt (kleine Punkte, Touch). */
+  punktBei(e) {
+    if (!this.verzerrAn || !this.punkte) return null;
+    const r = this.el.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    let best = null, abstand = 32;
+    this.punkte.forEach((p, n) => {
+      const q = p.getWorldPosition(new THREE.Vector3()).project(this.cam);
+      const d = Math.hypot((q.x + 1) / 2 * r.width - x, (1 - q.y) / 2 * r.height - y);
+      if (d < abstand) { abstand = d; best = n; }
+    });
+    return best;
   }
 
   /** Verzerrung zurücknehmen, Gitter bleibt sichtbar. */
@@ -146,6 +201,7 @@ export class Viewer3D {
       s.mesh.geometry.computeBoundingSphere();
     }
     this.punkte?.forEach((p, n) => p.position.copy(this.punktLage(n)));
+    if (this.ring && this.aktiv !== null) this.ring.position.copy(this.punkte[this.aktiv].position);
     if (this.linien) {
       const v = [], P = n => this.punktLage(n).toArray();
       for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) for (let k = 0; k < N; k++) {
@@ -176,25 +232,27 @@ export class Viewer3D {
     return s;
   }
 
-  punktGreifen(e) {
-    if (!this.verzerrAn || !this.grp) return false;
-    const t = this.strahl(e).intersectObjects(this.punkte)[0];
-    if (!t) return false;
-    const welt = t.object.getWorldPosition(new THREE.Vector3());
+  /** Ziehen beginnt: Ebene quer zur Blickrichtung durch den ausgewählten Punkt; der Punkt folgt dem Finger relativ. */
+  ziehenBeginnen(e) {
+    const welt = this.punkte[this.aktiv].getWorldPosition(new THREE.Vector3());
     const ebene = new THREE.Plane().setFromNormalAndCoplanarPoint(this.cam.getWorldDirection(new THREE.Vector3()), welt);
-    this.ziehe = { n: t.object.userData.n, ebene };
-    for (const s of this.stuecke) if (s.kante) s.kante.visible = false;
-    return true;
+    const treffer = this.strahl(e).ray.intersectPlane(ebene, new THREE.Vector3());
+    if (!treffer) return;
+    this.ziehe = { n: this.aktiv, ebene, anfang: this.grp.worldToLocal(treffer), versatz: this.versatz[this.aktiv].clone(),
+                   bewegt: false };
   }
 
   punktZiehen(e) {
     const p = this.strahl(e).ray.intersectPlane(this.ziehe.ebene, new THREE.Vector3());
     if (!p) return;
+    if (!this.ziehe.bewegt) {
+      this.ziehe.bewegt = true;
+      for (const s of this.stuecke) if (s.kante) s.kante.visible = false;  // beim Ziehen zu langsam
+    }
     const n = this.ziehe.n, G = this.gross;
-    this.versatz[n].set(0, 0, 0);
-    const v = this.grp.worldToLocal(p).sub(this.punktLage(n)).divide(G);
+    const v = this.grp.worldToLocal(p).sub(this.ziehe.anfang).divide(G).add(this.ziehe.versatz);
     // links und rechts gleich: der Punkt auf der anderen Seite bewegt sich gespiegelt mit
-    const i = Math.floor(n / (N * N)), j = Math.floor(n / N) % N, k = n % N, gegen = idx(N - 1 - i, j, k);
+    const gegen = spiegel(n);
     if (gegen === n) v.x = 0;
     else this.versatz[gegen].set(-v.x, v.y, v.z);
     this.versatz[n].copy(v);
@@ -229,6 +287,11 @@ export class Viewer3D {
 
   antippen(e) {
     if (!this.grp) return;
+    if (this.verzerrAn) {
+      const n = this.punktBei(e);
+      if (n !== null) { this.punktWaehlen(n); return; }
+      if (this.aktiv !== null) { this.punktWaehlen(null); return; }  // daneben getippt: Auswahl lösen
+    }
     const treffer = this.strahl(e).intersectObjects(this.stuecke.filter(s => !s.weich).map(s => s.mesh))[0];
     const id = treffer ? treffer.object.userData.stueck.teil.id : null;
     this.waehlen(id === this.gewaehlt ? null : id);
@@ -267,9 +330,12 @@ export function bedienung(viewer, wurzel, texte) {
   schalter.addEventListener('change', () => viewer.verzerren(schalter.checked));
   zurueck.textContent = texte.form_zurueck || '↺';
   zurueck.addEventListener('click', () => viewer.formZurueck());
+  // ohne gewähltes Teil: Hinweis, was man gerade tun kann
+  const hinweis = () => !viewer.verzerrAn ? texte.antippen
+    : viewer.aktiv === null ? (texte.punkt_waehlen || texte.ziehen) : (texte.punkt_ziehen || texte.ziehen);
   viewer.beiWahl = t => {
     info.replaceChildren();
-    if (!t) { info.textContent = viewer.verzerrAn && texte.ziehen ? texte.ziehen : texte.antippen; info.classList.remove('an'); return; }
+    if (!t) { info.textContent = hinweis(); info.classList.remove('an'); return; }
     info.classList.add('an');
     const kopf = document.createElement('b');
     kopf.textContent = (t.b ? t.b + ' · ' : '') + (t.name || '');
@@ -277,6 +343,7 @@ export function bedienung(viewer, wurzel, texte) {
     m.textContent = masse(t).join(' × ') + ' mm';
     info.append(kopf, m);
   };
+  viewer.beiPunkt = () => { if (viewer.gewaehlt === null) viewer.beiWahl(null); };
   viewer.beiVerzerren = an => {
     zurueck.hidden = !an;
     schalter.checked = an;

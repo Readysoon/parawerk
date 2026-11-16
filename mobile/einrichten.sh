@@ -12,6 +12,9 @@ plutil -replace NSCameraUsageDescription -string "Parawerk braucht die Kamera, u
 plutil -replace NSPhotoLibraryUsageDescription -string "Parawerk braucht Zugriff auf deine Fotos, um ein Foto der Ecke auszuwählen." "$PLIST"
 # Nur Standard-HTTPS, keine eigene Verschlüsselung: Apple fragt dann nicht bei jedem Build nach
 plutil -replace ITSAppUsesNonExemptEncryption -bool NO "$PLIST"
+# Lokal testen: http zum Server auf dem eigenen Mac im WLAN erlauben (nur lokale Adressen, alles andere bleibt HTTPS)
+plutil -replace NSAppTransportSecurity -json '{"NSAllowsLocalNetworking":true}' "$PLIST"
+plutil -replace NSLocalNetworkUsageDescription -string "Zum Testen mit einem Parawerk-Server im eigenen WLAN." "$PLIST"
 
 # Mit Google anmelden (iOS): die umgekehrte iOS-Client-ID als URL-Schema, sonst kommt man nach der Anmeldung nicht zurück.
 # Aufruf: GOOGLE_IOS_CLIENT_ID=123-abc.apps.googleusercontent.com ./einrichten.sh

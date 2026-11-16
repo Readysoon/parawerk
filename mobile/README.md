@@ -20,10 +20,14 @@ flutter run                      # wählt ein angeschlossenes Handy oder einen S
 flutter run -d ios               # iPhone-Simulator (vorher: open -a Simulator)
 ```
 
-Gegen einen Server auf dem eigenen Rechner statt parawerk.fly.dev:
+Gegen einen Server auf dem eigenen Rechner statt parawerk.fly.dev (Handy und Mac im selben WLAN):
 ```bash
-flutter run --dart-define=API=http://192.168.1.20:8000
+ipconfig getifaddr en0                                   # IP des Macs, z. B. 192.168.1.20
+uvicorn app.main:app --reload --host 0.0.0.0             # im Projektordner: Server fürs WLAN öffnen
+flutter run --dart-define=API=http://192.168.1.20:8000 --dart-define=SPRACHE=de
 ```
+Beim ersten Start fragt iOS nach „Lokales Netzwerk“: erlauben. Apple- und Google-Anmeldung gehen auch lokal
+(mit `GOOGLE_CLIENT_IDS` in `.env`), die Demo-Anmeldung nur mit `STUFEN_SIMULIEREN=true`.
 
 ## Aufbau
 

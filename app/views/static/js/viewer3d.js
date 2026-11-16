@@ -57,7 +57,8 @@ export class Viewer3D {
     window.addEventListener('resize', () => this.zeichnen());
   }
 
-  zeigen(modell, { kameraHalten = false, verzerren = false } = {}) {
+  // verzerren: true/false schaltet das Gitter; weggelassen bleibt es, wie der Nutzer es eingestellt hat
+  zeigen(modell, { kameraHalten = false, verzerren } = {}) {
     this.halten = kameraHalten;
     if (this.grp) { this.scene.remove(this.grp); this.grp.traverse(o => { o.geometry?.dispose(); o.material?.dispose(); }); }
     this.grp = new THREE.Group(); this.scene.add(this.grp);
@@ -92,7 +93,7 @@ export class Viewer3D {
     this.punkte = this.versatz.map((_, n) => { const p = new THREE.Mesh(kugel, farbe); p.userData.n = n; this.grp.add(p); return p; });
     this.linien = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xc2410c, transparent: true, opacity: 0.45 }));
     this.grp.add(this.linien);
-    this.verzerren(verzerren, false);
+    this.verzerren(typeof verzerren === 'boolean' ? verzerren : this.verzerrAn, false);
     // Nach dem Strecken: Zerlegen und Auswahl bleiben, solange es das Teil noch gibt
     const noch = this.stuecke.find(s => !s.weich && s.teil.id === this.gewaehlt);
     this.gewaehlt = noch ? noch.teil.id : null;
@@ -247,19 +248,25 @@ export class Viewer3D {
   }
 }
 
-/** Bedienung über dem Viewer: Zerlegen-Regler, angetipptes Teil, beim Verzerren „Form zurücksetzen“. */
+/** Bedienung über dem Viewer: angetipptes Teil, darunter eine Leiste mit Zerlegen (Regler) und Verzerren (Schalter);
+ * beim Verzerren zusätzlich „Form zurücksetzen“. */
 export function bedienung(viewer, wurzel, texte) {
   const leiste = document.createElement('div');
   leiste.className = 'bedienung';
   leiste.innerHTML = `<div class="zeile1"><div class="teilinfo" aria-live="polite"></div><button type="button" class="formzurueck" hidden></button></div>
-    <label class="zerlegen"><span></span><input type="range" min="0" max="100" value="0"></label>`;
-  leiste.querySelector('.zerlegen span').textContent = texte.zerlegen;
-  const info = leiste.querySelector('.teilinfo'), regler = leiste.querySelector('input'), zurueck = leiste.querySelector('.formzurueck');
+    <div class="werkzeug">
+      <label class="zerlegen"><span class="z"></span><input type="range" min="0" max="100" value="0"></label>
+      <label class="schalter"><span class="v"></span><input type="checkbox" role="switch"><i aria-hidden="true"></i></label>
+    </div>`;
+  leiste.querySelector('.z').textContent = texte.zerlegen;
+  leiste.querySelector('.v').textContent = texte.verzerren || 'Verzerren';
+  const info = leiste.querySelector('.teilinfo'), regler = leiste.querySelector('input[type=range]');
+  const schalter = leiste.querySelector('input[type=checkbox]'), zurueck = leiste.querySelector('.formzurueck');
   regler.setAttribute('aria-label', texte.zerlegen);
   regler.addEventListener('input', () => viewer.auseinander(regler.value / 100));
+  schalter.addEventListener('change', () => viewer.verzerren(schalter.checked));
   zurueck.textContent = texte.form_zurueck || '↺';
   zurueck.addEventListener('click', () => viewer.formZurueck());
-  viewer.beiVerzerren = an => { zurueck.hidden = !an; };
   viewer.beiWahl = t => {
     info.replaceChildren();
     if (!t) { info.textContent = viewer.verzerrAn && texte.ziehen ? texte.ziehen : texte.antippen; info.classList.remove('an'); return; }
@@ -270,20 +277,33 @@ export function bedienung(viewer, wurzel, texte) {
     m.textContent = masse(t).join(' × ') + ' mm';
     info.append(kopf, m);
   };
-  const wahl = viewer.beiWahl, verz = viewer.beiVerzerren;
-  viewer.beiVerzerren = an => { verz(an); if (viewer.gewaehlt === null) wahl(null); };
+  viewer.beiVerzerren = an => {
+    zurueck.hidden = !an;
+    schalter.checked = an;
+    if (viewer.gewaehlt === null) viewer.beiWahl(null);
+  };
   viewer.beiWahl(null);
   wurzel.appendChild(leiste);
 }
 
+// Leiste im Blau des „Weiter“-Knopfs der App (#1C2530), Gitterpunkte bleiben orange
 export const BEDIENUNG_CSS = `
 .bedienung{position:fixed;left:10px;right:10px;bottom:10px;display:flex;flex-direction:column;gap:6px;pointer-events:none;font:13px/1.3 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#1c2530}
 .bedienung .zeile1{display:flex;gap:6px;align-items:flex-end;justify-content:space-between}
-.bedienung .zeile1>*,.bedienung>label{pointer-events:auto}
+.bedienung .zeile1>*,.bedienung .werkzeug{pointer-events:auto}
 .teilinfo{max-width:100%;padding:5px 10px;border-radius:8px;background:#ffffffd9;color:#5b6573}
 .teilinfo.an{color:#1c2530}
 .teilinfo b{display:block;font-weight:600}
 .teilinfo span{font-variant-numeric:tabular-nums}
 .formzurueck{flex:none;white-space:nowrap;font:inherit;border:0;border-radius:999px;padding:6px 12px;background:#ffffffd9;color:#c2410c;font-weight:600}
-.zerlegen{display:flex;align-items:center;gap:10px;padding:4px 10px;border-radius:999px;background:#ffffffd9}
-.zerlegen input{flex:1;accent-color:#c2410c;min-width:0}`;
+.werkzeug{display:flex;align-items:center;gap:14px;padding:6px 14px;border-radius:999px;background:#1c2530;color:#fff;box-shadow:0 2px 8px #0003}
+.werkzeug label{display:flex;align-items:center;gap:8px;font-weight:600;white-space:nowrap}
+.zerlegen{flex:1;min-width:0}
+.zerlegen input{flex:1;min-width:0;accent-color:#fff}
+.schalter{flex:none;cursor:pointer;border-left:1px solid #ffffff40;padding-left:14px}
+.schalter input{position:absolute;opacity:0;width:1px;height:1px}
+.schalter i{position:relative;width:38px;height:22px;border-radius:999px;background:#ffffff40;transition:background .15s}
+.schalter i::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .15s}
+.schalter input:checked+i{background:#c2410c}
+.schalter input:checked+i::after{transform:translateX(16px)}
+.schalter input:focus-visible+i{outline:2px solid #fff;outline-offset:2px}`;

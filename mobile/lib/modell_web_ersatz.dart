@@ -2,12 +2,10 @@
 import 'package:flutter/material.dart';
 
 class WebModell extends StatelessWidget {
-  const WebModell(
-      {super.key, required this.url, required this.modell, required this.kameraHalten, this.verzerren = false});
+  const WebModell({super.key, required this.url, required this.modell, required this.kameraHalten});
   final String url;
   final Map<String, dynamic> modell;
   final bool kameraHalten;
-  final bool verzerren;
 
   @override
   Widget build(BuildContext context) => const SizedBox.shrink();

@@ -19,15 +19,15 @@
     import { Viewer3D, bedienung, BEDIENUNG_CSS } from '/static/js/viewer3d.js';
     const viewer = new Viewer3D(document.getElementById('viewer'), { fuellen: true });
     document.head.append(Object.assign(document.createElement('style'), { textContent: BEDIENUNG_CSS }));
-    bedienung(viewer, document.body, {{ {"zerlegen": t("ui.zerlegen"), "antippen": t("ui.teil_antippen"), "ziehen": t("ui.punkte_ziehen"), "form_zurueck": t("ui.form_zurueck")} | tojson }});
+    bedienung(viewer, document.body, {{ {"zerlegen": t("ui.zerlegen"), "antippen": t("ui.teil_antippen"), "ziehen": t("ui.punkte_ziehen"), "form_zurueck": t("ui.form_zurueck"), "verzerren": t("ui.verzerren")} | tojson }});
     window.parawerkViewer = viewer;  // für Tests im Browser
-    window.zeigen = (modell, kameraHalten = false, verzerren = false) => viewer.zeigen(modell, { kameraHalten, verzerren });
+    window.zeigen = (modell, kameraHalten = false, verzerren) => viewer.zeigen(modell, { kameraHalten, verzerren });
     window.Bereit?.postMessage('bereit');  // Kanal der App: jetzt kann sie das Modell schicken
     // Flutter-App im Browser: Ansicht steckt in einem iframe, Daten kommen per postMessage (nur Anzeige, keine Rechte)
     if (window.parent !== window) {
       addEventListener('message', (ev) => {
         const d = ev.data;
-        if (d && d.parawerk === 'zeigen' && d.modell) window.zeigen(d.modell, !!d.kameraHalten, !!d.verzerren);
+        if (d && d.parawerk === 'zeigen' && d.modell) window.zeigen(d.modell, !!d.kameraHalten, d.verzerren);
       });
       window.parent.postMessage({ parawerk: 'bereit' }, '*');
     }

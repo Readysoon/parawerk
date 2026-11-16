@@ -145,7 +145,7 @@ Map<String, dynamic> skaliert(Map<String, dynamic> modell, List<double> f) {
   };
 }
 
-/// Schritt 2: das Möbel in 3D. Breite, Tiefe und Höhe ziehen (Vorschau in der App), frei verzerren (nur Vorschau),
+/// Schritt 2: das Möbel in 3D. Breite, Tiefe und Höhe eintippen (Vorschau in der App); in der 3D-Ansicht: verzerren (nur Vorschau),
 /// zerlegen und Teile antippen. „Weiter“ rechnet mit den neuen Maßen den echten Bauplan.
 class ModellSchritt extends StatefulWidget {
   const ModellSchritt({
@@ -171,7 +171,6 @@ class _ModellSchrittState extends State<ModellSchritt> {
   late final List<int> _design = [for (final v in _modell['dims'] as List) (v as num).round()];
   late List<double> _regler = [for (final v in _design) v.toDouble()];
   late Map<String, dynamic> _anzeige = _modell;
-  bool _verzerren = false;
 
   bool get _geaendert => [for (final (i, v) in _regler.indexed) v.round() != _design[i]].contains(true);
 
@@ -221,7 +220,7 @@ class _ModellSchrittState extends State<ModellSchritt> {
           const SizedBox(height: 16),
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
-            child: ModellAnsicht(modell: _anzeige, kameraHalten: true, verzerren: _verzerren, seitenverhaeltnis: 1.0),
+            child: ModellAnsicht(modell: _anzeige, kameraHalten: true, seitenverhaeltnis: 1.0),
           ),
           const SizedBox(height: 6),
           Text(tr('schritt_3d_hinweis'), style: stil.bodySmall),
@@ -232,14 +231,6 @@ class _ModellSchrittState extends State<ModellSchritt> {
           Align(
             alignment: Alignment.centerLeft,
             child: TextButton(onPressed: _geaendert ? _zurueck : null, child: Text(tr('groesse_zurueck'))),
-          ),
-          Abschnitt(tr('verzerren')),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            value: _verzerren,
-            onChanged: (v) => setState(() => _verzerren = v),
-            title: Text(tr('verzerren_an')),
-            subtitle: Text(tr('verzerren_hinweis')),
           ),
           const SizedBox(height: 16),
           FilledButton(

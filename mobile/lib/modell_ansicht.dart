@@ -13,42 +13,35 @@ import 'texte.dart';
 
 /// Im Browser ein iframe, sonst ein Webfenster (webview_flutter gibt es im Browser nicht).
 class ModellAnsicht extends StatelessWidget {
-  const ModellAnsicht(
-      {super.key, required this.modell, this.kameraHalten = false, this.verzerren = false, this.seitenverhaeltnis = 1.5});
+  // Zerlegen und Verzerren bedient man in der Leiste der 3D-Ansicht selbst (viewer3d.js).
+  const ModellAnsicht({super.key, required this.modell, this.kameraHalten = false, this.seitenverhaeltnis = 1.5});
   final Map<String, dynamic> modell;
   final bool kameraHalten;
-
-  /// Gitterpunkte zum freien Verzerren zeigen (nur Vorschau).
-  final bool verzerren;
   final double seitenverhaeltnis;
 
   @override
   Widget build(BuildContext context) {
     if (!kIsWeb) {
-      return _AppModell(
-          modell: modell, kameraHalten: kameraHalten, verzerren: verzerren, seitenverhaeltnis: seitenverhaeltnis);
+      return _AppModell(modell: modell, kameraHalten: kameraHalten, seitenverhaeltnis: seitenverhaeltnis);
     }
     return AspectRatio(
       aspectRatio: seitenverhaeltnis,
       child: Semantics(
         label: tr('modell_3d'),
-        child: WebModell(
-            url: '$apiBasis/ansicht?sprache=$sprache', modell: modell, kameraHalten: kameraHalten, verzerren: verzerren),
+        child: WebModell(url: '$apiBasis/ansicht?sprache=$sprache', modell: modell, kameraHalten: kameraHalten),
       ),
     );
   }
 }
 
 class _AppModell extends StatefulWidget {
-  const _AppModell(
-      {required this.modell, this.kameraHalten = false, this.verzerren = false, this.seitenverhaeltnis = 1.5});
+  const _AppModell({required this.modell, this.kameraHalten = false, this.seitenverhaeltnis = 1.5});
 
   /// Teile als Quader wie in der Antwort von /api/v1/bauplan/berechnen (Feld "modell").
   final Map<String, dynamic> modell;
 
   /// Beim Strecken: Kamera nicht mitzoomen, damit man das Möbel wachsen sieht.
   final bool kameraHalten;
-  final bool verzerren;
   final double seitenverhaeltnis;
 
   @override
@@ -75,12 +68,12 @@ class _ModellAnsichtState extends State<_AppModell> {
   @override
   void didUpdateWidget(_AppModell alt) {
     super.didUpdateWidget(alt);
-    if (!identical(alt.modell, widget.modell) || alt.verzerren != widget.verzerren) _senden();
+    if (!identical(alt.modell, widget.modell)) _senden();
   }
 
   void _senden() {
     if (!_bereit) return;
-    _web.runJavaScript('zeigen(${jsonEncode(widget.modell)}, ${widget.kameraHalten}, ${widget.verzerren})');
+    _web.runJavaScript('zeigen(${jsonEncode(widget.modell)}, ${widget.kameraHalten})');
   }
 
   @override

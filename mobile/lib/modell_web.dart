@@ -6,12 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:web/web.dart' as web;
 
 class WebModell extends StatefulWidget {
-  const WebModell(
-      {super.key, required this.url, required this.modell, required this.kameraHalten, this.verzerren = false});
+  const WebModell({super.key, required this.url, required this.modell, required this.kameraHalten});
   final String url;
   final Map<String, dynamic> modell;
   final bool kameraHalten;
-  final bool verzerren;
 
   @override
   State<WebModell> createState() => _WebModellState();
@@ -40,7 +38,7 @@ class _WebModellState extends State<WebModell> {
   @override
   void didUpdateWidget(WebModell alt) {
     super.didUpdateWidget(alt);
-    if (!identical(alt.modell, widget.modell) || alt.verzerren != widget.verzerren) _senden();
+    if (!identical(alt.modell, widget.modell)) _senden();
   }
 
   void _senden() {
@@ -50,7 +48,6 @@ class _WebModellState extends State<WebModell> {
       'parawerk': 'zeigen',
       'modell': widget.modell,
       'kameraHalten': widget.kameraHalten,
-      'verzerren': widget.verzerren,
     }.jsify(),
         _herkunft.toJS);
   }

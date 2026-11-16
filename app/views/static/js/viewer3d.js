@@ -97,7 +97,8 @@ export class Viewer3D {
       mesh.userData.stueck = s;
       this.stuecke.push(s);
     };
-    for (const t of modell.teile) add(t, t.gurt ? (css('--gurt') || '#3b3f46') : t.ergaenzt ? css('--mark') : css('--board'));
+    // alle Holzteile gleich, auch die von der Engine ergänzten (Einkaufsliste und Zuschnitt markieren sie)
+    for (const t of modell.teile) add(t, t.gurt ? (css('--gurt') || '#3b3f46') : css('--board'));
     for (const p of modell.polster || []) add(p, css('--soft'), true);
     // Gitterpunkte
     const kugel = new THREE.SphereGeometry(Math.max(W, D, H) * 0.022, 14, 10);

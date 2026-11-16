@@ -6,6 +6,7 @@ Austauschbar: Jeder Anbieter, der ein eigenes Foto mit Maske bearbeiten kann, lÃ
 from __future__ import annotations
 
 import asyncio
+import logging
 import base64
 import re
 from typing import Protocol
@@ -16,6 +17,8 @@ from ..i18n import t
 from .fehler import DienstFehler, NichtVerfuegbar
 
 DATA_URL = re.compile(r"^data:([^;]+);base64,(.*)$", re.S)
+
+log = logging.getLogger(__name__)
 
 
 class BildKI(Protocol):
@@ -81,7 +84,9 @@ class ReplicateBasis:
         for _ in range(self.MAX_VERSUCHE):
             res = await client.post(url, headers={**self._auth, "Content-Type": "application/json"}, json=daten)
             if res.status_code == 429:
-                await self._schlafen(self._wartezeit(res))
+                warten = self._wartezeit(res)
+                log.warning("Replicate bremst beim Starten (429), warte %.0f s", warten)  # zu wenig Guthaben/Ratenlimit
+                await self._schlafen(warten)
                 continue
             if res.status_code >= 400:
                 raise DienstFehler(f"Replicate: {res.status_code} {res.text[:300]}")

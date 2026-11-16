@@ -15,9 +15,12 @@ Die Geräte-ID schickt die App im Header ``X-Geraet``, die Sprache in ``X-Sprach
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 import secrets
+import time
+from functools import partial
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -248,6 +251,7 @@ async def entwuerfe(anfrage: EntwuerfeV1, ki: BildKI = Depends(bild_ki), kon: Ko
     eintrag = await zaehlen(deckel, "runde", k, ki.demo, e)
 
     async def arbeit() -> dict:
+        uhr = Stoppuhr()
         foto_url = ba.als_data_url(ba.jpeg(foto), "image/jpeg")
         maske_url = ba.als_data_url(ba.png(ba.ki_maske(maske)), "image/png")
         prompt = inpaint_prompt(anfrage.wunsch)
@@ -256,19 +260,25 @@ async def entwuerfe(anfrage: EntwuerfeV1, ki: BildKI = Depends(bild_ki), kon: Ko
                 prompt = await kon.bild_prompt(anfrage.wunsch, foto_url, maske_url)
             except DienstFehler:
                 pass  # dann eben der wörtliche Wunsch
+        uhr("prompt")
         seeds = [secrets.randbelow(10**9) for _ in range(e.anzahl_entwuerfe)]
         bilder = await ki.entwerfen(foto_url, maske_url, prompt, seeds)
-        ids = []
+        uhr("malen")
+        ids, gemalte = [], []
         lauf_id = analyse.lauf(maske_id)
         for src in bilder:
             gemalt = _quelle(src)
             fertig = await run_in_threadpool(ba.einsetzen, foto, maske, gemalt)
             bid = await run_in_threadpool(speicher.bild_speichern, db, k.geraet, ba.jpeg(fertig, 90), "image/jpeg")
             ids.append(bid)
-            await _moebelbild(db, "entwurf", gemalt, maske, lauf_id, bid, frei, ki.demo)
+            gemalte.append((gemalt, bid))
+        uhr("einsetzen")
         await run_in_threadpool(analyse.eintragen, db, "entwuerfe", {"wunsch": anfrage.wunsch, "prompt": prompt,
-                                                                      "anzahl": len(ids)},
+                                                                      "anzahl": len(ids), "sekunden": uhr.zeiten},
                                 lauf_id=lauf_id, sprache=sprache(), demo=ki.demo)
+        log.info("Entwürfe in %s s: %s", uhr.gesamt, uhr.zeiten)
+        # Lerndaten (Freistellen) erst danach im Hintergrund: der Nutzer wartet nicht darauf
+        im_hintergrund(*(partial(_moebelbild, db, "entwurf", g, maske, lauf_id, b, frei, ki.demo) for g, b in gemalte))
         return {"demo": ki.demo, "prompt": prompt, "foto_id": foto_id, "maske_id": maske_id,
                 "entwuerfe": [{"id": i, "url": _url(i), "index": n} for n, i in enumerate(ids)]}
 
@@ -315,7 +325,8 @@ async def nachjustieren(anfrage: NachjustierenV1, ki: BildKI = Depends(bild_ki),
         gemalt = await run_in_threadpool(ba.zurueckkleben, entwurf, _quelle(neu), box)
         fertig = await run_in_threadpool(ba.einsetzen, foto, maske, gemalt)
         bid = await run_in_threadpool(speicher.bild_speichern, db, k.geraet, ba.jpeg(fertig, 90), "image/jpeg")
-        await _moebelbild(db, "nachjustiert", gemalt, maske, analyse.lauf(anfrage.maske_id), bid, frei, ki.demo)
+        im_hintergrund(partial(_moebelbild, db, "nachjustiert", gemalt, maske, analyse.lauf(anfrage.maske_id), bid, frei,
+                               ki.demo))
         await run_in_threadpool(analyse.eintragen, db, "nachjustiert", {"wunsch": anfrage.wunsch,
                                                                          "anpassung": anfrage.anpassung,
                                                                          "vorher": analyse.lauf(anfrage.entwurf_id),
@@ -511,6 +522,40 @@ async def projekt_loeschen(pid: str, k: Kunde = Depends(kunde), e: Einstellungen
     if not await run_in_threadpool(projekte.loeschen, _db(e), k.geraet, pid[:32]):
         raise HTTPException(404, t("fehler.projekt_fehlt"))
     return {"ok": True}
+
+
+class Stoppuhr:
+    """Misst, wie lange die Schritte eines Auftrags dauern (Sekunden), für Analyse und Log."""
+
+    def __init__(self) -> None:
+        self._start = self._letzte = time.monotonic()
+        self.zeiten: dict[str, float] = {}
+
+    def __call__(self, schritt: str) -> None:
+        jetzt_ = time.monotonic()
+        self.zeiten[schritt] = round(jetzt_ - self._letzte, 1)
+        self._letzte = jetzt_
+
+    @property
+    def gesamt(self) -> float:
+        return round(time.monotonic() - self._start, 1)
+
+
+_HINTERGRUND: set[asyncio.Task] = set()
+
+
+def im_hintergrund(*arbeiten) -> None:
+    """Nebenarbeiten (Lerndaten) nacheinander starten, ohne darauf zu warten; Fehler landen im Log.
+    ``arbeiten`` sind Funktionen ohne Argumente, die eine Coroutine liefern."""
+    async def nacheinander():
+        for a in arbeiten:
+            try:
+                await a()
+            except Exception:  # noqa: BLE001
+                log.exception("Hintergrundarbeit fehlgeschlagen")
+    aufgabe = asyncio.create_task(nacheinander())
+    _HINTERGRUND.add(aufgabe)
+    aufgabe.add_done_callback(_HINTERGRUND.discard)
 
 
 async def _moebelbild(db, art: str, gemalt: Image.Image, maske: Image.Image, lauf_id: str | None, entwurf_id: str,

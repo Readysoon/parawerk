@@ -33,7 +33,7 @@
     import { Viewer3D, bedienung, BEDIENUNG_CSS } from '/static/js/viewer3d.js';
     const viewer = new Viewer3D(document.getElementById('viewer'), { fuellen: true });
     document.head.append(Object.assign(document.createElement('style'), { textContent: BEDIENUNG_CSS + '.bedienung{bottom:calc(max(16px,env(safe-area-inset-bottom)) + 56px)}' }));
-    bedienung(viewer, document.body, {{ {"zerlegen": t("ui.zerlegen"), "antippen": t("ui.teil_antippen"), "ziehen": t("ui.punkte_ziehen"), "form_zurueck": t("ui.form_zurueck"), "verzerren": t("ui.verzerren"), "punkt_waehlen": t("ui.punkt_waehlen"), "punkt_ziehen": t("ui.punkt_ziehen")} | tojson }});
+    bedienung(viewer, document.body, {{ {"zerlegen": t("ui.zerlegen"), "antippen": t("ui.teil_antippen"), "ziehen": t("ui.punkte_ziehen"), "form_zurueck": t("ui.form_zurueck"), "verzerren": t("ui.verzerren"), "punkt_waehlen": t("ui.punkt_waehlen"), "punkt_ziehen": t("ui.punkt_ziehen"), "cnc_titel": t("ui.cnc_titel"), "cnc_text": t("ui.cnc_text"), "verstanden": t("ui.verstanden")} | tojson }});
     viewer.zeigen(JSON.parse(document.getElementById('modell').textContent));
     const a = document.createElement('a');
     if (a.relList && a.relList.supports && a.relList.supports('ar')) document.getElementById('ar-ios').hidden = false;

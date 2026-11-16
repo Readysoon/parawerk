@@ -28,6 +28,7 @@ export class Viewer3D {
     this.verzerrAn = false;
     this.aktiv = null;       // ausgewählter Gitterpunkt (Index) oder null
     this.beiPunkt = null;    // Rückruf (index | null)
+    this.beiVerformt = null; // Rückruf, sobald ein Punkt wirklich verschoben wird
     // Verschiebung der Gitterpunkte als Anteil der Außenmaße: bleibt beim Strecken erhalten
     this.versatz = Array.from({ length: N ** 3 }, () => new THREE.Vector3());
     this.r = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
@@ -248,6 +249,7 @@ export class Viewer3D {
     if (!this.ziehe.bewegt) {
       this.ziehe.bewegt = true;
       for (const s of this.stuecke) if (s.kante) s.kante.visible = false;  // beim Ziehen zu langsam
+      this.beiVerformt?.();
     }
     const n = this.ziehe.n, G = this.gross;
     const v = this.grp.worldToLocal(p).sub(this.ziehe.anfang).divide(G).add(this.ziehe.versatz);
@@ -344,6 +346,27 @@ export function bedienung(viewer, wurzel, texte) {
     info.append(kopf, m);
   };
   viewer.beiPunkt = () => { if (viewer.gewaehlt === null) viewer.beiWahl(null); };
+  // Hinweis beim ersten Verformen (einmal je Seitenaufruf): krumme Form = gefräste Teile statt Baumarkt-Bretter
+  let gezeigt = false;
+  viewer.beiVerformt = () => {
+    if (gezeigt || !texte.cnc_titel) return;
+    gezeigt = true;
+    const pop = document.createElement('div');
+    pop.className = 'cnc-pop';
+    pop.setAttribute('role', 'dialog');
+    pop.setAttribute('aria-modal', 'true');
+    pop.innerHTML = `<div class="karte"><b></b><p></p><div class="knoepfe">
+      <button type="button" class="zurueck"></button><button type="button" class="ok"></button></div></div>`;
+    pop.querySelector('b').textContent = texte.cnc_titel;
+    pop.querySelector('p').textContent = texte.cnc_text;
+    const ok = pop.querySelector('.ok'), zur = pop.querySelector('.zurueck');
+    ok.textContent = texte.verstanden;
+    zur.textContent = texte.form_zurueck;
+    ok.addEventListener('click', () => pop.remove());
+    zur.addEventListener('click', () => { viewer.formZurueck(); pop.remove(); });
+    wurzel.appendChild(pop);
+    ok.focus();
+  };
   viewer.beiVerzerren = an => {
     zurueck.hidden = !an;
     schalter.checked = an;
@@ -373,4 +396,12 @@ export const BEDIENUNG_CSS = `
 .schalter i::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .15s}
 .schalter input:checked+i{background:#c2410c}
 .schalter input:checked+i::after{transform:translateX(16px)}
-.schalter input:focus-visible+i{outline:2px solid #fff;outline-offset:2px}`;
+.schalter input:focus-visible+i{outline:2px solid #fff;outline-offset:2px}
+.cnc-pop{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;background:#1c253059;font:14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;z-index:10}
+.cnc-pop .karte{max-width:340px;padding:16px 18px;border-radius:14px;background:#fff;color:#1c2530;box-shadow:0 8px 30px #0004}
+.cnc-pop b{display:block;font-size:16px;margin-bottom:6px}
+.cnc-pop p{margin:0 0 14px;color:#3d4753}
+.cnc-pop .knoepfe{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.cnc-pop button{font:inherit;font-weight:600;border-radius:999px;padding:8px 14px;border:0;cursor:pointer}
+.cnc-pop .ok{background:#1c2530;color:#fff}
+.cnc-pop .zurueck{background:transparent;color:#c2410c}`;

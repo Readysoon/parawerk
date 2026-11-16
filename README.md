@@ -154,6 +154,8 @@ gh secret set FLY_API_TOKEN                    # Token einfügen (oder GitHub �
   fly deploy
   ```
 
+**Limits zum Testen ausschalten:** `LIMITS=false` in `.env` hebt die Grenzen je Gerät und IP sowie die Gratis-Runden auf. Konto-Pflicht und `TAGESBUDGET_USD` (Notbremse) gelten weiter. Auf fly.io nicht setzen.
+
 **Fotos verschlüsselt speichern:** Wohnungsfotos, Markierungen und Entwurfsbilder liegen mit AES-256-GCM verschlüsselt in der Datenbank, wenn `DATEN_SCHLUESSEL` gesetzt ist (siehe `app/models/tresor.py`). Einmal erzeugen, als Secret setzen und **zusätzlich im Passwortmanager aufheben** – ohne ihn sind verschlüsselte Bilder verloren:
 ```bash
 python -c "import os,base64;print(base64.b64encode(os.urandom(32)).decode())"

@@ -25,6 +25,9 @@ class Einstellungen(BaseSettings):
     anzahl_entwuerfe: int = 4
     # Kostendeckel (siehe services/kostendeckel.py); Datenbank: leer = SQLite im Temp-Ordner, auf fly.io Postgres
     database_url: str = ""
+    # false: keine Limits je Gerät/IP und keine Gratis-Grenzen (zum Testen, z. B. lokal in .env). Konto-Pflicht und
+    # Tagesbudget gelten weiter.
+    limits: bool = True
     gratis_runden: int = 1  # je Gerät insgesamt, eine Runde = 4 Entwürfe
     gratis_nachjustieren: int = 2  # je Gerät insgesamt
     ip_runden_pro_tag: int = 3

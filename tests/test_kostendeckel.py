@@ -164,3 +164,21 @@ def test_testcodes_einstellung():
     from app.config import Einstellungen
     e = Einstellungen(_env_file=None, testcodes="a:3,B:2:5,:4,c:x,d")
     assert e.codes == {"A": (3, 1), "B": (2, 5)}
+
+
+def test_limits_aus(tmp_path):
+    """LIMITS=false: beliebig viele Runden, Lesen und Anpassen; das Tagesbudget bleibt."""
+    from app.config import Einstellungen
+    from app.models.verbrauch import datenbank
+    from app.services.kostendeckel import Gesperrt, Kostendeckel, Kunde
+    e = Einstellungen(_env_file=None, database_url=f"sqlite:///{tmp_path / 'l.db'}", limits=False, tagesbudget_usd=1.5)
+    d = Kostendeckel(datenbank(e.database_url), e)
+    k = Kunde(geraet="g-limits", ip="1.2.3.4")
+    for _ in range(6):
+        d.reservieren("lesen", k)
+    assert d.stand(k) == {"runden": None, "nachjustieren": None}
+    import pytest
+    with pytest.raises(Gesperrt) as fehler:
+        for _ in range(100):
+            d.reservieren("runde", k)
+    assert fehler.value.status == 503  # Notbremse Tagesbudget

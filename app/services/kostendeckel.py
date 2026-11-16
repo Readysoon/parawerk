@@ -63,7 +63,7 @@ class Kostendeckel:
 
     def stand(self, k: Kunde) -> dict:
         """Was dieses Gerät noch gratis hat (für die Anzeige)."""
-        if k.admin:
+        if k.admin or not self.e.limits:
             return {"runden": None, "nachjustieren": None}
         runden, nachjustieren, _ = self._grenzen(k)
         return {
@@ -94,6 +94,8 @@ class Kostendeckel:
         if k.admin:
             return
         self.konto_pruefen(art, k)
+        if not self.e.limits:  # zum Testen ausgeschaltet
+            return
         if art == "runde":
             runden, _, hat_code = self._grenzen(k)
             if v.anzahl(self.db, "runde", geraet=k.geraet) >= runden:

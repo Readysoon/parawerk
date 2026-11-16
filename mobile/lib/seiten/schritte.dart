@@ -42,6 +42,22 @@ class _Schritte extends StatelessWidget {
   }
 }
 
+/// Seite eines Schritts: die Schritt-Anzeige bleibt oben stehen, nur der Inhalt darunter scrollt.
+class _SchrittSeite extends StatelessWidget {
+  const _SchrittSeite(this.aktuell, this.inhalt);
+  final int aktuell;
+  final List<Widget> inhalt;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 8), child: _Schritte(aktuell)),
+      const Divider(height: 1),
+      Expanded(child: ListView(padding: const EdgeInsets.all(16), children: inhalt)),
+    ]);
+  }
+}
+
 /// Code eingeben und einlösen; [einloesen] wirft bei falschem Code.
 class _CodeFeld extends StatefulWidget {
   const _CodeFeld({required this.einloesen});
@@ -111,9 +127,7 @@ class AnmeldeSchritt extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(tr('schritt_anmelden'))),
       body: SafeArea(
-        child: ListView(padding: const EdgeInsets.all(16), children: [
-          const _Schritte(0),
-          const SizedBox(height: 24),
+        child: _SchrittSeite(0, [
           Text(tr('konto_titel'), style: stil.titleLarge),
           const SizedBox(height: 8),
           Text(tr('anmelden_warum')),
@@ -215,9 +229,7 @@ class _ModellSchrittState extends State<ModellSchritt> {
     return Scaffold(
       appBar: AppBar(title: Text(tr('schritt_3d_titel'))),
       body: SafeArea(
-        child: ListView(padding: const EdgeInsets.all(16), children: [
-          const _Schritte(1),
-          const SizedBox(height: 16),
+        child: _SchrittSeite(1, [
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: ModellAnsicht(modell: _anzeige, kameraHalten: true, seitenverhaeltnis: 1.0),
@@ -278,9 +290,7 @@ class BezahlSchritt extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(tr('schritt_bezahlen'))),
       body: SafeArea(
-        child: ListView(padding: const EdgeInsets.all(16), children: [
-          const _Schritte(2),
-          const SizedBox(height: 24),
+        child: _SchrittSeite(2, [
           Text(tr('frei_titel'), style: stil.titleLarge),
           const SizedBox(height: 8),
           for (final x in tr('frei_inhalt').split('|')) Padding(padding: const EdgeInsets.only(bottom: 2), child: Text('• $x')),

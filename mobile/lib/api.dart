@@ -97,8 +97,7 @@ class Projekt {
 }
 
 class Api {
-  Api._(this.geraet, this.sprache, this._sitzung, bool demoAngemeldet)
-      : projekteAn = ValueNotifier(_sitzung != null || demoAngemeldet);
+  Api._(this.geraet, this.sprache, this._sitzung) : projekteAn = ValueNotifier(_sitzung != null);
 
   /// Die eine Verbindung der App (für Hilfen wie die Anmeldung, wenn der Server 401 meldet).
   static Api? aktuell;
@@ -107,15 +106,8 @@ class Api {
   String? _sitzung;
   bool get angemeldet => _sitzung != null;
 
-  /// Nach dem Anmelde-Schritt (echt oder vorerst Demo): Baupläne werden als Projekte gespeichert und sind unter
-  /// „Meine Projekte“ zu sehen. Bleibt nach dem Neustart der App erhalten.
+  /// Angemeldet: Baupläne werden als Projekte gespeichert und sind unter „Meine Projekte“ zu sehen.
   final ValueNotifier<bool> projekteAn;
-
-  Future<void> demoAnmelden() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('demo_angemeldet', true);
-    projekteAn.value = true;
-  }
 
   /// Geräte-ID: einmal zufällig erzeugt und gespeichert. Darauf zählt der Server die Gratis-Runden.
   final String geraet;
@@ -131,7 +123,7 @@ class Api {
       id = 'app-${List.generate(16, (_) => zufall.nextInt(256).toRadixString(16).padLeft(2, '0')).join()}';
       await prefs.setString('geraet', id);
     }
-    return aktuell = Api._(id, sprache, prefs.getString('sitzung'), prefs.getBool('demo_angemeldet') ?? false);
+    return aktuell = Api._(id, sprache, prefs.getString('sitzung'));
   }
 
   Map<String, String> get _kopf => {
@@ -146,7 +138,7 @@ class Api {
     final prefs = await SharedPreferences.getInstance();
     if (token == null) {
       await prefs.remove('sitzung');
-      await prefs.remove('demo_angemeldet');
+      await prefs.remove('demo_angemeldet'); // aus Build 6 (Schein-Anmeldung), aufräumen
     } else {
       await prefs.setString('sitzung', token);
     }

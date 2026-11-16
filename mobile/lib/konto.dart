@@ -50,16 +50,43 @@ Future<bool> anmeldenFragen(BuildContext context, {String? grund}) async {
   return ok == true;
 }
 
-class _AnmeldeBlatt extends StatefulWidget {
+class _AnmeldeBlatt extends StatelessWidget {
   const _AnmeldeBlatt({required this.api, this.grund});
   final Api api;
   final String? grund;
 
   @override
-  State<_AnmeldeBlatt> createState() => _AnmeldeBlattState();
+  Widget build(BuildContext context) {
+    final stil = Theme.of(context).textTheme;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text(tr('konto_titel'), style: stil.titleLarge),
+          const SizedBox(height: 8),
+          Text(grund ?? tr('konto_warum'), style: stil.bodyMedium),
+          const SizedBox(height: 20),
+          AnmeldeKnoepfe(api: api, angemeldet: () => Navigator.of(context).pop(true)),
+          const SizedBox(height: 8),
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(tr('abbrechen'))),
+        ]),
+      ),
+    );
+  }
 }
 
-class _AnmeldeBlattState extends State<_AnmeldeBlatt> {
+/// Die Anmelde-Knöpfe: Apple (iPhone), Google, und nur wenn der Server es erlaubt (lokal/Demo-Modus) „Demo“.
+/// Nach erfolgreicher Anmeldung wird [angemeldet] aufgerufen; die Sitzung liegt dann in der [Api].
+class AnmeldeKnoepfe extends StatefulWidget {
+  const AnmeldeKnoepfe({super.key, required this.api, required this.angemeldet});
+  final Api api;
+  final VoidCallback angemeldet;
+
+  @override
+  State<AnmeldeKnoepfe> createState() => _AnmeldeKnoepfeState();
+}
+
+class _AnmeldeKnoepfeState extends State<AnmeldeKnoepfe> {
   bool _laeuft = false;
   String? _fehler;
   bool _demo = false;
@@ -80,7 +107,7 @@ class _AnmeldeBlattState extends State<_AnmeldeBlatt> {
     try {
       final name = await anmelden(widget.api);
       if (!mounted) return;
-      if (name != null) Navigator.of(context).pop(true);
+      if (name != null) widget.angemeldet();
     } on SignInWithAppleAuthorizationException catch (e) {
       if (e.code != AuthorizationErrorCode.canceled && mounted) setState(() => _fehler = tr('anmelden_fehler'));
     } catch (e) {
@@ -92,47 +119,37 @@ class _AnmeldeBlattState extends State<_AnmeldeBlatt> {
 
   @override
   Widget build(BuildContext context) {
-    final stil = Theme.of(context).textTheme;
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Text(tr('konto_titel'), style: stil.titleLarge),
-          const SizedBox(height: 8),
-          Text(widget.grund ?? tr('konto_warum'), style: stil.bodyMedium),
-          const SizedBox(height: 20),
-          if (_demo) ...[
-            FilledButton.icon(
-              onPressed: _laeuft ? null : () => _los(_mitDemo),
-              icon: const Icon(Icons.science_outlined),
-              label: Text(tr('mit_demo')),
-              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-            ),
-            const SizedBox(height: 12),
-          ],
-          if (_iPhone) ...[
-            SignInWithAppleButton(
-              text: tr('mit_apple'),
-              height: 48,
-              onPressed: _laeuft ? () {} : () => _los(_mitApple),
-            ),
-            const SizedBox(height: 12),
-          ],
-          if (!kIsWeb || _googleWeb.isNotEmpty)
-          OutlinedButton.icon(
-            onPressed: _laeuft ? null : () => _los(_mitGoogle),
-            icon: const Icon(Icons.account_circle_outlined),
-            label: Text(tr('mit_google')),
-            style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-          ),
-          if (_laeuft) const Padding(padding: EdgeInsets.only(top: 16), child: Center(child: CircularProgressIndicator())),
-          if (_fehler != null)
-            Padding(padding: const EdgeInsets.only(top: 12), child: Text(_fehler!, style: const TextStyle(color: Colors.red))),
-          const SizedBox(height: 8),
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(tr('abbrechen'))),
-        ]),
-      ),
-    );
+    final google = !kIsWeb || _googleWeb.isNotEmpty;
+    return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      if (_iPhone) ...[
+        SignInWithAppleButton(
+          text: tr('mit_apple'),
+          height: 48,
+          onPressed: _laeuft ? () {} : () => _los(_mitApple),
+        ),
+        const SizedBox(height: 12),
+      ],
+      if (google) ...[
+        OutlinedButton.icon(
+          onPressed: _laeuft ? null : () => _los(_mitGoogle),
+          icon: const Icon(Icons.account_circle_outlined),
+          label: Text(tr('mit_google')),
+          style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+        ),
+        const SizedBox(height: 12),
+      ],
+      if (_demo)
+        OutlinedButton.icon(
+          onPressed: _laeuft ? null : () => _los(_mitDemo),
+          icon: const Icon(Icons.science_outlined),
+          label: Text(tr('mit_demo')),
+          style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+        ),
+      if (!_iPhone && !google && !_demo) Text(tr('anmelden_hier_nicht')),
+      if (_laeuft) const Padding(padding: EdgeInsets.only(top: 16), child: Center(child: CircularProgressIndicator())),
+      if (_fehler != null)
+        Padding(padding: const EdgeInsets.only(top: 12), child: Text(_fehler!, style: const TextStyle(color: Colors.red))),
+    ]);
   }
 }
 

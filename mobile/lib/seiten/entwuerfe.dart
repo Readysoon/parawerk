@@ -98,8 +98,6 @@ class _EntwuerfeSeiteState extends State<EntwuerfeSeite> {
     if (!_s.anmeldungErledigt && !_s.api.projekteAn.value) {
       final wie = await Navigator.of(context).push<String>(MaterialPageRoute(builder: (_) => AnmeldeSchritt(sitzung: _s)));
       if (wie == null || !mounted) return;
-      if (wie == 'demo') await _s.api.demoAnmelden(); // „angemeldet“: Projekte werden gespeichert
-      if (!mounted) return;
       _s.anmeldungErledigt = true;
     }
     final ergebnis = await mitWarten(context, tr('st_lesen'), () async {

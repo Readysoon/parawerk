@@ -1,5 +1,5 @@
 // Die Schritte zwischen Entwurf und Bauplan:
-//   1. Anmelden (vorerst nur Demo, ein Code überspringt den Schritt)
+//   1. Anmelden mit Apple oder Google (ein Code überspringt den Schritt)
 //   2. 3D-Modell ansehen, strecken und frei verzerren (die Vorschau rechnet die App selbst)
 //   3. Bezahlen (vorerst nur Demo, ein Code schaltet frei)
 // Danach kommt die Bauplan-Seite.
@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 
 import '../api.dart';
 import '../hilfen.dart';
+import '../konto.dart';
 import '../mass_felder.dart';
 import '../modell_ansicht.dart';
 import '../sitzung.dart';
@@ -99,7 +100,7 @@ class _CodeFeldState extends State<_CodeFeld> {
   }
 }
 
-/// Schritt 1: Anmelden. Ergebnis 'demo' (angemeldet, Projekte werden gespeichert) oder 'code' (ohne Anmeldung weiter).
+/// Schritt 1: Anmelden. Ergebnis 'konto' (angemeldet, Projekte werden gespeichert) oder 'code' (ohne Anmeldung weiter).
 class AnmeldeSchritt extends StatelessWidget {
   const AnmeldeSchritt({super.key, required this.sitzung});
   final Sitzung sitzung;
@@ -117,14 +118,7 @@ class AnmeldeSchritt extends StatelessWidget {
           const SizedBox(height: 8),
           Text(tr('anmelden_warum')),
           const SizedBox(height: 20),
-          FilledButton.icon(
-            onPressed: () => Navigator.of(context).pop('demo'),
-            icon: const Icon(Icons.science_outlined),
-            label: Text(tr('demo_anmelden')),
-            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-          ),
-          const SizedBox(height: 6),
-          Text(tr('demo_anmelden_hinweis'), style: stil.bodySmall),
+          AnmeldeKnoepfe(api: sitzung.api, angemeldet: () => Navigator.of(context).pop('konto')),
           const SizedBox(height: 24),
           Text(tr('code_ueberspringen'), style: stil.titleSmall),
           const SizedBox(height: 8),

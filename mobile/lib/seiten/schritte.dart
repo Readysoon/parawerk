@@ -17,11 +17,11 @@ import 'bauplan.dart';
 /// Namen der Seiten im Ablauf, damit man über die Schritt-Anzeige zurückspringen kann.
 const routeEntwuerfe = 'entwuerfe', routeAnmelden = 'anmelden', routeModell = 'modell';
 
-/// Zeigt, wo man im Ablauf ist: Entwürfe → Anmelden → 3D → Freischalten.
+/// Zeigt, wo man im Ablauf ist: Entwürfe → Anmelden → 3D → Bauplan (dort wird freigeschaltet).
 /// Erledigte Schritte mit Seite (Entwürfe, 3D) kann man antippen, um dorthin zurückzugehen.
 class Schritte extends StatelessWidget {
   const Schritte(this.aktuell, {super.key});
-  final int aktuell; // 0 Entwürfe, 1 Anmelden, 2 3D, 3 Freischalten
+  final int aktuell; // 0 Entwürfe, 1 Anmelden, 2 3D, 3 Bauplan
 
   static const _ziele = [routeEntwuerfe, null, routeModell, null];
 

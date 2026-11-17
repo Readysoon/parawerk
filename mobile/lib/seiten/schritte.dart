@@ -17,18 +17,18 @@ import 'bauplan.dart';
 /// Namen der Seiten im Ablauf, damit man über die Schritt-Anzeige zurückspringen kann.
 const routeEntwuerfe = 'entwuerfe', routeAnmelden = 'anmelden', routeModell = 'modell';
 
-/// Zeigt, wo man im Ablauf ist: Entwürfe → Anmelden → 3D → Bauplan (dort wird freigeschaltet).
+/// Zeigt, wo man im Ablauf ist: Entwürfe → 3D (mit Anmelden davor) → Bauplan (dort wird freigeschaltet).
 /// Erledigte Schritte mit Seite (Entwürfe, 3D) kann man antippen, um dorthin zurückzugehen.
 class Schritte extends StatelessWidget {
   const Schritte(this.aktuell, {super.key});
-  final int aktuell; // 0 Entwürfe, 1 Anmelden, 2 3D, 3 Bauplan
+  final int aktuell; // 0 Entwürfe, 1 3D (auch Anmelden), 2 Bauplan
 
-  static const _ziele = [routeEntwuerfe, null, routeModell, null];
+  static const _ziele = [routeEntwuerfe, routeModell, null];
 
   @override
   Widget build(BuildContext context) {
     final farbe = Theme.of(context).colorScheme.primary;
-    final namen = [tr('schritt_entwuerfe'), tr('schritt_anmelden'), tr('schritt_3d'), tr('schritt_bezahlen')];
+    final namen = [tr('schritt_entwuerfe'), tr('schritt_3d'), tr('schritt_bezahlen')];
     return Row(children: [
       for (final (i, n) in namen.indexed) ...[
         if (i > 0) Expanded(child: Divider(color: i <= aktuell ? farbe : Colors.black26, thickness: 2)),
@@ -253,7 +253,7 @@ class _ModellSchrittState extends State<ModellSchritt> {
     return Scaffold(
       appBar: AppBar(title: Text(tr('schritt_3d_titel'))),
       body: SafeArea(
-        child: _SchrittSeite(2, [
+        child: _SchrittSeite(1, [
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: ModellAnsicht(modell: _anzeige, kameraHalten: true, seitenverhaeltnis: 1.0),
@@ -318,7 +318,7 @@ class BezahlSchritt extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(tr('schritt_bezahlen'))),
       body: SafeArea(
-        child: _SchrittSeite(3, [
+        child: _SchrittSeite(2, [
           Text(tr('frei_titel'), style: stil.titleLarge),
           const SizedBox(height: 8),
           for (final x in tr('frei_inhalt').split('|')) Padding(padding: const EdgeInsets.only(bottom: 2), child: Text('• $x')),

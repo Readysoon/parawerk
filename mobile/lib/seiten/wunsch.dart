@@ -7,6 +7,7 @@ import '../sitzung.dart';
 import '../texte.dart';
 import 'entwuerfe.dart';
 import 'messen.dart';
+import 'schritte.dart';
 
 class WunschSeite extends StatefulWidget {
   const WunschSeite({super.key, required this.sitzung});
@@ -105,7 +106,9 @@ class _WunschSeiteState extends State<WunschSeite> {
     });
     await _kontingent();
     if (ok == true && mounted) {
-      Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => EntwuerfeSeite(sitzung: s)));
+      Sitzung.letzte.value = s; // „Zurück zu deinen Entwürfen“ auf der Startseite
+      Navigator.of(context).push(MaterialPageRoute<void>(
+          settings: const RouteSettings(name: routeEntwuerfe), builder: (_) => EntwuerfeSeite(sitzung: s)));
     }
   }
 

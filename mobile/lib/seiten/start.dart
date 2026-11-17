@@ -7,9 +7,12 @@ import 'package:image_picker/image_picker.dart';
 import '../api.dart';
 import '../hilfen.dart';
 import '../konto.dart';
+import '../sitzung.dart';
 import '../texte.dart';
+import 'entwuerfe.dart';
 import 'markieren.dart';
 import 'projekte.dart';
+import 'schritte.dart';
 
 class StartSeite extends StatelessWidget {
   const StartSeite({super.key, required this.api});
@@ -59,6 +62,23 @@ class StartSeite extends StatelessWidget {
               icon: const Icon(Icons.photo_library),
               label: Text(tr('galerie')),
               style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+            ),
+            // letzte Entwürfe wieder öffnen, statt neu zu entwerfen
+            ValueListenableBuilder<Sitzung?>(
+              valueListenable: Sitzung.letzte,
+              builder: (context, s, _) => s == null || s.entwuerfe.isEmpty
+                  ? const SizedBox.shrink()
+                  : Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: FilledButton.tonalIcon(
+                        onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                            settings: const RouteSettings(name: routeEntwuerfe),
+                            builder: (_) => EntwuerfeSeite(sitzung: s))),
+                        icon: const Icon(Icons.photo_library_outlined),
+                        label: Text(tr('zurueck_entwuerfe')),
+                        style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+                      ),
+                    ),
             ),
             // nach der Anmeldung: gespeicherte Baupläne
             ValueListenableBuilder<bool>(

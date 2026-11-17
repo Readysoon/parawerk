@@ -10,6 +10,7 @@ import '../sitzung.dart';
 import '../texte.dart';
 import 'bauplan.dart';
 import 'entwuerfe.dart';
+import 'schritte.dart';
 
 class ProjekteSeite extends StatefulWidget {
   const ProjekteSeite({super.key, required this.api});
@@ -68,7 +69,8 @@ class _ProjekteSeiteState extends State<ProjekteSeite> {
       return;
     }
     await Navigator.of(context)
-        .push(MaterialPageRoute<void>(builder: (_) => EntwuerfeSeite(sitzung: s, einzeln: true)));
+        .push(MaterialPageRoute<void>(
+            settings: const RouteSettings(name: routeEntwuerfe), builder: (_) => EntwuerfeSeite(sitzung: s, einzeln: true)));
     if (mounted) _neuLaden();
   }
 

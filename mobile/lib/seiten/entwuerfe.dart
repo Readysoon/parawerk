@@ -96,7 +96,8 @@ class _EntwuerfeSeiteState extends State<EntwuerfeSeite> {
     if (_gewaehlt < 0) return;
     final entwurf = _s.entwuerfe[_gewaehlt];
     if (!_s.anmeldungErledigt && !_s.api.projekteAn.value) {
-      final wie = await Navigator.of(context).push<String>(MaterialPageRoute(builder: (_) => AnmeldeSchritt(sitzung: _s)));
+      final wie = await Navigator.of(context).push<String>(MaterialPageRoute(
+          settings: const RouteSettings(name: routeAnmelden), builder: (_) => AnmeldeSchritt(sitzung: _s)));
       if (wie == null || !mounted) return;
       _s.anmeldungErledigt = true;
     }
@@ -112,6 +113,7 @@ class _EntwuerfeSeiteState extends State<EntwuerfeSeite> {
     });
     if (ergebnis == null || !mounted) return;
     Navigator.of(context).push(MaterialPageRoute<void>(
+      settings: const RouteSettings(name: routeModell),
       builder: (_) =>
           ModellSchritt(sitzung: _s, entwurf: entwurf, graph: ergebnis.graph, plan: ergebnis.plan, maengel: ergebnis.maengel),
     ));
@@ -126,7 +128,12 @@ class _EntwuerfeSeiteState extends State<EntwuerfeSeite> {
         actions: [IconButton(tooltip: tr('neue_entwuerfe'), onPressed: _neueEntwuerfe, icon: const Icon(Icons.refresh))],
       ),
       body: SafeArea(
-        child: ListView(padding: const EdgeInsets.all(12), children: [
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          // Schritt-Anzeige bleibt oben stehen
+          const Padding(padding: EdgeInsets.fromLTRB(16, 12, 16, 8), child: Schritte(0)),
+          const Divider(height: 1),
+          Expanded(
+              child: ListView(padding: const EdgeInsets.all(12), children: [
           if (_einzeln && _gewaehlt >= 0) ...[
             // nach dem Anpassen: nur dieses Bild, groß
             ClipRRect(
@@ -196,6 +203,7 @@ class _EntwuerfeSeiteState extends State<EntwuerfeSeite> {
               ],
             ),
           ],
+        ])),
         ]),
       ),
     );

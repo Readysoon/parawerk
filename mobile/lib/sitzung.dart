@@ -1,9 +1,15 @@
 // Alles, was zu einem Durchgang gehört: Foto, Maske, Maße, Wunsch und die Antworten des Servers.
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show ValueNotifier;
+
 import 'api.dart';
 
 class Sitzung {
+  /// Der letzte Durchgang mit Entwürfen: Die Startseite bietet „Zurück zu deinen Entwürfen“ an, damit man nicht neu
+  /// entwerfen muss (gilt, solange die App läuft; die Bilder liegen 7 Tage auf dem Server).
+  static final ValueNotifier<Sitzung?> letzte = ValueNotifier(null);
+
   Sitzung({required this.api, required this.foto, required this.maske, required this.bildBreite,
       required this.bildHoehe, this.hochgeladen});
 

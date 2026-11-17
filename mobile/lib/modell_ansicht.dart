@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import 'api.dart';
@@ -88,6 +89,43 @@ class _ModellAnsichtState extends State<_AppModell> {
           gestureRecognizers: {Factory<OneSequenceGestureRecognizer>(() => EagerGestureRecognizer())},
         ),
       ),
+    );
+  }
+}
+
+
+/// AR: das Möbel in echter Größe im Zimmer (nur iPhone: AR Quick Look öffnet die USDZ-Datei vom Server).
+/// [usdzHolen] liefert den Pfad der USDZ-Datei (z. B. erst nach dem Neurechnen mit neuen Maßen) oder null.
+class ArKnopf extends StatelessWidget {
+  const ArKnopf({super.key, required this.usdzHolen});
+  final Future<String?> Function() usdzHolen;
+
+  static bool get moeglich => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+
+  Future<void> _oeffnen(BuildContext context) async {
+    final hinweise = ScaffoldMessenger.of(context);
+    try {
+      final usdz = await usdzHolen();
+      if (usdz == null) return;
+      // Größe festhalten: Es soll in echter Größe im Zimmer stehen, nicht per Fingerzug skaliert werden
+      final url = Uri.parse('$apiBasis$usdz#allowsContentScaling=0');
+      if (!await launchUrl(url, mode: LaunchMode.inAppBrowserView) &&
+          !await launchUrl(url, mode: LaunchMode.externalApplication)) {
+        hinweise.showSnackBar(SnackBar(content: Text(tr('ar_geht_nicht'))));
+      }
+    } catch (_) {
+      hinweise.showSnackBar(SnackBar(content: Text(tr('ar_geht_nicht'))));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!moeglich) return const SizedBox.shrink();
+    return FilledButton.tonalIcon(
+      onPressed: () => _oeffnen(context),
+      icon: const Icon(Icons.view_in_ar),
+      label: Text(tr('im_raum')),
+      style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
     );
   }
 }

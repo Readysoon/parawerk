@@ -14,29 +14,44 @@ import '../sitzung.dart';
 import '../texte.dart';
 import 'bauplan.dart';
 
-/// Zeigt, in welchem der drei Schritte man gerade ist.
-class _Schritte extends StatelessWidget {
-  const _Schritte(this.aktuell);
-  final int aktuell; // 0, 1 oder 2
+/// Namen der Seiten im Ablauf, damit man über die Schritt-Anzeige zurückspringen kann.
+const routeEntwuerfe = 'entwuerfe', routeAnmelden = 'anmelden', routeModell = 'modell';
+
+/// Zeigt, wo man im Ablauf ist: Entwürfe → Anmelden → 3D → Freischalten.
+/// Erledigte Schritte mit Seite (Entwürfe, 3D) kann man antippen, um dorthin zurückzugehen.
+class Schritte extends StatelessWidget {
+  const Schritte(this.aktuell, {super.key});
+  final int aktuell; // 0 Entwürfe, 1 Anmelden, 2 3D, 3 Freischalten
+
+  static const _ziele = [routeEntwuerfe, null, routeModell, null];
 
   @override
   Widget build(BuildContext context) {
     final farbe = Theme.of(context).colorScheme.primary;
-    final namen = [tr('schritt_anmelden'), tr('schritt_3d'), tr('schritt_bezahlen')];
+    final namen = [tr('schritt_entwuerfe'), tr('schritt_anmelden'), tr('schritt_3d'), tr('schritt_bezahlen')];
     return Row(children: [
       for (final (i, n) in namen.indexed) ...[
         if (i > 0) Expanded(child: Divider(color: i <= aktuell ? farbe : Colors.black26, thickness: 2)),
-        Column(mainAxisSize: MainAxisSize.min, children: [
-          CircleAvatar(
-            radius: 12,
-            backgroundColor: i <= aktuell ? farbe : Colors.black12,
-            child: i < aktuell
-                ? const Icon(Icons.check, size: 14, color: Colors.white)
-                : Text('${i + 1}', style: TextStyle(fontSize: 12, color: i <= aktuell ? Colors.white : Colors.black54)),
+        InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: i < aktuell && _ziele[i] != null
+              ? () => Navigator.of(context).popUntil((r) => r.settings.name == _ziele[i] || r.isFirst)
+              : null,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              CircleAvatar(
+                radius: 12,
+                backgroundColor: i <= aktuell ? farbe : Colors.black12,
+                child: i < aktuell
+                    ? const Icon(Icons.check, size: 14, color: Colors.white)
+                    : Text('${i + 1}', style: TextStyle(fontSize: 12, color: i <= aktuell ? Colors.white : Colors.black54)),
+              ),
+              const SizedBox(height: 4),
+              Text(n, style: TextStyle(fontSize: 12, color: i == aktuell ? farbe : Colors.black54)),
+            ]),
           ),
-          const SizedBox(height: 4),
-          Text(n, style: TextStyle(fontSize: 12, color: i == aktuell ? farbe : Colors.black54)),
-        ]),
+        ),
       ],
     ]);
   }
@@ -51,7 +66,7 @@ class _SchrittSeite extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 8), child: _Schritte(aktuell)),
+      Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 8), child: Schritte(aktuell)),
       const Divider(height: 1),
       Expanded(child: ListView(padding: const EdgeInsets.all(16), children: inhalt)),
     ]);
@@ -127,7 +142,7 @@ class AnmeldeSchritt extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(tr('schritt_anmelden'))),
       body: SafeArea(
-        child: _SchrittSeite(0, [
+        child: _SchrittSeite(1, [
           Text(tr('konto_titel'), style: stil.titleLarge),
           const SizedBox(height: 8),
           Text(tr('anmelden_warum')),
@@ -200,6 +215,15 @@ class _ModellSchrittState extends State<ModellSchritt> {
         _anzeige = _modell;
       });
 
+  /// AR im Raum: mit den eingetippten Maßen (dafür vorher neu rechnen), sonst das Modell dieses Plans.
+  Future<String?> _arModell() async {
+    if (!_geaendert) return widget.plan['modell_usdz'] as String?;
+    final s = widget.sitzung;
+    final g = {...widget.graph, 'ziel': [for (final v in _regler) v.round()]};
+    final neu = await mitWarten(context, tr('st_rechnen'), () => s.berechnen(g, entwurfId: widget.entwurf.id));
+    return neu?['modell_usdz'] as String?;
+  }
+
   Future<void> _weiter() async {
     final s = widget.sitzung;
     var graph = widget.graph, plan = widget.plan;
@@ -229,11 +253,15 @@ class _ModellSchrittState extends State<ModellSchritt> {
     return Scaffold(
       appBar: AppBar(title: Text(tr('schritt_3d_titel'))),
       body: SafeArea(
-        child: _SchrittSeite(1, [
+        child: _SchrittSeite(2, [
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: ModellAnsicht(modell: _anzeige, kameraHalten: true, seitenverhaeltnis: 1.0),
           ),
+          if (ArKnopf.moeglich) ...[
+            const SizedBox(height: 8),
+            ArKnopf(usdzHolen: _arModell),
+          ],
           const SizedBox(height: 6),
           Text(tr('schritt_3d_hinweis'), style: stil.bodySmall),
           Abschnitt(tr('groesse')),
@@ -290,7 +318,7 @@ class BezahlSchritt extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(tr('schritt_bezahlen'))),
       body: SafeArea(
-        child: _SchrittSeite(2, [
+        child: _SchrittSeite(3, [
           Text(tr('frei_titel'), style: stil.titleLarge),
           const SizedBox(height: 8),
           for (final x in tr('frei_inhalt').split('|')) Padding(padding: const EdgeInsets.only(bottom: 2), child: Text('• $x')),

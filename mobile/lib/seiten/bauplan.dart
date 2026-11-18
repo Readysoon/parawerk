@@ -251,12 +251,6 @@ class _BauplanSeiteState extends State<BauplanSeite> {
             ),
           ],
 
-          if (widget.maengel.isNotEmpty) ...[
-            Abschnitt(tr('selbstkontrolle')),
-            Text(tr('selbstkontrolle_text')),
-            for (final m in widget.maengel) Text('• $m'),
-          ],
-
           Abschnitt(tr('ergebnis')),
           _Zeile(tr('aussenmass'), '${b['aussenmass']} mm'),
           _Zeile(tr('einzelteile'), '${b['anzahl_teile']}'),
@@ -286,18 +280,6 @@ class _BauplanSeiteState extends State<BauplanSeite> {
           ),
 
           if (!_gesperrt) ...[
-          Abschnitt(tr('pruefung')),
-          for (final p in _liste(b, 'pruefungen'))
-            ListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(
-                p['klasse'] == 'ok' ? Icons.check : p['klasse'] == 'no' ? Icons.warning_amber : Icons.info_outline,
-                color: p['klasse'] == 'ok' ? const Color(0xFF2F7D4F) : p['klasse'] == 'no' ? const Color(0xFFA15C00) : null,
-              ),
-              title: Text('${p['text']}'),
-            ),
-
           Abschnitt(tr('einkauf')),
           for (final l in _liste(b, 'einkauf')) _Zeile('${l['text']}', '${l['n']}×'),
           for (final l in _liste(b, 'beschlaege')) _Zeile('${l['text']} ${tr('reserve')}', '${l['n']}'),

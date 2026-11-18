@@ -7,7 +7,8 @@ import '../api.dart';
 import '../malflaeche.dart';
 import '../sitzung.dart';
 import '../texte.dart';
-import 'wunsch.dart';
+import 'entwuerfe.dart';
+import 'schritte.dart';
 
 class MarkierenSeite extends StatefulWidget {
   const MarkierenSeite({super.key, required this.api, required this.foto, required this.bildBreite, required this.bildHoehe});
@@ -47,7 +48,8 @@ class _MarkierenSeiteState extends State<MarkierenSeite> {
     final maske = await _mal.maskePng(widget.bildBreite, widget.bildHoehe);
     if (!mounted) return;
     Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => WunschSeite(
+      settings: const RouteSettings(name: routeEntwuerfe),
+      builder: (_) => EntwuerfeSeite(
         sitzung: Sitzung(
           api: widget.api,
           foto: widget.foto,

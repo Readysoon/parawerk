@@ -6,6 +6,7 @@ import '../hilfen.dart';
 import '../sitzung.dart';
 import '../texte.dart';
 import 'schritte.dart';
+import 'wunsch.dart';
 
 class EntwuerfeSeite extends StatefulWidget {
   const EntwuerfeSeite({super.key, required this.sitzung, this.einzeln = false});
@@ -39,6 +40,17 @@ class _EntwuerfeSeiteState extends State<EntwuerfeSeite> {
     _s.seiteZu(routeEntwuerfe);
     _aenderung.dispose();
     super.dispose();
+  }
+
+  /// Neue Runde fertig: Auswahl und Verlauf zurücksetzen.
+  void _neuEntworfen() {
+    setState(() {
+      _gewaehlt = -1;
+      _verlauf.clear();
+      _einzeln = false;
+      _aenderung.clear();
+    });
+    _kontingent();
   }
 
   /// Schritt-Anzeige nach vorn: Für den gewählten Entwurf gibt es schon einen Plan → direkt hin, sonst neu erstellen.
@@ -136,6 +148,17 @@ class _EntwuerfeSeiteState extends State<EntwuerfeSeite> {
           const Divider(height: 1),
           Expanded(
               child: ListView(padding: const EdgeInsets.all(12), children: [
+          // Wunsch und Maße: ohne Entwürfe offen, danach zusammengeklappt (aufklappen für eine neue Runde)
+          if (_s.entwuerfe.isEmpty)
+            WunschFormular(sitzung: _s, entworfen: _neuEntworfen)
+          else
+            ExpansionTile(
+              title: Text(tr('wunsch')),
+              subtitle: _s.wunsch.isEmpty ? null : Text(_s.wunsch, maxLines: 1, overflow: TextOverflow.ellipsis),
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: const EdgeInsets.only(bottom: 12),
+              children: [WunschFormular(sitzung: _s, entworfen: _neuEntworfen)],
+            ),
           if (_einzeln && _gewaehlt >= 0) ...[
             // nach dem Anpassen: nur dieses Bild, groß
             ClipRRect(
@@ -150,7 +173,7 @@ class _EntwuerfeSeiteState extends State<EntwuerfeSeite> {
                 label: Text(tr('alle_entwuerfe')),
               ),
             ),
-          ] else ...[
+          ] else if (_s.entwuerfe.isNotEmpty) ...[
           Text(tr('entwurf_hinweis')),
           const SizedBox(height: 8),
           GridView.count(

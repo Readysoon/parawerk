@@ -1,23 +1,24 @@
-// Wunsch und Maße eingeben, dann Entwürfe malen lassen.
+// Wunsch und Maße eingeben, dann Entwürfe malen lassen. Steht oben auf der Entwürfe-Seite (eine Seite statt zwei).
 import 'package:flutter/material.dart';
 
 import '../api.dart';
 import '../hilfen.dart';
 import '../sitzung.dart';
 import '../texte.dart';
-import 'entwuerfe.dart';
 import 'messen.dart';
-import 'schritte.dart';
 
-class WunschSeite extends StatefulWidget {
-  const WunschSeite({super.key, required this.sitzung});
+class WunschFormular extends StatefulWidget {
+  const WunschFormular({super.key, required this.sitzung, required this.entworfen});
   final Sitzung sitzung;
 
+  /// neue Entwürfe liegen in der Sitzung
+  final VoidCallback entworfen;
+
   @override
-  State<WunschSeite> createState() => _WunschSeiteState();
+  State<WunschFormular> createState() => _WunschFormularState();
 }
 
-class _WunschSeiteState extends State<WunschSeite> {
+class _WunschFormularState extends State<WunschFormular> {
   late final _wunsch = TextEditingController(text: widget.sitzung.wunsch);
   late final _masse = [for (final v in widget.sitzung.bereich) TextEditingController(text: '$v')];
   String? _frei;
@@ -107,17 +108,13 @@ class _WunschSeiteState extends State<WunschSeite> {
     await _kontingent();
     if (ok == true && mounted) {
       Sitzung.letzte.value = s; // „Zurück zu deinen Entwürfen“ auf der Startseite
-      Navigator.of(context).push(MaterialPageRoute<void>(
-          settings: const RouteSettings(name: routeEntwuerfe), builder: (_) => EntwuerfeSeite(sitzung: s)));
+      widget.entworfen();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(tr('wunsch'))),
-      body: SafeArea(
-        child: ListView(padding: const EdgeInsets.all(16), children: [
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           TextField(
             controller: _wunsch,
             minLines: 2,
@@ -158,8 +155,6 @@ class _WunschSeiteState extends State<WunschSeite> {
           ),
           FreiHinweis(_frei),
           Align(alignment: Alignment.centerLeft, child: TextButton(onPressed: _code, child: Text(tr('code_frage')))),
-        ]),
-      ),
-    );
+    ]);
   }
 }

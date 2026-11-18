@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 
 import '../api.dart';
 import '../hilfen.dart';
+import '../malflaeche.dart';
 import '../sitzung.dart';
 import '../texte.dart';
+import 'markieren.dart';
 import 'schritte.dart';
 import 'wunsch.dart';
 
@@ -23,6 +25,8 @@ class _EntwuerfeSeiteState extends State<EntwuerfeSeite> {
   late int _gewaehlt = widget.einzeln ? 0 : -1;
   final _aenderung = TextEditingController();
   final Map<int, List<Entwurf>> _verlauf = {}; // je Entwurf die Vorversionen, für „Rückgängig“
+  final _mal = MalSteuerung(); // Markierung im Foto (oben auf der Seite)
+  bool _markierungOffen = false; // nach dem Entwerfen wieder einblenden, um sie zu ändern
   late bool _einzeln = widget.einzeln; // nach dem Anpassen: nur der gewählte Entwurf, groß
   String? _freiNj;
 
@@ -38,13 +42,29 @@ class _EntwuerfeSeiteState extends State<EntwuerfeSeite> {
   @override
   void dispose() {
     _s.seiteZu(routeEntwuerfe);
+    _mal.dispose();
     _aenderung.dispose();
     super.dispose();
   }
 
+  /// Maske aus der Markierung in die Sitzung legen (vor Messen und Entwerfen). false = noch nichts markiert.
+  Future<bool> _maskeHolen() async {
+    if (_s.foto.isEmpty) return true; // altes Projekt ohne Foto auf dem Gerät: Maske liegt schon auf dem Server
+    if (_mal.leer) {
+      if (_s.maske.isNotEmpty) return true; // Seite neu geöffnet: die bisherige Markierung gilt weiter
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('erst_markieren'))));
+      return false;
+    }
+    _s.maske = await _mal.maskePng(_s.bildBreite, _s.bildHoehe);
+    return true;
+  }
+
+  bool get _markierenZeigen => _s.foto.isNotEmpty && (_s.entwuerfe.isEmpty || _markierungOffen);
+
   /// Neue Runde fertig: Auswahl und Verlauf zurücksetzen.
   void _neuEntworfen() {
     setState(() {
+      _markierungOffen = false;
       _gewaehlt = -1;
       _verlauf.clear();
       _einzeln = false;
@@ -146,18 +166,33 @@ class _EntwuerfeSeiteState extends State<EntwuerfeSeite> {
           // Schritt-Anzeige bleibt oben stehen
           Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 8), child: Schritte(0, sitzung: _s, vor: _vor)),
           const Divider(height: 1),
+          // Bereich markieren: fest oben, damit Malen nicht die Seite scrollt
+          if (_markierenZeigen) ...[
+            MarkierBereich(sitzung: _s, steuerung: _mal, hoehe: MediaQuery.sizeOf(context).height * 0.36),
+            const Divider(height: 1),
+          ],
           Expanded(
               child: ListView(padding: const EdgeInsets.all(12), children: [
+          // Markierung nach dem Entwerfen ein- und ausblenden
+          if (_s.entwuerfe.isNotEmpty && _s.foto.isNotEmpty)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => setState(() => _markierungOffen = !_markierungOffen),
+                icon: Icon(_markierungOffen ? Icons.expand_less : Icons.brush_outlined),
+                label: Text(tr(_markierungOffen ? 'markierung_zu' : 'markierung_aendern')),
+              ),
+            ),
           // Wunsch und Maße: ohne Entwürfe offen, danach zusammengeklappt (aufklappen für eine neue Runde)
           if (_s.entwuerfe.isEmpty)
-            WunschFormular(sitzung: _s, entworfen: _neuEntworfen)
+            WunschFormular(sitzung: _s, entworfen: _neuEntworfen, maskeHolen: _maskeHolen)
           else
             ExpansionTile(
               title: Text(tr('wunsch')),
               subtitle: _s.wunsch.isEmpty ? null : Text(_s.wunsch, maxLines: 1, overflow: TextOverflow.ellipsis),
               tilePadding: EdgeInsets.zero,
               childrenPadding: const EdgeInsets.only(bottom: 12),
-              children: [WunschFormular(sitzung: _s, entworfen: _neuEntworfen)],
+              children: [WunschFormular(sitzung: _s, entworfen: _neuEntworfen, maskeHolen: _maskeHolen)],
             ),
           if (_einzeln && _gewaehlt >= 0) ...[
             // nach dem Anpassen: nur dieses Bild, groß

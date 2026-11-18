@@ -8,8 +8,11 @@ import '../texte.dart';
 import 'messen.dart';
 
 class WunschFormular extends StatefulWidget {
-  const WunschFormular({super.key, required this.sitzung, required this.entworfen});
+  const WunschFormular({super.key, required this.sitzung, required this.entworfen, this.maskeHolen});
   final Sitzung sitzung;
+
+  /// Maske aus der Markierung in die Sitzung legen; false = noch nichts markiert
+  final Future<bool> Function()? maskeHolen;
 
   /// neue Entwürfe liegen in der Sitzung
   final VoidCallback entworfen;
@@ -84,6 +87,8 @@ class _WunschFormularState extends State<WunschFormular> {
   }
 
   Future<void> _messen() async {
+    if (widget.maskeHolen != null && !await widget.maskeHolen!()) return;
+    if (!mounted) return;
     final ergebnis = await Navigator.of(context).push<MassErgebnis>(
       MaterialPageRoute(builder: (_) => MessenSeite(sitzung: widget.sitzung)),
     );
@@ -98,6 +103,8 @@ class _WunschFormularState extends State<WunschFormular> {
   }
 
   Future<void> _entwerfen() async {
+    if (widget.maskeHolen != null && !await widget.maskeHolen!()) return;
+    if (!mounted) return;
     final s = widget.sitzung;
     s.wunsch = _wunsch.text.trim();
     s.bereich = [for (var i = 0; i < 3; i++) int.tryParse(_masse[i].text) ?? s.bereich[i]];

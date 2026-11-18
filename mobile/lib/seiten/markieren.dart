@@ -1,121 +1,56 @@
 // Bereich markieren: mit dem Finger über die Stelle malen, an der das Möbel stehen soll.
-import 'dart:typed_data';
-
+// Steht oben auf der Entwürfe-Seite (fest, nicht scrollbar, sonst stört das Wischen beim Malen).
 import 'package:flutter/material.dart';
 
-import '../api.dart';
 import '../malflaeche.dart';
 import '../sitzung.dart';
 import '../texte.dart';
-import 'entwuerfe.dart';
-import 'schritte.dart';
 
-class MarkierenSeite extends StatefulWidget {
-  const MarkierenSeite({super.key, required this.api, required this.foto, required this.bildBreite, required this.bildHoehe});
-
-  final Api api;
-  final Uint8List foto;
-  final int bildBreite;
-  final int bildHoehe;
-
-  @override
-  State<MarkierenSeite> createState() => _MarkierenSeiteState();
-}
-
-class _MarkierenSeiteState extends State<MarkierenSeite> {
-  final _mal = MalSteuerung();
-
-  late final Future<Hochgeladen?> _hochgeladen;
-
-  @override
-  void initState() {
-    super.initState();
-    // Foto gleich hochladen: Während du markierst, schätzt der Server die Tiefe fürs Messen
-    _hochgeladen = widget.api.fotoHochladen(widget.foto).then<Hochgeladen?>((h) => h).catchError((Object _) => null);
-  }
-
-  @override
-  void dispose() {
-    _mal.dispose();
-    super.dispose();
-  }
-
-  Future<void> _weiter() async {
-    if (_mal.leer) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('erst_markieren'))));
-      return;
-    }
-    final maske = await _mal.maskePng(widget.bildBreite, widget.bildHoehe);
-    if (!mounted) return;
-    Navigator.of(context).push(MaterialPageRoute<void>(
-      settings: const RouteSettings(name: routeEntwuerfe),
-      builder: (_) => EntwuerfeSeite(
-        sitzung: Sitzung(
-          api: widget.api,
-          foto: widget.foto,
-          maske: maske,
-          bildBreite: widget.bildBreite,
-          bildHoehe: widget.bildHoehe,
-          hochgeladen: _hochgeladen,
-        ),
-      ),
-    ));
-  }
+class MarkierBereich extends StatelessWidget {
+  const MarkierBereich({super.key, required this.sitzung, required this.steuerung, required this.hoehe});
+  final Sitzung sitzung;
+  final MalSteuerung steuerung;
+  final double hoehe;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(tr('markieren_titel'))),
-      body: SafeArea(
-        child: Column(children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-            child: Text(tr('markieren_hinweis')),
-          ),
-          // Das Foto bekommt allen freien Platz; gemalt wird direkt darauf (nicht scrollbar, sonst stört das Wischen)
-          Expanded(
-            child: Center(
-              child: Malflaeche(
-                foto: widget.foto,
-                bildBreite: widget.bildBreite,
-                bildHoehe: widget.bildHoehe,
-                steuerung: _mal,
-              ),
-            ),
-          ),
-          AnimatedBuilder(
-            animation: _mal,
-            builder: (context, _) => Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Row(children: [
-                Text(tr('pinsel')),
-                Expanded(
-                  child: Slider(min: 10, max: 120, value: _mal.pinsel, onChanged: _mal.pinselSetzen),
-                ),
-                IconButton.outlined(
-                  tooltip: tr('radierer'),
-                  isSelected: _mal.radierer,
-                  onPressed: _mal.radiererUmschalten,
-                  icon: const Icon(Icons.auto_fix_normal),
-                ),
-                IconButton(
-                  tooltip: tr('alles_loeschen'),
-                  onPressed: _mal.allesLoeschen,
-                  icon: const Icon(Icons.delete_outline),
-                ),
-              ]),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: FilledButton(
-              onPressed: _weiter,
-              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-              child: Text(tr('wunsch')),
-            ),
-          ),
-        ]),
+    return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
+        child: Text(tr('markieren_hinweis'), style: Theme.of(context).textTheme.bodySmall),
       ),
-    );
+      SizedBox(
+        height: hoehe,
+        child: Center(
+          child: Malflaeche(
+            foto: sitzung.foto,
+            bildBreite: sitzung.bildBreite,
+            bildHoehe: sitzung.bildHoehe,
+            steuerung: steuerung,
+          ),
+        ),
+      ),
+      AnimatedBuilder(
+        animation: steuerung,
+        builder: (context, _) => Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(children: [
+            Text(tr('pinsel')),
+            Expanded(child: Slider(min: 10, max: 120, value: steuerung.pinsel, onChanged: steuerung.pinselSetzen)),
+            IconButton.outlined(
+              tooltip: tr('radierer'),
+              isSelected: steuerung.radierer,
+              onPressed: steuerung.radiererUmschalten,
+              icon: const Icon(Icons.auto_fix_normal),
+            ),
+            IconButton(
+              tooltip: tr('alles_loeschen'),
+              onPressed: steuerung.allesLoeschen,
+              icon: const Icon(Icons.delete_outline),
+            ),
+          ]),
+        ),
+      ),
+    ]);
   }
 }

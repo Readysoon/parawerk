@@ -13,9 +13,19 @@ class Sitzung {
   Sitzung({required this.api, required this.foto, required this.maske, required this.bildBreite,
       required this.bildHoehe, this.hochgeladen});
 
+  /// Neues Foto: gleich hochladen, damit der Server schon die Tiefe fürs Messen schätzt, während markiert wird.
+  factory Sitzung.neu(Api api, Uint8List foto, int breite, int hoehe) => Sitzung(
+        api: api,
+        foto: foto,
+        maske: Uint8List(0),
+        bildBreite: breite,
+        bildHoehe: hoehe,
+        hochgeladen: api.fotoHochladen(foto).then<Hochgeladen?>((h) => h).catchError((Object _) => null),
+      );
+
   final Api api;
   final Uint8List foto; // JPEG
-  final Uint8List maske; // PNG in Fotogröße, deckend = markiert
+  Uint8List maske; // PNG in Fotogröße, deckend = markiert (wird beim Entwerfen aus der Markierung gesetzt)
   final int bildBreite;
   final int bildHoehe;
 

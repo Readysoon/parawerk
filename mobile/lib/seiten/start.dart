@@ -10,7 +10,6 @@ import '../konto.dart';
 import '../sitzung.dart';
 import '../texte.dart';
 import 'entwuerfe.dart';
-import 'markieren.dart';
 import 'projekte.dart';
 import 'schritte.dart';
 
@@ -28,7 +27,8 @@ class StartSeite extends StatelessWidget {
       final bytes = await datei.readAsBytes();
       final bild = (await (await ui.instantiateImageCodec(bytes)).getNextFrame()).image;
       navigator.push(MaterialPageRoute<void>(
-        builder: (_) => MarkierenSeite(api: api, foto: bytes, bildBreite: bild.width, bildHoehe: bild.height),
+        settings: const RouteSettings(name: routeEntwuerfe),
+        builder: (_) => EntwuerfeSeite(sitzung: Sitzung.neu(api, bytes, bild.width, bild.height)),
       ));
     } catch (e) {
       hinweise.showSnackBar(SnackBar(content: Text(fehlerText(e))));

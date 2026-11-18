@@ -91,21 +91,6 @@ class _EntwuerfeSeiteState extends State<EntwuerfeSeite> {
     setState(() => _s.entwuerfe[_gewaehlt] = v.removeLast());
   }
 
-  Future<void> _neueEntwuerfe() async {
-    final ok = await mitWarten(context, tr('st_entwerfen'), () async {
-      await _s.entwerfen();
-      return true;
-    });
-    if (ok == true && mounted) {
-      setState(() {
-        _gewaehlt = -1;
-        _verlauf.clear();
-        _einzeln = false;
-        _aenderung.clear();
-      });
-    }
-  }
-
   /// Bauplan: erst anmelden (einmal), dann rechnet der Server, dann 3D-Schritt und Bezahlen.
   Future<void> _bauplan() async {
     if (_gewaehlt < 0) return;
@@ -141,7 +126,8 @@ class _EntwuerfeSeiteState extends State<EntwuerfeSeite> {
     return Scaffold(
       appBar: AppBar(
         title: Text(tr('entwuerfe_titel')),
-        actions: [IconButton(tooltip: tr('neue_entwuerfe'), onPressed: _neueEntwuerfe, icon: const Icon(Icons.refresh))],
+        // weiter zum nächsten Schritt (3D); neue Entwürfe gibt es ohnehin nur einmal am Tag
+        actions: [IconButton(tooltip: tr('schritt_3d'), onPressed: () => _vor(1), icon: const Icon(Icons.chevron_right, size: 32))],
       ),
       body: SafeArea(
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [

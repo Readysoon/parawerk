@@ -324,7 +324,11 @@ class _ModellSchrittState extends State<ModellSchritt> {
   Widget build(BuildContext context) {
     final stil = Theme.of(context).textTheme;
     return Scaffold(
-      appBar: AppBar(title: Text(tr('schritt_3d_titel'))),
+      appBar: AppBar(
+        title: Text(tr('schritt_3d_titel')),
+        // weiter zum Bauplan (wie „Weiter“)
+        actions: [IconButton(tooltip: tr('schritt_bezahlen'), onPressed: _weiter, icon: const Icon(Icons.chevron_right, size: 32))],
+      ),
       body: SafeArea(
         child: SchrittSeite(1, sitzung: widget.sitzung, vor: (ziel) => _weiter(), [
           ClipRRect(

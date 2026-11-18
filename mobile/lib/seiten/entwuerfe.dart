@@ -162,18 +162,17 @@ class _EntwuerfeSeiteState extends State<EntwuerfeSeite> {
         actions: [IconButton(tooltip: tr('schritt_3d'), onPressed: () => _vor(1), icon: const Icon(Icons.chevron_right, size: 32))],
       ),
       body: SafeArea(
-        child: LayoutBuilder(builder: (context, platz) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           // Schritt-Anzeige bleibt oben stehen
           Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 8), child: Schritte(0, sitzung: _s, vor: _vor)),
           const Divider(height: 1),
-          // Bereich markieren: fest oben, damit Malen nicht die Seite scrollt. Beim Tippen (Tastatur offen) oder wenn
-          // zu wenig Platz ist, ausgeblendet; die Höhe richtet sich nach dem freien Platz der Seite.
-          if (_markierenZeigen && MediaQuery.viewInsetsOf(context).bottom == 0 && platz.maxHeight > 420) ...[
-            MarkierBereich(sitzung: _s, steuerung: _mal, hoehe: platz.maxHeight * 0.42 - 90),
-            const Divider(height: 1),
-          ],
           Expanded(
-              child: ListView(padding: const EdgeInsets.all(12), children: [
+              child: ListView(
+                  padding: const EdgeInsets.all(12),
+                  keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag, // Wischen schließt die Tastatur
+                  children: [
+          // Bereich markieren: Foto in voller Breite (Malen darauf scrollt die Seite nicht)
+          if (_markierenZeigen) MarkierBereich(sitzung: _s, steuerung: _mal),
           // Markierung nach dem Entwerfen ein- und ausblenden
           if (_s.entwuerfe.isNotEmpty && _s.foto.isNotEmpty)
             Align(
@@ -265,7 +264,7 @@ class _EntwuerfeSeiteState extends State<EntwuerfeSeite> {
             ),
           ],
         ])),
-        ])),
+        ]),
       ),
     );
   }

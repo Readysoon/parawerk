@@ -1,5 +1,5 @@
 // Bereich markieren: mit dem Finger über die Stelle malen, an der das Möbel stehen soll.
-// Steht oben auf der Entwürfe-Seite (fest, nicht scrollbar, sonst stört das Wischen beim Malen).
+// Steht oben auf der Entwürfe-Seite, Foto in voller Breite (beim Malen auf dem Foto scrollt die Seite nicht mit).
 import 'package:flutter/material.dart';
 
 import '../malflaeche.dart';
@@ -7,33 +7,30 @@ import '../sitzung.dart';
 import '../texte.dart';
 
 class MarkierBereich extends StatelessWidget {
-  const MarkierBereich({super.key, required this.sitzung, required this.steuerung, required this.hoehe});
+  const MarkierBereich({super.key, required this.sitzung, required this.steuerung});
   final Sitzung sitzung;
   final MalSteuerung steuerung;
-  final double hoehe;
 
   @override
   Widget build(BuildContext context) {
     return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
+        padding: const EdgeInsets.only(bottom: 6),
         child: Text(tr('markieren_hinweis'), style: Theme.of(context).textTheme.bodySmall),
       ),
-      SizedBox(
-        height: hoehe,
-        child: Center(
-          child: Malflaeche(
-            foto: sitzung.foto,
-            bildBreite: sitzung.bildBreite,
-            bildHoehe: sitzung.bildHoehe,
-            steuerung: steuerung,
-          ),
+      ClipRRect(
+        borderRadius: BorderRadius.circular(6),
+        child: Malflaeche(
+          foto: sitzung.foto,
+          bildBreite: sitzung.bildBreite,
+          bildHoehe: sitzung.bildHoehe,
+          steuerung: steuerung,
         ),
       ),
       AnimatedBuilder(
         animation: steuerung,
         builder: (context, _) => Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.only(bottom: 8),
           child: Row(children: [
             Text(tr('pinsel')),
             Expanded(child: Slider(min: 10, max: 120, value: steuerung.pinsel, onChanged: steuerung.pinselSetzen)),

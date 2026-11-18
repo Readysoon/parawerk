@@ -3,6 +3,7 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 class Strich {
@@ -82,7 +83,9 @@ class MalSteuerung extends ChangeNotifier {
 }
 
 /// Zeigt das Foto in voller Breite und darüber die markierte Fläche (gelb, halbdurchsichtig).
-class Malflaeche extends StatelessWidget {
+/// Malen über rohe Finger-Ereignisse; solange ein Finger auf dem Foto ist, scrollt die Seite darum nicht mit
+/// (das Foto kann also in einer scrollbaren Seite stehen).
+class Malflaeche extends StatefulWidget {
   const Malflaeche({super.key, required this.foto, required this.bildBreite, required this.bildHoehe, required this.steuerung});
 
   final Uint8List foto;
@@ -91,27 +94,51 @@ class Malflaeche extends StatelessWidget {
   final MalSteuerung steuerung;
 
   @override
+  State<Malflaeche> createState() => _MalflaecheState();
+}
+
+class _MalflaecheState extends State<Malflaeche> {
+  int? _finger; // nur ein Finger malt
+
+  @override
   Widget build(BuildContext context) {
+    final steuerung = widget.steuerung;
     return AspectRatio(
-      aspectRatio: bildBreite / bildHoehe,
+      aspectRatio: widget.bildBreite / widget.bildHoehe,
       child: LayoutBuilder(builder: (context, groesse) {
-        final massstab = groesse.maxWidth / bildBreite; // Bildpunkte → Bildschirmpunkte
+        final massstab = groesse.maxWidth / widget.bildBreite; // Bildpunkte → Bildschirmpunkte
         Offset imBild(Offset p) => p / massstab;
-        return GestureDetector(
-          onPanStart: (d) {
-            steuerung._neu(Strich(steuerung.pinsel / massstab, steuerung.radierer)..punkte.add(imBild(d.localPosition)));
+        // Eager: gewinnt jede Geste auf dem Foto sofort, damit die Seite nicht scrollt; gemalt wird über den Listener
+        return RawGestureDetector(
+          gestures: {
+            EagerGestureRecognizer: GestureRecognizerFactoryWithHandlers<EagerGestureRecognizer>(
+              EagerGestureRecognizer.new,
+              (_) {},
+            ),
           },
-          onPanUpdate: (d) => steuerung._weiter(imBild(d.localPosition)),
-          onTapUp: (d) {
-            steuerung._neu(Strich(steuerung.pinsel / massstab, steuerung.radierer)..punkte.add(imBild(d.localPosition)));
-          },
-          child: Stack(fit: StackFit.expand, children: [
-            Image.memory(foto, fit: BoxFit.fill, gaplessPlayback: true),
+          child: Listener(
+            onPointerDown: (e) {
+              if (_finger != null) return;
+              _finger = e.pointer;
+              steuerung._neu(Strich(steuerung.pinsel / massstab, steuerung.radierer)..punkte.add(imBild(e.localPosition)));
+            },
+            onPointerMove: (e) {
+              if (e.pointer == _finger) steuerung._weiter(imBild(e.localPosition));
+            },
+            onPointerUp: (e) {
+              if (e.pointer == _finger) _finger = null;
+            },
+            onPointerCancel: (e) {
+              if (e.pointer == _finger) _finger = null;
+            },
+            child: Stack(fit: StackFit.expand, children: [
+            Image.memory(widget.foto, fit: BoxFit.fill, gaplessPlayback: true),
             AnimatedBuilder(
               animation: steuerung,
               builder: (context, _) => CustomPaint(painter: _MaskenMaler(steuerung, massstab)),
             ),
           ]),
+          ),
         );
       }),
     );

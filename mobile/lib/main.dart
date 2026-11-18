@@ -35,6 +35,13 @@ class ParawerkApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: StartSeite(api: api),
+      // Tippen neben ein Eingabefeld schließt die Tastatur (Zahlenfelder und mehrzeiliger Text haben auf dem iPhone
+      // keine eigene Taste dafür)
+      builder: (context, kind) => GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        child: kind,
+      ),
     );
   }
 }

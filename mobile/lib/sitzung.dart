@@ -35,6 +35,25 @@ class Sitzung {
   bool anmeldungErledigt = false;
   final Set<String> bezahlt = {};
 
+  // Zuletzt berechneter Bauplan: Über die Schritt-Anzeige kann man vor- und zurückspringen, ohne neu zu rechnen
+  Entwurf? planEntwurf;
+  Map<String, dynamic>? planGraph;
+  Map<String, dynamic>? plan;
+  List<String> planMaengel = const [];
+
+  void merken(Entwurf entwurf, Map<String, dynamic> graph, Map<String, dynamic> plan, [List<String>? maengel]) {
+    planEntwurf = entwurf;
+    planGraph = graph;
+    this.plan = plan;
+    if (maengel != null) planMaengel = maengel;
+  }
+
+  // Seiten des Ablaufs, die gerade im Stapel liegen (Name → Anzahl), damit „zurück“ dorthin springt statt neu zu öffnen
+  final Map<String, int> offen = {};
+  void seiteAuf(String name) => offen[name] = (offen[name] ?? 0) + 1;
+  void seiteZu(String name) => offen[name] = (offen[name] ?? 1) - 1;
+  bool istOffen(String name) => (offen[name] ?? 0) > 0;
+
   /// Neue Runde Entwürfe; das Foto wird nur beim ersten Mal hochgeladen.
   Future<void> entwerfen() async {
     fotoId ??= (await hochgeladen)?.fotoId; // schon hochgeladen: nicht noch einmal schicken

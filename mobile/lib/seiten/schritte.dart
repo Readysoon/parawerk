@@ -13,17 +13,36 @@ import '../modell_ansicht.dart';
 import '../sitzung.dart';
 import '../texte.dart';
 import 'bauplan.dart';
+import 'entwuerfe.dart';
 
 /// Namen der Seiten im Ablauf, damit man über die Schritt-Anzeige zurückspringen kann.
 const routeEntwuerfe = 'entwuerfe', routeAnmelden = 'anmelden', routeModell = 'modell';
 
 /// Zeigt, wo man im Ablauf ist: Entwürfe → 3D (mit Anmelden davor) → Bauplan (dort wird freigeschaltet).
-/// Erledigte Schritte mit Seite (Entwürfe, 3D) kann man antippen, um dorthin zurückzugehen.
+/// Jeder Kreis ist antippbar: zurück zu einer Seite im Stapel, nach vorn mit dem zuletzt berechneten Plan oder über
+/// [vor] (die Seite entscheidet selbst, z. B. erst neu rechnen).
 class Schritte extends StatelessWidget {
-  const Schritte(this.aktuell, {super.key});
+  const Schritte(this.aktuell, {super.key, this.sitzung, this.vor});
   final int aktuell; // 0 Entwürfe, 1 3D (auch Anmelden), 2 Bauplan
+  final Sitzung? sitzung;
+  final void Function(int ziel)? vor;
 
-  static const _ziele = [routeEntwuerfe, routeModell, null];
+  bool _erreichbar(int i) {
+    if (i == aktuell) return false;
+    if (i < aktuell) return true;
+    return vor != null || (sitzung?.plan != null);
+  }
+
+  void _gehe(BuildContext context, int ziel) {
+    final s = sitzung;
+    if (ziel < aktuell) {
+      schrittZurueck(context, s, ziel);
+    } else if (vor != null) {
+      vor!(ziel);
+    } else if (s != null) {
+      schrittOeffnen(context, s, ziel);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,24 +51,30 @@ class Schritte extends StatelessWidget {
     return Row(children: [
       for (final (i, n) in namen.indexed) ...[
         if (i > 0) Expanded(child: Divider(color: i <= aktuell ? farbe : Colors.black26, thickness: 2)),
-        InkWell(
-          borderRadius: BorderRadius.circular(8),
-          onTap: i < aktuell && _ziele[i] != null
-              ? () => Navigator.of(context).popUntil((r) => r.settings.name == _ziele[i] || r.isFirst)
-              : null,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              CircleAvatar(
-                radius: 12,
-                backgroundColor: i <= aktuell ? farbe : Colors.black12,
-                child: i < aktuell
-                    ? const Icon(Icons.check, size: 14, color: Colors.white)
-                    : Text('${i + 1}', style: TextStyle(fontSize: 12, color: i <= aktuell ? Colors.white : Colors.black54)),
-              ),
-              const SizedBox(height: 4),
-              Text(n, style: TextStyle(fontSize: 12, color: i == aktuell ? farbe : Colors.black54)),
-            ]),
+        Semantics(
+          button: _erreichbar(i),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: _erreichbar(i) ? () => _gehe(context, i) : null,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                CircleAvatar(
+                  radius: 12,
+                  backgroundColor: i <= aktuell ? farbe : (_erreichbar(i) ? farbe.withValues(alpha: 0.35) : Colors.black12),
+                  child: i < aktuell
+                      ? const Icon(Icons.check, size: 14, color: Colors.white)
+                      : Text('${i + 1}',
+                          style: TextStyle(fontSize: 12, color: i <= aktuell || _erreichbar(i) ? Colors.white : Colors.black54)),
+                ),
+                const SizedBox(height: 4),
+                Text(n,
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: i == aktuell ? farbe : Colors.black54,
+                        decoration: _erreichbar(i) ? TextDecoration.underline : null)),
+              ]),
+            ),
           ),
         ),
       ],
@@ -57,18 +82,53 @@ class Schritte extends StatelessWidget {
   }
 }
 
+/// Zurück zu Entwürfe (0) oder 3D (1): liegt die Seite im Stapel, dorthin zurück, sonst neu öffnen.
+void schrittZurueck(BuildContext context, Sitzung? s, int ziel) {
+  final name = ziel == 0 ? routeEntwuerfe : routeModell;
+  final nav = Navigator.of(context);
+  if (s == null || s.istOffen(name)) {
+    nav.popUntil((r) => r.settings.name == name || r.isFirst);
+  } else if (ziel == 0) {
+    nav.push(MaterialPageRoute<void>(
+        settings: const RouteSettings(name: routeEntwuerfe), builder: (_) => EntwuerfeSeite(sitzung: s, einzeln: true)));
+  } else {
+    schrittOeffnen(context, s, 1);
+  }
+}
+
+/// Mit dem zuletzt berechneten Plan öffnen: 3D (1) oder Bauplan (2; noch nicht freigeschaltet: erst der Bezahl-Schritt).
+void schrittOeffnen(BuildContext context, Sitzung s, int ziel) {
+  final e = s.planEntwurf, g = s.planGraph, p = s.plan;
+  if (e == null || g == null || p == null) return;
+  final nav = Navigator.of(context);
+  if (ziel == 1) {
+    nav.push(MaterialPageRoute<void>(
+        settings: const RouteSettings(name: routeModell),
+        builder: (_) => ModellSchritt(sitzung: s, entwurf: e, graph: g, plan: p, maengel: s.planMaengel)));
+  } else if (ziel == 2) {
+    nav.push(MaterialPageRoute<void>(
+        builder: (_) => s.bezahlt.contains(e.id)
+            ? BauplanSeite(sitzung: s, entwurf: e, graph: g, plan: p, maengel: s.planMaengel)
+            : BezahlSchritt(sitzung: s, entwurf: e, graph: g, plan: p, maengel: s.planMaengel)));
+  }
+}
+
 /// Seite eines Schritts: die Schritt-Anzeige bleibt oben stehen, nur der Inhalt darunter scrollt.
-class _SchrittSeite extends StatelessWidget {
-  const _SchrittSeite(this.aktuell, this.inhalt);
+class SchrittSeite extends StatelessWidget {
+  const SchrittSeite(this.aktuell, this.inhalt, {super.key, this.sitzung, this.vor, this.rand = 16});
   final int aktuell;
   final List<Widget> inhalt;
+  final Sitzung? sitzung;
+  final void Function(int ziel)? vor;
+  final double rand;
 
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 8), child: Schritte(aktuell)),
+      Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8), child: Schritte(aktuell, sitzung: sitzung, vor: vor)),
       const Divider(height: 1),
-      Expanded(child: ListView(padding: const EdgeInsets.all(16), children: inhalt)),
+      Expanded(child: ListView(padding: EdgeInsets.all(rand), children: inhalt)),
     ]);
   }
 }
@@ -142,7 +202,7 @@ class AnmeldeSchritt extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(tr('schritt_anmelden'))),
       body: SafeArea(
-        child: _SchrittSeite(1, [
+        child: SchrittSeite(1, sitzung: sitzung, [
           Text(tr('konto_titel'), style: stil.titleLarge),
           const SizedBox(height: 8),
           Text(tr('anmelden_warum')),
@@ -203,6 +263,18 @@ class _ModellSchrittState extends State<ModellSchritt> {
 
   bool get _geaendert => [for (final (i, v) in _regler.indexed) v.round() != _design[i]].contains(true);
 
+  @override
+  void initState() {
+    super.initState();
+    widget.sitzung.seiteAuf(routeModell);
+  }
+
+  @override
+  void dispose() {
+    widget.sitzung.seiteZu(routeModell);
+    super.dispose();
+  }
+
   void _neueMasse(List<int> neu) {
     setState(() {
       _regler = [for (final v in neu) v.toDouble()];
@@ -234,6 +306,7 @@ class _ModellSchrittState extends State<ModellSchritt> {
       graph = g;
       plan = neu;
     }
+    s.merken(widget.entwurf, graph, plan, widget.maengel);
     if (!mounted) return;
     final nav = Navigator.of(context);
     if (s.bezahlt.contains(widget.entwurf.id)) {
@@ -253,7 +326,7 @@ class _ModellSchrittState extends State<ModellSchritt> {
     return Scaffold(
       appBar: AppBar(title: Text(tr('schritt_3d_titel'))),
       body: SafeArea(
-        child: _SchrittSeite(1, [
+        child: SchrittSeite(1, sitzung: widget.sitzung, vor: (ziel) => _weiter(), [
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: ModellAnsicht(modell: _anzeige, kameraHalten: true, seitenverhaeltnis: 1.0),
@@ -318,7 +391,7 @@ class BezahlSchritt extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(tr('schritt_bezahlen'))),
       body: SafeArea(
-        child: _SchrittSeite(2, [
+        child: SchrittSeite(2, sitzung: sitzung, [
           Text(tr('frei_titel'), style: stil.titleLarge),
           const SizedBox(height: 8),
           for (final x in tr('frei_inhalt').split('|')) Padding(padding: const EdgeInsets.only(bottom: 2), child: Text('• $x')),
@@ -342,6 +415,7 @@ class BezahlSchritt extends StatelessWidget {
             await sitzung.api.freischalten(code, graph, entwurfId: entwurf.id);
             // neu rechnen: jetzt vollständig freigeschaltet
             final neu = await sitzung.berechnen(graph, entwurfId: entwurf.id);
+            sitzung.merken(entwurf, graph, neu);
             if (context.mounted) _zumBauplan(context, neu);
           }),
         ]),

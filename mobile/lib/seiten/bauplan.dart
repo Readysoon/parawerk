@@ -9,6 +9,7 @@ import '../mass_felder.dart';
 import '../modell_ansicht.dart';
 import '../sitzung.dart';
 import '../texte.dart';
+import 'schritte.dart';
 
 class BauplanSeite extends StatefulWidget {
   const BauplanSeite({
@@ -74,6 +75,7 @@ class _BauplanSeiteState extends State<BauplanSeite> {
         _anzeige = plan['modell'] as Map<String, dynamic>;
         _regler = [for (final v in _masse(plan)) v.toDouble()];
       });
+      s.merken(widget.entwurf, graph, plan);
     } catch (e) {
       hinweise.showSnackBar(SnackBar(content: Text(fehlerText(e))));
     } finally {
@@ -107,6 +109,7 @@ class _BauplanSeiteState extends State<BauplanSeite> {
       _anzeige = neu.plan['modell'] as Map<String, dynamic>;
       _wunsch.clear();
     });
+    widget.sitzung.merken(widget.entwurf, neu.graph, neu.plan);
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('geaendert'))));
   }
 
@@ -140,6 +143,7 @@ class _BauplanSeiteState extends State<BauplanSeite> {
       _plan = plan;
       _anzeige = plan['modell'] as Map<String, dynamic>;
     });
+    s.merken(widget.entwurf, _graph, plan);
   }
 
   /// „Stimmt was nicht?“ – kurzer Text, gespeichert mit der Konstruktion (ohne Foto, ohne Gerät).
@@ -183,7 +187,8 @@ class _BauplanSeiteState extends State<BauplanSeite> {
     return Scaffold(
       appBar: AppBar(title: Text('${tr('bauplan_titel')}: ${_plan['name']}')),
       body: SafeArea(
-        child: ListView(padding: const EdgeInsets.all(16), children: [
+        // Schritt-Anzeige fest oben (Entwürfe → 3D → Bauplan), Inhalt scrollt
+        child: SchrittSeite(2, sitzung: widget.sitzung, [
           // Status
           Align(
             alignment: Alignment.centerLeft,

@@ -30,13 +30,28 @@ class _EntwuerfeSeiteState extends State<EntwuerfeSeite> {
   @override
   void initState() {
     super.initState();
+    _s.seiteAuf(routeEntwuerfe);
     _kontingent();
   }
 
   @override
   void dispose() {
+    _s.seiteZu(routeEntwuerfe);
     _aenderung.dispose();
     super.dispose();
+  }
+
+  /// Schritt-Anzeige nach vorn: Für den gewählten Entwurf gibt es schon einen Plan → direkt hin, sonst neu erstellen.
+  void _vor(int ziel) {
+    if (_gewaehlt < 0) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('erst_entwurf_waehlen'))));
+      return;
+    }
+    if (_s.plan != null && _s.planEntwurf?.id == _s.entwuerfe[_gewaehlt].id) {
+      schrittOeffnen(context, _s, ziel);
+    } else {
+      _bauplan();
+    }
   }
 
   Future<void> _kontingent() async {
@@ -112,6 +127,7 @@ class _EntwuerfeSeiteState extends State<EntwuerfeSeite> {
       return (graph: gelesen.graph, plan: plan, maengel: gelesen.maengel);
     });
     if (ergebnis == null || !mounted) return;
+    _s.merken(entwurf, ergebnis.graph, ergebnis.plan, ergebnis.maengel);
     Navigator.of(context).push(MaterialPageRoute<void>(
       settings: const RouteSettings(name: routeModell),
       builder: (_) =>
@@ -130,7 +146,7 @@ class _EntwuerfeSeiteState extends State<EntwuerfeSeite> {
       body: SafeArea(
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           // Schritt-Anzeige bleibt oben stehen
-          const Padding(padding: EdgeInsets.fromLTRB(16, 12, 16, 8), child: Schritte(0)),
+          Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 8), child: Schritte(0, sitzung: _s, vor: _vor)),
           const Divider(height: 1),
           Expanded(
               child: ListView(padding: const EdgeInsets.all(12), children: [

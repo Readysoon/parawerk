@@ -54,6 +54,7 @@ class _ProjekteSeiteState extends State<ProjekteSeite> {
     });
     if (geladen == null || !mounted) return;
     final (s, entwurf, graph, plan) = geladen;
+    s.merken(entwurf, graph, plan);
     await Navigator.of(context).push(MaterialPageRoute<void>(
         builder: (_) => BauplanSeite(sitzung: s, entwurf: entwurf, graph: graph, plan: plan, maengel: const [])));
     if (mounted) _neuLaden();

@@ -288,12 +288,11 @@ class _ModellSchrittState extends State<ModellSchritt> {
       });
 
   /// AR im Raum: mit den eingetippten Maßen (dafür vorher neu rechnen), sonst das Modell dieses Plans.
-  Future<String?> _arModell() async {
-    if (!_geaendert) return widget.plan['modell_usdz'] as String?;
+  Future<Map<String, dynamic>?> _arModell() async {
+    if (!_geaendert) return widget.plan;
     final s = widget.sitzung;
     final g = {...widget.graph, 'ziel': [for (final v in _regler) v.round()]};
-    final neu = await mitWarten(context, tr('st_rechnen'), () => s.berechnen(g, entwurfId: widget.entwurf.id));
-    return neu?['modell_usdz'] as String?;
+    return mitWarten(context, tr('st_rechnen'), () => s.berechnen(g, entwurfId: widget.entwurf.id));
   }
 
   Future<void> _weiter() async {
@@ -337,7 +336,7 @@ class _ModellSchrittState extends State<ModellSchritt> {
           ),
           if (ArKnopf.moeglich) ...[
             const SizedBox(height: 8),
-            ArKnopf(usdzHolen: _arModell),
+            ArKnopf(planHolen: _arModell),
           ],
           const SizedBox(height: 6),
           Text(tr('schritt_3d_hinweis'), style: stil.bodySmall),

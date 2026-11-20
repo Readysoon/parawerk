@@ -1,3 +1,11 @@
+import java.util.Properties
+
+// Schlüssel zum Signieren für Google Play (android/key.properties, nicht im Git; anlegen mit mobile/android.sh)
+val schluessel = Properties().apply {
+    val datei = rootProject.file("key.properties")
+    if (datei.exists()) datei.inputStream().use { load(it) }
+}
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -15,7 +23,6 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "at.parawerk.parawerk"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
@@ -29,11 +36,22 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (schluessel.containsKey("storeFile")) {
+            create("release") {
+                storeFile = file(schluessel.getProperty("storeFile"))
+                storePassword = schluessel.getProperty("storePassword")
+                keyAlias = schluessel.getProperty("keyAlias")
+                keyPassword = schluessel.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Mit eigenem Schlüssel, wenn key.properties da ist; sonst Test-Schlüssel (geht nicht in Google Play)
+            signingConfig = if (schluessel.containsKey("storeFile")) signingConfigs.getByName("release")
+                            else signingConfigs.getByName("debug")
         }
     }
 }

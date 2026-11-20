@@ -181,7 +181,6 @@ class _BauplanSeiteState extends State<BauplanSeite> {
   Widget build(BuildContext context) {
     final b = _plan['bauplan'] as Map<String, dynamic>;
     final offen = (_plan['offene_punkte'] as num?)?.toInt() ?? 0;
-    final usdz = _plan['modell_usdz'] as String?;
     final stil = Theme.of(context).textTheme;
 
     return Scaffold(
@@ -208,10 +207,10 @@ class _BauplanSeiteState extends State<BauplanSeite> {
               child: ModellAnsicht(modell: _anzeige, kameraHalten: true),
             ),
             Text(tr('modell_3d'), style: stil.bodySmall),
-            // AR: das Möbel in echter Größe im Zimmer (iPhone: AR Quick Look öffnet die USDZ-Datei)
-            if (usdz != null && ArKnopf.moeglich) ...[
+            // AR: das Möbel in echter Größe im Zimmer (iPhone: AR Quick Look, Android: Scene Viewer)
+            if (ArKnopf.moeglich) ...[
               const SizedBox(height: 8),
-              ArKnopf(usdzHolen: () async => usdz),
+              ArKnopf(planHolen: () async => _plan),
             ],
           ],
 

@@ -94,23 +94,41 @@ class _ModellAnsichtState extends State<_AppModell> {
 }
 
 
-/// AR: das Möbel in echter Größe im Zimmer (nur iPhone: AR Quick Look öffnet die USDZ-Datei vom Server).
-/// [usdzHolen] liefert den Pfad der USDZ-Datei (z. B. erst nach dem Neurechnen mit neuen Maßen) oder null.
+/// AR: das Möbel in echter Größe im Zimmer.
+/// iPhone: AR Quick Look öffnet die USDZ-Datei vom Server. Android: Googles Scene Viewer öffnet die GLB-Datei
+/// (braucht die Google-App bzw. ARCore und einen Server im Netz – mit dem lokalen Server geht es nicht).
+/// [planHolen] liefert die Antwort von „berechnen“ (z. B. erst nach dem Neurechnen mit neuen Maßen) oder null.
 class ArKnopf extends StatelessWidget {
-  const ArKnopf({super.key, required this.usdzHolen});
-  final Future<String?> Function() usdzHolen;
+  const ArKnopf({super.key, required this.planHolen});
+  final Future<Map<String, dynamic>?> Function() planHolen;
 
-  static bool get moeglich => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+  static bool get _iPhone => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+  static bool get _android => !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+  static bool get moeglich => _iPhone || _android;
 
   Future<void> _oeffnen(BuildContext context) async {
     final hinweise = ScaffoldMessenger.of(context);
     try {
-      final usdz = await usdzHolen();
-      if (usdz == null) return;
-      // Größe festhalten: Es soll in echter Größe im Zimmer stehen, nicht per Fingerzug skaliert werden
-      final url = Uri.parse('$apiBasis$usdz#allowsContentScaling=0');
-      if (!await launchUrl(url, mode: LaunchMode.inAppBrowserView) &&
-          !await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      final plan = await planHolen();
+      if (plan == null) return;
+      final Uri url;
+      if (_iPhone) {
+        final usdz = plan['modell_usdz'] as String?;
+        if (usdz == null) return;
+        // Größe festhalten: Es soll in echter Größe im Zimmer stehen, nicht per Fingerzug skaliert werden
+        url = Uri.parse('$apiBasis$usdz#allowsContentScaling=0');
+      } else {
+        final glb = plan['modell_glb'] as String?;
+        if (glb == null) return;
+        url = Uri.https('arvr.google.com', '/scene-viewer/1.0', {
+          'file': '$apiBasis$glb',
+          'mode': 'ar_preferred', // AR, sonst 3D
+          'resizable': 'false', // echte Größe
+          'title': 'Parawerk',
+        });
+      }
+      final modus = _iPhone ? LaunchMode.inAppBrowserView : LaunchMode.externalApplication;
+      if (!await launchUrl(url, mode: modus) && !await launchUrl(url, mode: LaunchMode.externalApplication)) {
         hinweise.showSnackBar(SnackBar(content: Text(tr('ar_geht_nicht'))));
       }
     } catch (_) {

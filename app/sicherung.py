@@ -8,7 +8,7 @@ mit dem, was sich nicht neu erzeugen lässt und keine Fotos enthält:
 - ``modelle``: 3D-Modelle hinter den QR-Codes gedruckter Baupläne
 
 Nicht dabei: Fotos und Entwurfsbilder (``bilder``, nach 7 Tagen ohnehin gelöscht), Aufträge, Sitzungen und der
-Verbrauch mit Geräte-IDs und IP-Adressen. Läuft täglich über ``.github/workflows/sicherung.yml``.
+Verbrauch mit Geräte-IDs und IP-Adressen. Läuft nur von Hand (die nächtliche Kopie zu GitHub gibt es nicht mehr).
 """
 from __future__ import annotations
 

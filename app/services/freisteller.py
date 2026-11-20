@@ -29,7 +29,14 @@ class FalBiRefNet:
     URL = "https://fal.run/"
 
     def __init__(self, schluessel: str, modell: str = "fal-ai/birefnet/v2"):
-        self._kopf = {"Authorization": f"Key {schluessel}", "Content-Type": "application/json"}
+        self._kopf = {
+            "Authorization": f"Key {schluessel}",
+            "Content-Type": "application/json",
+            # Datenschutz: fal soll Eingabe und Ergebnis nicht speichern (sonst 90 Tage im Verlauf)
+            "X-Fal-Store-IO": "0",
+            # und Dateien auf dem fal-CDN nach 1 Stunde endgültig löschen
+            "X-Fal-Object-Lifecycle-Preference": '{"expiration_duration_seconds": 3600}',
+        }
         self.modell = modell
 
     async def deckkraft(self, bild: Image.Image) -> Image.Image:

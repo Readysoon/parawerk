@@ -4,8 +4,8 @@ Gespeichert wird nur, wenn die App darum bittet (nach dem Anmelde-Schritt). Ein 
 Änderungen (Größe, Sitz) überschreiben es. Das Entwurfsbild wird als eigene Kopie (verkleinert) aufgehoben, weil
 die Bilder-Tabelle nach 7 Tagen geleert wird; ebenso Wohnungsfoto, Markierung und Wunsch (Tabelle projekt_fotos),
 damit man ein altes Projekt weiter anpassen kann. Löschen: einzeln in der App oder mit dem Konto, alles zusammen.
-Alle Bilder liegen verschlüsselt (tresor.py, Schlüssel DATEN_SCHLUESSEL). Die nächtliche Sicherung außerhalb von
-fly.io lässt die Tabellen trotzdem weg.
+Alle Bilder liegen verschlüsselt (tresor.py, Schlüssel DATEN_SCHLUESSEL). Eine Kopie mit app/sicherung.py lässt die
+Tabellen trotzdem weg.
 """
 from __future__ import annotations
 

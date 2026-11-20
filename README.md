@@ -243,9 +243,7 @@ Datenbank: ohne `DATABASE_URL` die SQLite-Datei `parawerk.db` im Projektordner (
 
 **Lerndaten (Analyse):** Jeder Durchgang wird anonym gespeichert (`app/models/analyse.py`): Wunsch, gelesene Konstruktion, jeder berechnete Bauplan mit Reparaturen und Statik, Freischaltungen, Rückmeldungen („Stimmt was nicht?“) und die gemalten Möbel als Bild, nur die Pixel innerhalb der Markierung (außen weiß). Nie Fotos, Geräte-ID, Konto oder IP. Abrufen mit Admin-Schlüssel: `/api/v1/analyse`, `/api/v1/analyse/bilder`, `/api/v1/analyse/bild/{id}`.
 
-**Sicherung:** zwei Stufen.
-1. fly.io macht täglich einen Schnappschuss des Volumes, aufbewahrt 30 Tage (`snapshot_retention` in `fly.toml`; für ein schon bestehendes Volume einmal `fly volumes update <id> --snapshot-retention 30`).
-2. Jede Nacht holt GitHub Actions (`.github/workflows/sicherung.yml`) eine Kopie ohne Fotos und Gerätedaten (`app/sicherung.py`) und bewahrt sie 30 Tage als Artefakt auf (GitHub → Actions → Sicherung). Liegt damit außerhalb von fly.io.
+**Sicherung:** nur bei fly.io. fly.io macht täglich einen Schnappschuss des Volumes, aufbewahrt 30 Tage (`snapshot_retention` in `fly.toml`; für ein schon bestehendes Volume einmal `fly volumes update <id> --snapshot-retention 30`). Eine Kopie außerhalb von fly.io gibt es bewusst nicht (weniger Dienste mit Nutzerdaten, keine GitHub-DPA nötig). Von Hand eine Kopie ohne Fotos und Gerätedaten ziehen: `python -m app.sicherung ziel.db.gz` auf der Maschine (`app/sicherung.py`).
 
 ## Bild-KI austauschen (z. B. Midjourney)
 

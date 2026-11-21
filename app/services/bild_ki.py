@@ -1,5 +1,8 @@
 """Bild-KI: malt Möbelentwürfe in den markierten Bereich eines Fotos (Inpainting mit Maske).
 
+Anbieter: fal.ai (Standard, ``FalFluxFill``, mit DPA und ohne Training) oder Replicate (``ReplicateFluxFill``, nur
+noch als Ausweichmöglichkeit: Replicate hat keine DPA nach DSGVO).
+
 Austauschbar: Jeder Anbieter, der ein eigenes Foto mit Maske bearbeiten kann, lässt sich als Klasse mit
 ``entwerfen`` einsetzen. Die App setzt unabhängig vom Anbieter nur den markierten Ausschnitt zurück ins Foto.
 """
@@ -14,6 +17,7 @@ from typing import Protocol
 import httpx
 
 from ..i18n import t
+from .fal import FalBasis
 from .fehler import DienstFehler, NichtVerfuegbar
 
 DATA_URL = re.compile(r"^data:([^;]+);base64,(.*)$", re.S)
@@ -169,6 +173,40 @@ class ReplicateFluxFill(ReplicateBasis):
                 return await self._fertigstellen(client, pred)
         except httpx.HTTPError as err:
             raise DienstFehler(t("fehler.replicate_weg", art=type(err).__name__)) from err
+
+
+class FalFluxFill(FalBasis):
+    """FLUX Fill Pro und FLUX Kontext Pro über fal.ai (beide „Enterprise Ready“, siehe ``services/fal.py``).
+
+    Ein Aufruf je Seed, alle parallel. Fotos gehen als data-URL hin und kommen als data-URL zurück.
+    """
+
+    demo = False
+
+    def __init__(self, schluessel: str, model: str = "fal-ai/flux-pro/v1/fill",
+                 edit_model: str = "fal-ai/flux-pro/kontext", transport: httpx.AsyncBaseTransport | None = None) -> None:
+        super().__init__(schluessel, transport)
+        self.model, self.edit_model = model, edit_model
+
+    async def entwerfen(self, foto: str, maske: str, prompt: str, seeds: list[int]) -> list[str]:
+        try:
+            async with self._client() as client:
+                async def eins(seed: int) -> str:
+                    aus = await self._aufrufen(client, self.model, {"image_url": foto, "mask_url": maske, "prompt": prompt,
+                                                                    "seed": seed, "output_format": "jpeg"})
+                    return await self._als_data_url(client, (aus.get("images") or [None])[0])
+                return list(await asyncio.gather(*(eins(s) for s in seeds)))
+        except httpx.HTTPError as err:
+            raise DienstFehler(t("fehler.bildki_weg", art=type(err).__name__)) from err
+
+    async def bearbeiten(self, bild: str, anweisung: str, seed: int) -> str:
+        try:
+            async with self._client() as client:
+                aus = await self._aufrufen(client, self.edit_model, {"image_url": bild, "prompt": anweisung, "seed": seed,
+                                                                     "output_format": "jpeg"})
+                return await self._als_data_url(client, (aus.get("images") or [None])[0])
+        except httpx.HTTPError as err:
+            raise DienstFehler(t("fehler.bildki_weg", art=type(err).__name__)) from err
 
 
 class DemoBildKI:

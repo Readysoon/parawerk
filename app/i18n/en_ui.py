@@ -182,6 +182,7 @@ TEXTE = {
     "fehler.bremst": "Replicate is throttling right now (too many requests). Please try again in a minute.",
     "fehler.nicht_abrufbar": "Replicate: image not available ({code})",
     "fehler.replicate_weg": "Replicate not reachable: {art}",
+    "fehler.bildki_weg": "Image AI not reachable: {art}",
     "fehler.nj_demo": "Refining needs a REPLICATE_API_TOKEN (demo mode).",
     "fehler.claude_weg": "Claude API not reachable: {art}",
     "fehler.zu_lang": "Claude's answer was too long and got cut off.",

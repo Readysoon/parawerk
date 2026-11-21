@@ -181,6 +181,7 @@ TEXTE = {
     "fehler.bremst": "Replicate bremst gerade zu stark (zu viele Anfragen). Bitte in einer Minute noch einmal versuchen.",
     "fehler.nicht_abrufbar": "Replicate: Bild nicht abrufbar ({code})",
     "fehler.replicate_weg": "Replicate nicht erreichbar: {art}",
+    "fehler.bildki_weg": "Bild-KI nicht erreichbar: {art}",
     "fehler.nj_demo": "Nachjustieren braucht einen REPLICATE_API_TOKEN (Demo-Modus).",
     "fehler.claude_weg": "Claude-API nicht erreichbar: {art}",
     "fehler.zu_lang": "Die Antwort von Claude war zu lang und wurde abgeschnitten.",

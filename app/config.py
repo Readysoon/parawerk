@@ -9,7 +9,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Einstellungen(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    # Bildgenerierung (Entwürfe) über Replicate, FLUX Fill Pro
+    # Bild-KI (Entwürfe malen, anpassen): "fal" (Standard, DPA, kein Training) oder "replicate" (keine DPA, nur
+    # Ausweichmöglichkeit). Leer = fal, wenn FAL_KEY gesetzt ist, sonst Replicate.
+    bild_anbieter: str = ""
+    fal_fill_model: str = "fal-ai/flux-pro/v1/fill"
+    fal_edit_model: str = "fal-ai/flux-pro/kontext"
+    # Replicate: nur noch die Raumtiefe (Depth Pro gibt es auf fal nicht als „Enterprise Ready“). Ohne Token keine
+    # Tiefe: Maße gelten dann nur in der Ebene der Messung.
     replicate_api_token: str = ""
     replicate_model: str = "black-forest-labs/flux-fill-pro"
     # Nachjustieren eines Entwurfs per Text. Getestet: FLUX Kontext; die Eingaben für andere Modelle (Nano Banana,
@@ -41,7 +47,7 @@ class Einstellungen(BaseSettings):
     daten_schluessel: str = ""
     # Freistellen des gemalten Möbels (Lerndaten, später Eingabe der 3D-Erzeugung); leer = grob über die Markierung
     fal_key: str = ""
-    freistell_model: str = "fal-ai/birefnet/v2"  # Nachjustieren: Claude prüft, ob die Änderung zu sehen ist; sonst ein zweiter Versuch
+    freistell_model: str = "fal-ai/bria/background/remove"  # Nachjustieren: Claude prüft, ob die Änderung zu sehen ist; sonst ein zweiter Versuch
     tagesbudget_usd: float = 5.0  # alle zusammen, Notbremse
     # Testcodes: "KUMPEL:10,FREUNDE:5:3,PARTNER:0:20:3" = Code:Runden[:Geräte[:Baupläne]]; ohne Geräte-Angabe ein Gerät.
     # Baupläne = wie viele Baupläne der Code je Gerät bzw. Konto freischaltet (nur wichtig mit BEZAHLUNG_PFLICHT)
@@ -92,7 +98,21 @@ class Einstellungen(BaseSettings):
         return out
 
     @property
+    def bild_anbieter_aktiv(self) -> str:
+        """Welcher Anbieter malt: "fal", "replicate" oder "" (keiner, Demo)."""
+        wahl = self.bild_anbieter.strip().lower()
+        if wahl == "replicate":
+            return "replicate" if self.replicate_api_token else ""
+        if wahl == "fal" or self.fal_key:
+            return "fal" if self.fal_key else ""
+        return "replicate" if self.replicate_api_token else ""
+
+    @property
     def bild_ki_aktiv(self) -> bool:
+        return bool(self.bild_anbieter_aktiv)
+
+    @property
+    def tiefe_aktiv(self) -> bool:
         return bool(self.replicate_api_token)
 
     @property

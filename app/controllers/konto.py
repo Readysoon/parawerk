@@ -140,7 +140,7 @@ async def freischalten(anfrage: FreischaltAnfrage, k: Kunde = Depends(kunde), e:
         raise HTTPException(409, t("fehler.code_plaene_voll", n=plaene))
     await run_in_threadpool(konten.freischalten, db, k.geraet, plan, f"code:{code}")
     await run_in_threadpool(analyse.eintragen, db, "freigeschaltet", {
-        "quelle": "code", "entwurf": analyse.lauf(anfrage.entwurf_id), "name": str(anfrage.graph.get("name", ""))[:80],
+        "quelle": "code", "entwurf": analyse.lauf(db, anfrage.entwurf_id), "name": str(anfrage.graph.get("name", ""))[:80],
         "kategorie": anfrage.graph.get("kategorie"), "sitz": anfrage.graph.get("sitz") or "latten"},
         sprache=sprache(), demo=not e.claude_aktiv)
     return {"freigeschaltet": True}

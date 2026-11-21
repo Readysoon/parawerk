@@ -265,7 +265,7 @@ async def entwuerfe(anfrage: EntwuerfeV1, ki: BildKI = Depends(bild_ki), kon: Ko
         bilder = await ki.entwerfen(foto_url, maske_url, prompt, seeds)
         uhr("malen")
         ids, gemalte = [], []
-        lauf_id = analyse.lauf(maske_id)
+        lauf_id = analyse.lauf(db, maske_id)
         for src in bilder:
             gemalt = _quelle(src)
             fertig = await run_in_threadpool(ba.einsetzen, foto, maske, gemalt)
@@ -325,13 +325,13 @@ async def nachjustieren(anfrage: NachjustierenV1, ki: BildKI = Depends(bild_ki),
         gemalt = await run_in_threadpool(ba.zurueckkleben, entwurf, _quelle(neu), box)
         fertig = await run_in_threadpool(ba.einsetzen, foto, maske, gemalt)
         bid = await run_in_threadpool(speicher.bild_speichern, db, k.geraet, ba.jpeg(fertig, 90), "image/jpeg")
-        im_hintergrund(partial(_moebelbild, db, "nachjustiert", gemalt, maske, analyse.lauf(anfrage.maske_id), bid, frei,
+        im_hintergrund(partial(_moebelbild, db, "nachjustiert", gemalt, maske, analyse.lauf(db, anfrage.maske_id), bid, frei,
                                ki.demo))
         await run_in_threadpool(analyse.eintragen, db, "nachjustiert", {"wunsch": anfrage.wunsch,
                                                                          "anpassung": anfrage.anpassung,
-                                                                         "vorher": analyse.lauf(anfrage.entwurf_id),
-                                                                         "entwurf": analyse.lauf(bid)},
-                                lauf_id=analyse.lauf(anfrage.maske_id), sprache=sprache())
+                                                                         "vorher": analyse.lauf(db, anfrage.entwurf_id),
+                                                                         "entwurf": analyse.lauf(db, bid)},
+                                lauf_id=analyse.lauf(db, anfrage.maske_id), sprache=sprache())
         return {"prompt": prompt, "versuche": versuche, "entwurf": {"id": bid, "url": _url(bid)}}
 
     aid = await starten(db, k.geraet, "nachjustieren", arbeit, "fehler.nachjustieren", lambda: erstatten(deckel, eintrag))
@@ -398,8 +398,8 @@ async def lesen(anfrage: LesenV1, kon: Konstrukteur = Depends(konstrukteur), dec
                                                      e.kontrollrunden, weitere_runde)
         await run_in_threadpool(analyse.eintragen, db, "gelesen", {"bereich": anfrage.bereich, "graph": graph,
                                                                     "selbstkontrolle": pruefung,
-                                                                    "entwurf": analyse.lauf(anfrage.entwurf_id)},
-                                lauf_id=analyse.lauf(anfrage.maske_id), sprache=sprache(), demo=kon.demo)
+                                                                    "entwurf": analyse.lauf(db, anfrage.entwurf_id)},
+                                lauf_id=analyse.lauf(db, anfrage.maske_id), sprache=sprache(), demo=kon.demo)
         return {"demo": kon.demo, "graph": graph, "pruefung": pruefung}
 
     aid = await starten(db, k.geraet, "lesen", arbeit, "fehler.lesen", lambda: erstatten(deckel, eintrag))
@@ -439,7 +439,7 @@ async def berechnen(anfrage: BerechnenV1, mit_glb: bool = True, mit_html: bool =
     graph = _graph(anfrage.graph)
     ergebnis = await run_in_threadpool(_rechnen, graph, anfrage.bereich, anfrage.sortiment or e.sortiment, schnell)
     if not schnell:  # Vorschau beim Ziehen nicht, nur das Ergebnis
-        await run_in_threadpool(analyse.eintragen, _db(e), "berechnet", _bauplan_daten(ergebnis, graph, anfrage),
+        await run_in_threadpool(analyse.eintragen, _db(e), "berechnet", _bauplan_daten(_db(e), ergebnis, graph, anfrage),
                                 sprache=sprache(), demo=not e.claude_aktiv)
     projekt_id = None
     if anfrage.speichern and anfrage.entwurf_id and not schnell:
@@ -577,15 +577,15 @@ async def _moebelbild(db, art: str, gemalt: Image.Image, maske: Image.Image, lau
             log.exception("Möbelbild für die Analyse nicht erstellt")
             return
     await run_in_threadpool(lambda: analyse.bild_eintragen(db, art, daten, lauf_id=lauf_id,
-                                                           entwurf=analyse.lauf(entwurf_id), demo=demo))
+                                                           entwurf=analyse.lauf(db, entwurf_id), demo=demo))
 
 
-def _bauplan_daten(ergebnis, graph: dict, anfrage) -> dict:
+def _bauplan_daten(db, ergebnis, graph: dict, anfrage) -> dict:
     """Was ein berechneter Bauplan über die Engine verrät: Reparaturen, knappe Statik, offene Punkte."""
     st = ergebnis.fc.get("statik")
     knapp = sorted(st.nachweise, key=lambda n: -n.ausnutzung)[:5] if st else []
     return {
-        "entwurf": analyse.lauf(anfrage.entwurf_id), "bereich": anfrage.bereich, "graph": graph,
+        "entwurf": analyse.lauf(db, anfrage.entwurf_id), "bereich": anfrage.bereich, "graph": graph,
         "sitz": graph.get("sitz") or "latten", "masse": ergebnis.dims, "teile": len(ergebnis.members),
         "ergaenzt": sum(1 for m in ergebnis.members if m.origin == "reparatur"), "reparaturen": ergebnis.repairs,
         "offene_punkte": ergebnis.offene_punkte, "offen": [c["t"] for c in ergebnis.checks if c["ok"] is False],
@@ -640,8 +640,8 @@ async def pdf(anfrage: PdfV1, link: bool = False, k: Kunde = Depends(kunde),
     await run_in_threadpool(analyse.eintragen, _db(e), "pdf", {
         "bereich": anfrage.bereich, "graph": graph, "masse": ergebnis.dims, "teile": len(ergebnis.members),
         "ergaenzt": sum(1 for m in ergebnis.members if m.origin == "reparatur"), "offene_punkte": ergebnis.offene_punkte,
-        "einkauf": ergebnis.plan["lines"], "schnitte": ergebnis.plan["cuts"], "entwurf": analyse.lauf(anfrage.entwurf_id)},
-        lauf_id=analyse.lauf(anfrage.maske_id), sprache=sprache(), demo=not e.claude_aktiv)
+        "einkauf": ergebnis.plan["lines"], "schnitte": ergebnis.plan["cuts"], "entwurf": analyse.lauf(_db(e), anfrage.entwurf_id)},
+        lauf_id=analyse.lauf(_db(e), anfrage.maske_id), sprache=sprache(), demo=not e.claude_aktiv)
     if link:
         bid = await run_in_threadpool(speicher.bild_speichern, _db(e), k.geraet, daten, "application/pdf")
         return {"url": f"{_url(bid)}/{name}"}
@@ -696,7 +696,7 @@ async def rueckmeldung(anfrage: RueckmeldungV1, deckel: Kostendeckel = Depends(k
             graph = None
     await run_in_threadpool(analyse.eintragen, _db(e), "rueckmeldung", {
         "text": anfrage.text.strip(), "bewertung": anfrage.bewertung, "graph": graph, "bereich": anfrage.bereich,
-        "entwurf": analyse.lauf(anfrage.entwurf_id)}, lauf_id=analyse.lauf(anfrage.maske_id), sprache=sprache(),
+        "entwurf": analyse.lauf(_db(e), anfrage.entwurf_id)}, lauf_id=analyse.lauf(_db(e), anfrage.maske_id), sprache=sprache(),
         demo=not e.claude_aktiv)
     return {"danke": t("rueckmeldung.danke")}
 

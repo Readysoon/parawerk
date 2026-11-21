@@ -3,7 +3,6 @@
 In Tests lassen sie sich über ``app.dependency_overrides`` ersetzen.
 """
 from __future__ import annotations
-from ..services.freisteller import FalBiRefNet, Freisteller
 
 import re
 import secrets
@@ -11,7 +10,8 @@ import secrets
 from fastapi import Depends, Request, Response
 
 from ..config import Einstellungen, einstellungen
-from ..services.bild_ki import BildKI, DemoBildKI, ReplicateFluxFill
+from ..services.bild_ki import BildKI, DemoBildKI, FalFluxFill, ReplicateFluxFill
+from ..services.freisteller import FalBria, Freisteller
 from ..models import konten
 from ..models.verbrauch import datenbank
 from ..services.konstrukteur import ClaudeKonstrukteur, DemoKonstrukteur, Konstrukteur
@@ -25,15 +25,20 @@ JAHR = 365 * 24 * 3600
 
 
 def bild_ki(e: Einstellungen = Depends(einstellungen)) -> BildKI:
-    return ReplicateFluxFill(e.replicate_api_token, e.replicate_model, e.replicate_edit_model) if e.bild_ki_aktiv else DemoBildKI()
+    anbieter = e.bild_anbieter_aktiv
+    if anbieter == "fal":
+        return FalFluxFill(e.fal_key, e.fal_fill_model, e.fal_edit_model)
+    if anbieter == "replicate":
+        return ReplicateFluxFill(e.replicate_api_token, e.replicate_model, e.replicate_edit_model)
+    return DemoBildKI()
 
 
 def freisteller(e: Einstellungen = Depends(einstellungen)) -> Freisteller | None:
-    return FalBiRefNet(e.fal_key, e.freistell_model) if e.fal_key else None
+    return FalBria(e.fal_key, e.freistell_model) if e.fal_key else None
 
 
 def tiefen_ki(e: Einstellungen = Depends(einstellungen)) -> TiefenKI:
-    return ReplicateTiefe(e.replicate_api_token, e.replicate_tiefe_model) if e.bild_ki_aktiv else DemoTiefe()
+    return ReplicateTiefe(e.replicate_api_token, e.replicate_tiefe_model) if e.tiefe_aktiv else DemoTiefe()
 
 
 def konstrukteur(e: Einstellungen = Depends(einstellungen)) -> Konstrukteur:

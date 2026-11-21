@@ -2,6 +2,10 @@
 
 Bilder (Fotos, Masken, Entwürfe) bekommen eine zufällige, nicht erratbare ID und werden nach
 ``AUFBEWAHRUNG`` gelöscht. Aufträge halten Status und Ergebnis lange laufender KI-Aufrufe.
+
+``analyse_ids`` ordnet einer Bild-ID (Maske, Entwurf) eine eigene, zufällige ID für die Lerndaten zu. Nur diese
+Tabelle verbindet Lerndaten mit Bildern (und damit mit Gerät, Konto, Projekt). Sie wird wie die Bilder nach
+``AUFBEWAHRUNG`` ohne Nutzung gelöscht; danach führt keine Spur mehr von den Lerndaten zu einer Person.
 """
 from __future__ import annotations
 
@@ -10,6 +14,7 @@ import secrets
 from datetime import timedelta
 
 from sqlalchemy import Column, DateTime, Engine, Index, LargeBinary, String, Table, Text, delete, insert, select, update
+from sqlalchemy.exc import IntegrityError
 
 from . import tresor
 from .verbrauch import jetzt, metadata
@@ -24,6 +29,14 @@ bilder = Table(
     Column("daten", LargeBinary, nullable=False),
     Column("erstellt", DateTime(timezone=True), nullable=False),
     Index("ix_bilder_erstellt", "erstellt"),
+)
+
+analyse_ids = Table(
+    "analyse_ids", metadata,
+    Column("bild", String(32), primary_key=True),  # Masken- oder Entwurfs-ID
+    Column("id", String(16), nullable=False),  # zufällig, steht nur in den Lerndaten
+    Column("erstellt", DateTime(timezone=True), nullable=False),  # letzte Nutzung
+    Index("ix_analyse_ids_erstellt", "erstellt"),
 )
 
 auftraege = Table(
@@ -91,6 +104,28 @@ def bild_laden(db: Engine, bid: str) -> tuple[bytes, str] | None:
     return (tresor.auf(z.daten), z.mime) if z else None
 
 
+def analyse_id(db: Engine, bild_id: str | None) -> str | None:
+    """Zufällige ID für die Lerndaten zu einer Bild-ID: gleiche Bild-ID, gleiche Analyse-ID (bis zum Aufräumen).
+
+    Anders als ein Hash lässt sie sich aus der Bild-ID nicht nachrechnen. Jede Nutzung verschiebt das Aufräumen.
+    """
+    if not bild_id:
+        return None
+    for _ in range(2):  # zweiter Versuch, falls eine parallele Anfrage gerade dieselbe Zuordnung angelegt hat
+        try:
+            with db.begin() as c:
+                z = c.execute(select(analyse_ids.c.id).where(analyse_ids.c.bild == bild_id)).first()
+                if z:
+                    c.execute(update(analyse_ids).where(analyse_ids.c.bild == bild_id).values(erstellt=jetzt()))
+                    return z.id
+                aid = secrets.token_hex(8)
+                c.execute(insert(analyse_ids).values(bild=bild_id, id=aid, erstellt=jetzt()))
+                return aid
+        except IntegrityError:
+            continue
+    raise RuntimeError("Analyse-ID nicht angelegt")
+
+
 def auftrag_anlegen(db: Engine, geraet: str, art: str) -> str:
     aid = neue_id()
     with db.begin() as c:
@@ -120,3 +155,4 @@ def aufraeumen(db: Engine) -> None:
     with db.begin() as c:
         c.execute(delete(bilder).where(bilder.c.erstellt < grenze))
         c.execute(delete(auftraege).where(auftraege.c.erstellt < grenze))
+        c.execute(delete(analyse_ids).where(analyse_ids.c.erstellt < grenze))

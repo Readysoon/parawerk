@@ -24,10 +24,12 @@ pytest
 
 | Variable | Wofür |
 |---|---|
-| `REPLICATE_API_TOKEN` | Entwürfe per Inpainting (FLUX Fill Pro), replicate.com → API tokens |
+| `FAL_KEY` | Entwürfe malen (FLUX Fill Pro), anpassen (FLUX Kontext Pro) und Möbel freistellen (Bria), fal.ai → Keys. Nur Modelle mit „Enterprise Ready“ (DPA, kein Training), siehe `app/services/fal.py` |
+| `REPLICATE_API_TOKEN` | optional: nur noch die Raumtiefe (Depth Pro), replicate.com → API tokens. Replicate hat keine DPA nach DSGVO. Ohne Token wird „flach“ gemessen |
+| `BILD_ANBIETER` | optional: `fal` (Standard, wenn `FAL_KEY` gesetzt) oder `replicate` (Entwürfe wieder über Replicate) |
 | `ANTHROPIC_API_KEY` | Konstruktion aus dem Entwurf lesen und per Text anpassen, console.anthropic.com |
 | `ANTHROPIC_MODEL` | optional, Standard `claude-sonnet-5-5` |
-| `REPLICATE_MODEL` | optional, Standard `black-forest-labs/flux-fill-pro` |
+| `FAL_FILL_MODEL`, `FAL_EDIT_MODEL` | optional, Standard `fal-ai/flux-pro/v1/fill` und `fal-ai/flux-pro/kontext` |
 | `SORTIMENT` | `DE` (Baumarkt, Standard) oder `US` (Bauholz) |
 
 **Ohne Schlüssel** läuft der Demo-Modus mit Beispielzimmer, vier fertigen Entwürfen und den dazu gelesenen Konstruktionen. Die Engine rechnet dabei echt. Nur das Anpassen per Text braucht den Claude-Schlüssel.
@@ -61,7 +63,8 @@ app/
       pruefung.py          Endkontrolle
       bauplan.py           Einkauf, Zuschnitt (Stangen und Platten), Schrauben, Montage
   services/                ── Model: Anbindung externer KI, je mit Demo-Ersatz
-    bild_ki.py             Inpainting (Replicate), austauschbar
+    bild_ki.py             Inpainting (fal.ai, Replicate als Ausweichmöglichkeit), austauschbar
+    fal.py                 Aufruf von fal.ai mit Datenschutz-Headern (nur „Enterprise Ready“-Modelle)
     konstrukteur.py        Bild → Bauteilgraph, Graph + Wunsch → Graph (Claude)
     prompts.py             Anweisungen an Bild-KI und Claude
     bildarbeit.py          Entwurf ins Foto einsetzen, Ausschnitt fürs Lesen (Pillow)
@@ -144,11 +147,11 @@ gh secret set FLY_API_TOKEN                    # Token einfügen (oder GitHub �
 
 `Dockerfile` und `fly.toml` (Frankfurt, schläft bei Nichtnutzung, Health-Check `/gesund`) liegen bei.
 
-- Im Browser: fly.io → „Launch an App“ → dieses GitHub-Repository wählen. Unter „Secrets“ `REPLICATE_API_TOKEN` und `ANTHROPIC_API_KEY` eintragen.
+- Im Browser: fly.io → „Launch an App“ → dieses GitHub-Repository wählen. Unter „Secrets“ `FAL_KEY` und `ANTHROPIC_API_KEY` eintragen (optional `REPLICATE_API_TOKEN` für die Raumtiefe).
 - Im Terminal:
   ```bash
   fly launch --copy-config --no-deploy   # App-Namen bei Bedarf ändern
-  fly secrets set REPLICATE_API_TOKEN=... ANTHROPIC_API_KEY=...
+  fly secrets set FAL_KEY=... ANTHROPIC_API_KEY=...
   fly volumes create parawerk_daten --size 1 --region fra   # Verbrauchs-Datenbank
   fly scale count 1                                         # ein Volume gehört zu genau einer Maschine
   fly deploy
@@ -163,7 +166,7 @@ fly secrets set DATEN_SCHLUESSEL=...
 ```
 Ältere, unverschlüsselte Bilder bleiben lesbar.
 
-**Möbel freistellen** (Lerndaten als PNG mit durchsichtigem Hintergrund, später Eingabe für die 3D-Erzeugung): mit `FAL_KEY` nutzt der Server BiRefNet auf fal.ai (`app/services/freisteller.py`), ohne Schlüssel schneidet er grob über die Markierung aus.
+**Möbel freistellen** (Lerndaten als PNG mit durchsichtigem Hintergrund, später Eingabe für die 3D-Erzeugung): mit `FAL_KEY` nutzt der Server Bria „Background Remove“ auf fal.ai (`app/services/freisteller.py`; BiRefNet ist dort nur „pending“ und fällt nicht unter fals Zusage „kein Training“), ohne Schlüssel schneidet er grob über die Markierung aus.
 ```bash
 fly secrets set FAL_KEY=...
 ```
@@ -214,7 +217,7 @@ Zum Verbessern speichert der Server je Durchgang, was entworfen und gebaut wird 
 `entwuerfe` (Wunsch, Prompt), `nachjustiert`, `gelesen` (Maße, Bauteilgraph, Selbstkontrolle), `angepasst`, `pdf` (fertiger Bauplan: Maße, Teile, Einkaufsliste).
 
 - **Nie** gespeichert: Fotos, Masken, Entwurfsbilder (darauf ist die Wohnung), Geräte-ID, IP.
-- Einträge eines Durchgangs verbindet nur `lauf`, ein Hash der zufälligen Masken-ID.
+- Einträge verbinden nur zufällige Analyse-IDs (`lauf` für den Durchgang, `entwurf` für den Entwurf). Sie stehen nie bei Konto, Projekt oder Freischaltung. Die Zuordnung Bild-ID → Analyse-ID liegt nur in der Tabelle `analyse_ids` und wird 7 Tage nach der letzten Nutzung gelöscht. Alte Hash-Werte einmalig ersetzen: `python -m app.umschluesseln`.
 - Diese Einträge werden nicht nach 7 Tagen gelöscht. Der Wunschtext ist Freitext: In der Datenschutzerklärung erwähnen.
 - Export als JSON nur mit Admin-Schlüssel: erst `/?schluessel=…`, dann `/api/v1/analyse` (optional `?art=pdf`, `&demo=true`).
 

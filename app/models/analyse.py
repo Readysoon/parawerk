@@ -6,20 +6,22 @@ Rückmeldungen. Dazu die gemalten Möbel als Bild, aber nur die Pixel innerhalb 
 gemalt hat; alles außerhalb ist weiß (vom Zimmer ist nichts zu sehen). Nie gespeichert werden Fotos, Masken, ganze
 Entwurfsbilder, Geräte-ID, Konto oder IP.
 
-Einträge hängen nur über Hashes zusammen, aus denen sich nichts zurückrechnen lässt: ``lauf`` (aus der zufälligen
-Masken-ID, ein Durchgang) und ``entwurf`` in den Daten (aus der Entwurfs-ID, der gewählte Entwurf).
+Einträge hängen nur über zufällige Analyse-IDs zusammen: ``lauf`` (ein Durchgang, zur Maske) und ``entwurf`` in den
+Daten (der gewählte Entwurf). Sie stehen nie bei Konto, Projekt oder Freischaltung. Die Zuordnung Bild-ID → Analyse-ID
+liegt nur in ``speicher.analyse_ids`` und wird nach 7 Tagen ohne Nutzung gelöscht (früher: ein Hash der Bild-ID, den
+jeder mit der Datenbank nachrechnen und so einem Konto zuordnen konnte).
 
 Anders als Bilder werden diese Einträge nicht nach 7 Tagen gelöscht.
 """
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 
 from sqlalchemy import (Boolean, Column, DateTime, Engine, Index, Integer, LargeBinary, String, Table, Text, insert,
                         select)
 
+from . import speicher
 from .verbrauch import jetzt, metadata
 
 log = logging.getLogger("parawerk.analyse")
@@ -49,9 +51,9 @@ analyse_bilder = Table(
 )
 
 
-def lauf(zufalls_id: str | None) -> str | None:
-    """Kurzer, nicht umkehrbarer Schlüssel aus einer zufälligen Bild-ID, um Einträge eines Durchgangs zu verbinden."""
-    return hashlib.sha256(f"parawerk-lauf:{zufalls_id}".encode()).hexdigest()[:16] if zufalls_id else None
+def lauf(db: Engine, bild_id: str | None) -> str | None:
+    """Analyse-ID zu einer Bild-ID (Maske oder Entwurf), um Einträge zu verbinden. Zufällig, nicht nachrechenbar."""
+    return speicher.analyse_id(db, bild_id)
 
 
 def eintragen(db: Engine, art: str, daten: dict, *, lauf_id: str | None = None, sprache: str | None = None,

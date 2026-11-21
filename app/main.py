@@ -11,6 +11,9 @@ from __future__ import annotations
 from http.cookies import SimpleCookie
 from urllib.parse import parse_qs
 
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,7 +21,10 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from .config import einstellungen
 from .controllers import api_v1, konto, seiten
+from .models import loeschen
+from .models.verbrauch import datenbank
 from .i18n import SPRACHEN, aus_header, setze_sprache, t, zuruecksetzen
 from .views import STATIC
 
@@ -57,8 +63,22 @@ class SprachMiddleware:
             zuruecksetzen(token)
 
 
+log = logging.getLogger("parawerk")
+
+
+@asynccontextmanager
+async def lebenszeit(_: FastAPI):
+    """Beim Start aufräumen (Fristen aus der Datenschutzerklärung). Die Maschine schläft oft und startet dann neu,
+    zusätzlich räumt jeder Foto-Upload auf."""
+    try:
+        loeschen.aufraeumen(datenbank(einstellungen().database_url))
+    except Exception:  # noqa: BLE001  (Aufräumen darf den Start nicht verhindern)
+        log.exception("Aufräumen beim Start fehlgeschlagen")
+    yield
+
+
 def create_app() -> FastAPI:
-    app = FastAPI(title="Parawerk", version="0.2.0",
+    app = FastAPI(title="Parawerk", version="0.2.0", lifespan=lebenszeit,
                   description="Foto → Entwürfe → baubarer, stabiler Bauplan aus Baumarkt-Holz.")
     app.add_middleware(SprachMiddleware)
     # Flutter-App im Browser (flutter run -d chrome) läuft auf localhost:<port> und braucht dafür die Erlaubnis.

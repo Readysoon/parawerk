@@ -211,6 +211,18 @@ Unter dem 3D-Modell gibt es Regler für Breite, Tiefe und Höhe. Der Graph bekom
 
 Website: während des Ziehens schnelle Vorschau (`?schnell=true`, nur 3D und Teilezahl), kurz nach dem Loslassen der ganze Bauplan. App: neu gerechnet beim Loslassen.
 
+## Löschen und Fristen (Datenschutz)
+
+`app/models/loeschen.py` setzt die Fristen aus der Datenschutzerklärung durch. `aufraeumen` läuft beim Start des Servers und bei jedem Foto-Upload:
+- Bilder, Aufträge und Analyse-Zuordnungen: 7 Tage
+- IP-Adressen im Verbrauch: 30 Tage (die Zeile bleibt für die Gratis-Zählung, nur die IP wird geleert)
+- abgelaufene Sitzungen (älter als 1 Jahr)
+
+Löschen auf Wunsch:
+- `DELETE /api/v1/konto`: Konto mit Sitzungen, Projekten, Fotos, Bildern, Aufträgen, Freischaltungen und Codes.
+- `DELETE /api/v1/geraet`: dasselbe für die Geräte-ID ohne Konto („Meine Daten löschen“).
+- Der Verbrauch wird in beiden Fällen nicht gelöscht, sondern getrennt (`geraet = "geloescht"`), damit Tagesbudget und IP-Grenze weiter stimmen. Die Lerndaten bleiben, ohne Spur zurück.
+
 ## Anonyme Analyse
 
 Zum Verbessern speichert der Server je Durchgang, was entworfen und gebaut wird (`app/models/analyse.py`, Tabelle `analyse`):

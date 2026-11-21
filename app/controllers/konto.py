@@ -10,11 +10,12 @@ from starlette.concurrency import run_in_threadpool
 from ..config import Einstellungen, einstellungen
 from ..i18n import sprache, t
 from ..models import analyse, konten, projekte
+from ..models import loeschen as datenloeschung
 from ..models import verbrauch as v
 from ..models.verbrauch import datenbank
 from ..services.anmeldung import AnmeldeFehler, Identitaet, pruefen
 from ..services.kostendeckel import Gesperrt, Kostendeckel, Kunde
-from .abhaengigkeiten import JAHR, SITZUNG, geraete_id, kunde, sitzungs_token
+from .abhaengigkeiten import GERAET, JAHR, SITZUNG, geraete_id, kunde, sitzungs_token
 
 router = APIRouter(prefix="/api/v1")
 log = logging.getLogger("parawerk.konto")
@@ -119,6 +120,16 @@ async def loeschen(response: Response, k: Kunde = Depends(kunde), e: Einstellung
     await run_in_threadpool(konten.konto_loeschen, datenbank(e.database_url), k.konto)
     response.delete_cookie(SITZUNG)
     return {"email": None}
+
+
+@router.delete("/geraet")
+async def geraet_loeschen(request: Request, response: Response, e: Einstellungen = Depends(einstellungen)) -> dict:
+    """„Meine Daten löschen“ ohne Konto: alles, was an dieser Geräte-ID hängt (Fotos, Entwürfe, Projekte,
+    Freischaltungen, Codes; Verbrauch wird getrennt). Ein Konto bleibt bestehen, dafür gibt es ``DELETE /konto``."""
+    gid = geraete_id(request, response)
+    await run_in_threadpool(datenloeschung.geraet_loeschen, datenbank(e.database_url), gid)
+    response.delete_cookie(GERAET)
+    return {"geloescht": True}
 
 
 @router.post("/freischalten")

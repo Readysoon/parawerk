@@ -32,7 +32,7 @@ from pydantic import BaseModel, Field
 
 from ..config import Einstellungen, einstellungen
 from ..i18n import sprache, t
-from ..models import analyse, konten, projekte, speicher
+from ..models import analyse, konten, loeschen, projekte, speicher
 from ..models.bauteilgraph import GraphFehler, bereinigen
 from ..models.dxf import teile_als_dxf
 from ..models.engine import Ergebnis, berechnen as engine_berechnen
@@ -176,7 +176,7 @@ async def fotos(anfrage: FotoV1, tki: TiefenKI = Depends(tiefen_ki), deckel: Kos
     Limit oder Fehler), gemessen wird dann nur in der Ebene der Messung, wie mit einem Lineal auf dem Foto.
     """
     db = _db(e)
-    await run_in_threadpool(speicher.aufraeumen, db)
+    await run_in_threadpool(loeschen.aufraeumen, db)
     try:
         foto = ba.foto_vorbereiten(ba.aus_data_url(anfrage.foto))
     except DienstFehler as err:
@@ -237,7 +237,7 @@ async def entwuerfe(anfrage: EntwuerfeV1, ki: BildKI = Depends(bild_ki), kon: Ko
                     frei: Freisteller | None = Depends(freisteller)) -> AuftragAntwort:
     """Foto und Maske speichern, dann im Hintergrund Entwürfe malen lassen und ins Foto einsetzen."""
     db = _db(e)
-    await run_in_threadpool(speicher.aufraeumen, db)
+    await run_in_threadpool(loeschen.aufraeumen, db)
     try:
         foto = ba.foto_vorbereiten(ba.aus_data_url(anfrage.foto) if anfrage.foto else _bild(db, anfrage.foto_id))
         maske = ba.maske_vorbereiten(ba.aus_data_url(anfrage.maske) if anfrage.maske else _bild(db, anfrage.maske_id),

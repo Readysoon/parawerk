@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import time
 
 from fastapi.testclient import TestClient
 
@@ -130,7 +131,11 @@ def test_moebelbild_freigestellt(tmp_path):
             r = c.post("/api/v1/entwuerfe", json={"foto": FOTO, "maske": MASKE, "wunsch": "Stuhl"})
             warten(c, r, GERAET)
             c.get("/?schluessel=geheim-123")
-            bilder = c.get("/api/v1/analyse/bilder").json()
+            for _ in range(50):  # Lerndaten-Bilder entstehen im Hintergrund, nach dem Ende des Auftrags
+                bilder = c.get("/api/v1/analyse/bilder").json()
+                if bilder:
+                    break
+                time.sleep(0.05)
             antwort = c.get(f"/api/v1/analyse/bild/{bilder[0]['id']}")
     finally:
         app.dependency_overrides.clear()

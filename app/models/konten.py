@@ -17,7 +17,6 @@ from datetime import timedelta
 from sqlalchemy import Column, DateTime, Engine, Integer, String, Table, UniqueConstraint, func, insert, select, update
 from sqlalchemy.exc import IntegrityError
 
-from .projekte import alle_loeschen as projekte_alle_loeschen
 from .verbrauch import jetzt, metadata
 
 SITZUNG_GUELTIG = timedelta(days=365)
@@ -94,11 +93,13 @@ def abmelden(db: Engine, token: str) -> None:
 
 
 def konto_loeschen(db: Engine, konto: int) -> None:
-    """Konto mit allem löschen (Pflicht für Apps mit Konto im App Store). Freischaltungen gehen dabei verloren."""
+    """Konto mit allem löschen (Pflicht für Apps mit Konto im App Store): Sitzungen, Projekte mit Fotos, Bilder,
+    Aufträge, Freischaltungen, eingelöste Codes; der Verbrauch wird vom Konto getrennt (siehe ``loeschen.alles_zu``)."""
+    from .loeschen import alles_zu  # erst hier: loeschen braucht die Tabellen dieses Moduls
+
     with db.begin() as c:
         c.execute(sitzungen.delete().where(sitzungen.c.konto == konto))
-        c.execute(freischaltungen.delete().where(freischaltungen.c.wer == f"k-{konto}"))
-        projekte_alle_loeschen(None, f"k-{konto}", c)  # Projekte mit Wohnungsfotos gehören zum Konto
+        alles_zu(c, f"k-{konto}")
         c.execute(konten.delete().where(konten.c.id == konto))
 
 

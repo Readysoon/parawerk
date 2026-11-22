@@ -3,9 +3,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import 'api.dart';
+import 'hilfen.dart';
+import 'sitzung.dart';
 import 'texte.dart';
 
 /// OAuth-Client-IDs von Google (Google Cloud Console), beim Bauen mitgeben:
@@ -225,3 +229,74 @@ class _KontoKnopfState extends State<KontoKnopf> {
     );
   }
 }
+
+/// Unten auf der Startseite: „Datenschutz“ mit Meine Daten herunterladen und Meine Daten löschen.
+/// Immer sichtbar, auch ohne Konto (DSGVO Art. 15, 17, 20).
+class DatenschutzKnopf extends StatelessWidget {
+  const DatenschutzKnopf({super.key, required this.api});
+  final Api api;
+
+  Future<void> _herunterladen(BuildContext context) async {
+    final hinweise = ScaffoldMessenger.of(context);
+    final box = context.findRenderObject() as RenderBox?;
+    try {
+      final daten = await api.meineDaten();
+      await Share.shareXFiles(
+        [XFile.fromData(daten, mimeType: 'application/json', name: 'parawerk-meine-daten.json')],
+        fileNameOverrides: ['parawerk-meine-daten.json'],
+        sharePositionOrigin: box == null ? null : box.localToGlobal(Offset.zero) & box.size, // iPad braucht das
+      );
+    } catch (e) {
+      hinweise.showSnackBar(SnackBar(content: Text(fehlerText(e))));
+    }
+  }
+
+  Future<void> _loeschen(BuildContext context) async {
+    final hinweise = ScaffoldMessenger.of(context);
+    final sicher = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr('daten_loeschen')),
+        content: Text(tr(api.angemeldet ? 'daten_loeschen_frage_konto' : 'daten_loeschen_frage')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('abbrechen'))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(tr('loeschen'))),
+        ],
+      ),
+    );
+    if (sicher != true) return;
+    try {
+      await api.meineDatenLoeschen();
+      Sitzung.letzte.value = null; // auch die Entwürfe im Speicher der App vergessen
+      hinweise.showSnackBar(SnackBar(content: Text(tr('daten_geloescht'))));
+    } catch (e) {
+      hinweise.showSnackBar(SnackBar(content: Text(fehlerText(e))));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      tooltip: tr('datenschutz'),
+      onSelected: (w) => switch (w) {
+        'erklaerung' => launchUrl(Uri.parse('$apiBasis/datenschutz'), mode: LaunchMode.inAppBrowserView),
+        'herunterladen' => _herunterladen(context),
+        _ => _loeschen(context),
+      },
+      itemBuilder: (_) => [
+        PopupMenuItem(value: 'erklaerung', child: Text(tr('datenschutzerklaerung'))),
+        PopupMenuItem(value: 'herunterladen', child: Text(tr('daten_herunterladen'))),
+        PopupMenuItem(value: 'loeschen', child: Text(tr('daten_loeschen'))),
+      ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.privacy_tip_outlined, size: 18),
+          const SizedBox(width: 6),
+          Text(tr('datenschutz')),
+        ]),
+      ),
+    );
+  }
+}
+

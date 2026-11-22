@@ -105,3 +105,31 @@ def test_geraet_loeschen_ueber_die_api(tmp_path):
         assert set(_rest(db, "geraet-api-123").values()) == {0}
     finally:
         app.dependency_overrides.clear()
+
+
+def test_meine_daten_herunterladen(tmp_path):
+    import json
+
+    from fastapi.testclient import TestClient
+
+    from app.config import Einstellungen, einstellungen
+    from app.main import app
+
+    e = Einstellungen(_env_file=None, database_url=f"sqlite:///{tmp_path / 'aus.db'}")
+    app.dependency_overrides[einstellungen] = lambda: e
+    try:
+        db = datenbank(e.database_url)
+        _daten_fuer(db, "geraet-aus-123")
+        _daten_fuer(db, "geraet-fremd-1")
+        with TestClient(app, headers={"X-Geraet": "geraet-aus-123"}) as c:
+            r = c.get("/api/v1/meine-daten")
+    finally:
+        app.dependency_overrides.clear()
+    assert r.status_code == 200 and "attachment" in r.headers["content-disposition"]
+    d = json.loads(r.content)
+    assert d["geraet"] == "geraet-aus-123" and d["konto"] is None
+    assert len(d["projekte"]) == 1 and d["projekte"][0]["zimmerfoto"].startswith("data:image/jpeg;base64,")
+    assert d["projekte"][0]["wunsch"] == "Bank"
+    assert len(d["freischaltungen"]) == 1 and d["eingeloeste_codes"][0]["code"] == "TEST"
+    assert d["nutzung"][0]["ip"] == "1.2.3.4"
+    assert "geraet-fremd-1" not in r.text  # nur die eigenen Daten

@@ -1,6 +1,7 @@
 """Konto: anmelden mit Apple oder Google, abmelden, löschen, Stand; Baupläne mit einem Code freischalten."""
 from __future__ import annotations
 
+import json
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -10,7 +11,7 @@ from starlette.concurrency import run_in_threadpool
 from ..config import Einstellungen, einstellungen
 from ..i18n import sprache, t
 from ..models import analyse, konten, projekte
-from ..models import loeschen as datenloeschung
+from ..models import auskunft, loeschen as datenloeschung
 from ..models import verbrauch as v
 from ..models.verbrauch import datenbank
 from ..services.anmeldung import AnmeldeFehler, Identitaet, pruefen
@@ -120,6 +121,15 @@ async def loeschen(response: Response, k: Kunde = Depends(kunde), e: Einstellung
     await run_in_threadpool(konten.konto_loeschen, datenbank(e.database_url), k.konto)
     response.delete_cookie(SITZUNG)
     return {"email": None}
+
+
+@router.get("/meine-daten")
+async def meine_daten(k: Kunde = Depends(kunde), e: Einstellungen = Depends(einstellungen)) -> Response:
+    """„Meine Daten herunterladen“ (DSGVO Art. 15 und 20): alles zu diesem Konto bzw. Gerät als JSON-Datei."""
+    daten = await run_in_threadpool(auskunft.meine_daten, datenbank(e.database_url), k.geraet, k.konto)
+    return Response(json.dumps(daten, ensure_ascii=False, indent=1), media_type="application/json",
+                    headers={"Content-Disposition": 'attachment; filename="parawerk-meine-daten.json"',
+                             "Cache-Control": "no-store"})
 
 
 @router.delete("/geraet")

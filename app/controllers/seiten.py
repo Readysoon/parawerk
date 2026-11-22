@@ -38,6 +38,12 @@ def startseite(request: Request, schluessel: str = "", e: Einstellungen = Depend
     return seite
 
 
+@router.get("/datenschutz", response_class=HTMLResponse)
+def datenschutz(request: Request) -> Response:
+    """Datenschutzerklärung (nur Deutsch). Quelle ist das Doc „Parawerk – Datenschutzerklärung“."""
+    return templates.TemplateResponse(request, "datenschutz.html", {})
+
+
 @router.get("/ansicht", response_class=HTMLResponse, include_in_schema=False)
 def ansicht(request: Request) -> Response:
     """Nur der 3D-Viewer, eingebettet in die App: derselbe Viewer wie auf der Website, live beim Strecken."""

@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+{% block titel %}Datenschutzerklärung – Parawerk{% endblock %}
+{% block inhalt %}
+{# Quelle: Doc „Parawerk – Datenschutzerklärung“. Bei Änderungen dort ändern und diese Datei neu erzeugen. #}
+<div class="wrap rechtstext">
+  <p><a href="/">← Parawerk</a></p>
+<h1>Datenschutzerklärung</h1>
+<p>Stand: 22. November 2026</p>
+<h2>1. Wer ist verantwortlich?</h2>
+<p>Verantwortlich für die Verarbeitung Ihrer Daten in der App und auf der Website Parawerk ist:</p>
+<p>Philipp Gallaschik<br>
+Mariahilfpark 2<br>
+6020 Innsbruck, Österreich<br>
+<a href="mailto:p.gallaschik@gmail.com">p.gallaschik@gmail.com</a></p>
+<p>Für Fragen zum Datenschutz schreiben Sie bitte an diese E-Mail-Adresse. Einen Datenschutzbeauftragten haben wir nicht bestellt, weil das Gesetz es für uns nicht verlangt.</p>
+<h2>2. Überblick</h2>
+<p>Parawerk macht aus einem Foto Ihres Zimmers Möbelentwürfe und daraus einen Bauplan. Dafür verarbeiten wir nur die Daten, die wir dazu brauchen.</p>
+<table>
+<thead>
+<tr>
+<th>Daten</th>
+<th>Zweck</th>
+<th>Rechtsgrundlage (DSGVO)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Zimmerfoto, Markierung, Maße, Wunschtext</td>
+<td>Entwürfe und Bauplan erstellen</td>
+<td>Art. 6 Abs. 1 lit. b (Vertrag bzw. Nutzung auf Ihre Anfrage)</td>
+</tr>
+<tr>
+<td>Konto (Apple oder Google), gespeicherte Projekte</td>
+<td>Anmeldung, Projekte aufbewahren</td>
+<td>Art. 6 Abs. 1 lit. b</td>
+</tr>
+<tr>
+<td>Geräte-ID, IP-Adresse, Zählung der Runden</td>
+<td>Gratis-Runden zählen, Missbrauch und Kosten begrenzen</td>
+<td>Art. 6 Abs. 1 lit. f (berechtigtes Interesse: Schutz vor Missbrauch)</td>
+</tr>
+<tr>
+<td>Freischaltungen und Käufe</td>
+<td>Kauf abwickeln, Rechnung</td>
+<td>Art. 6 Abs. 1 lit. b und lit. c (steuerliche Aufbewahrungspflicht)</td>
+</tr>
+<tr>
+<td>Anonyme Nutzungsdaten (ohne Fotos)</td>
+<td>Parawerk verbessern</td>
+<td>keine personenbezogenen Daten; soweit doch: Art. 6 Abs. 1 lit. f</td>
+</tr>
+</tbody>
+</table>
+<p>Eine automatisierte Entscheidung mit rechtlicher Wirkung für Sie (Art. 22 DSGVO) findet nicht statt. Die KI erstellt nur Entwürfe und Pläne.</p>
+<h2>3. Fotos, Markierungen und Entwürfe</h2>
+<p>Ihr Zimmerfoto wird nach 7 Tagen gelöscht, außer Sie speichern es mit Konto in einem Projekt.</p>
+<ul>
+<li><strong>Was:</strong> das Foto, die markierte Stelle, Maße (Breite, Tiefe, Höhe), Ihr Wunsch als Text und die erzeugten Entwürfe.</li>
+<li><strong>Wie geschützt:</strong> Alle Bilder speichern wir verschlüsselt (AES-256-GCM). Standortdaten im Foto (GPS, EXIF) entfernen wir beim Speichern.</li>
+<li><strong>Wer bekommt sie:</strong> Zur Bearbeitung schicken wir Foto und Entwürfe an KI-Dienste (siehe Abschnitt 8).</li>
+<li><strong>Wie lange:</strong> Ohne Konto bzw. ohne gespeichertes Projekt löschen wir alle Bilder nach 7 Tagen. Mit Projekt bleiben sie, bis Sie das Projekt oder Ihr Konto löschen.</li>
+<li><strong>Bitte beachten:</strong> Fotografieren Sie keine Personen, Dokumente oder andere private Dinge mit. Ist doch eine Person zu sehen, sorgen Sie bitte dafür, dass sie einverstanden ist.</li>
+</ul>
+<h2>4. Konto und Projekte</h2>
+<p>Sie melden sich mit Apple oder Google an. Ein Passwort speichern wir nicht.</p>
+<ul>
+<li><strong>Was wir speichern:</strong> den Anbieter (Apple oder Google), Ihre Nutzer-ID bei diesem Anbieter und Ihre E-Mail-Adresse, falls der Anbieter sie mitschickt. Bei Apple kann das eine verdeckte Weiterleitungsadresse sein.</li>
+<li><strong>Projekte:</strong> Zu jedem Entwurf speichern wir ein Projekt: Konstruktion, Maße, Wunsch, gewähltes Entwurfsbild, Zimmerfoto und Markierung. So können Sie alte Projekte später weiter anpassen.</li>
+<li><strong>Anmeldung:</strong> Ihre Sitzung merken wir uns in einem Cookie bzw. in der App, höchstens 1 Jahr. Die Sitzung speichern wir nur als Hash, also als nicht zurückrechenbaren Prüfwert.</li>
+<li><strong>Löschen:</strong> Sie können jedes Projekt einzeln löschen oder Ihr ganzes Konto in der App. Dann löschen wir Konto, Projekte und Fotos. Ausgenommen sind Kaufdaten, die wir aus steuerlichen Gründen aufheben müssen (Abschnitt 7).</li>
+</ul>
+<h2>5. Nutzung ohne Konto, Geräte-ID und IP-Adresse</h2>
+<p>Ohne Konto erkennen wir Ihr Gerät an einer zufälligen Geräte-ID. So zählen wir die Gratis-Runden.</p>
+<ul>
+<li><strong>Geräte-ID:</strong> eine zufällige Kennung. Auf der Website liegt sie in einem Cookie (höchstens 1 Jahr), in der App im App-Speicher.</li>
+<li><strong>Verbrauch:</strong> Wir zählen, wie viele Runden, Lese- und Anpassungsvorgänge pro Gerät, Konto und IP-Adresse am Tag laufen. Das schützt vor Missbrauch und begrenzt unsere Kosten.</li>
+<li><strong>IP-Adresse:</strong> Wir speichern sie für diese Zählung und löschen sie nach 30 Tagen.</li>
+<li><strong>Melden Sie sich später an,</strong> gehen Projekte, Codes und Freischaltungen des Geräts auf Ihr Konto über.</li>
+</ul>
+<h2>6. Anonyme Daten zur Verbesserung</h2>
+<p>Um Parawerk zu verbessern, speichern wir ausgewählte Daten ohne Bezug zu Ihrer Person. Diese Daten bleiben auch nach dem Löschen Ihres Kontos.</p>
+<ul>
+<li><strong>Was:</strong> Wunschtext, die gelesene Konstruktion, berechnete Baupläne (Maße, Teile, Preis), 3D-Modelle, Anpassungen, Downloads und Freischaltungen sowie Ihre Rückmeldungen über „Stimmt was nicht?“. Vom Entwurf behalten wir nur das gemalte Möbel, ohne den Rest des Zimmers.</li>
+<li><strong>Was nie:</strong> Zimmerfotos, Markierungen, ganze Entwurfsbilder, Geräte-ID, Konto und IP-Adresse.</li>
+<li><strong>Verknüpfung:</strong> Einträge zum selben Entwurf hängen nur über eine zufällige Kennung zusammen. Sie steht nie bei Ihrem Gerät, Konto oder Projekt. Bis zu 7 Tage nach der letzten Nutzung gibt es noch eine technische Zuordnung zu Ihren Bildern. Danach wird sie gelöscht, und die Daten lassen sich niemandem mehr zuordnen.</li>
+<li><strong>Bitte beachten:</strong> Schreiben Sie keine Namen, Adressen oder andere persönliche Angaben in den Wunschtext oder in Rückmeldungen.</li>
+</ul>
+<h2>7. Freischaltungen und Käufe</h2>
+<p>Bei einem Kauf speichern wir, welchen Bauplan Sie wann für welchen Betrag freigeschaltet haben, und die Kaufnummer des Zahlungsanbieters. Kartendaten sehen und speichern wir nicht.</p>
+<ul>
+<li><strong>Zahlung:</strong> In der iPhone-App läuft die Zahlung über Apple (In-App-Kauf). Auf der Website über [Zahlungsanbieter]. Für die Zahlung gilt zusätzlich dessen Datenschutzerklärung.</li>
+<li><strong>Bestätigung per E-Mail:</strong> Nach dem Kauf schicken wir eine Bestätigung an Ihre E-Mail-Adresse. Darin halten wir Ihre Zustimmung zum sofortigen Download fest.</li>
+<li><strong>Aufbewahrung:</strong> Kaufdaten heben wir 7 Jahre auf, weil das österreichische Steuerrecht es verlangt (§ 132 BAO). Nach dem Löschen Ihres Kontos trennen wir sie von Ihrem Konto und nutzen sie nur noch dafür.</li>
+<li><strong>Codes:</strong> Eingelöste Codes speichern wir mit Ihrem Gerät bzw. Konto.</li>
+</ul>
+<h2>8. Wer Ihre Daten bekommt</h2>
+<p>Wir geben Ihre Daten nur an Dienste weiter, die wir für Parawerk brauchen. Sie verarbeiten die Daten in unserem Auftrag (Art. 28 DSGVO) und dürfen sie nicht für eigene Zwecke nutzen, außer es steht unten anders.</p>
+<table>
+<thead>
+<tr>
+<th>Dienst</th>
+<th>Was er bekommt</th>
+<th>Wofür</th>
+<th>Sitz</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Replicate, LLC</td>
+<td>Zimmerfoto</td>
+<td>Raumtiefe schätzen, damit die Maße stimmen [nur falls weiter genutzt]</td>
+<td>USA</td>
+</tr>
+<tr>
+<td>fal – Features &amp; Labels, Inc.</td>
+<td>Zimmerfoto, Markierung, Entwürfe, Ausschnitte</td>
+<td>Entwürfe malen und anpassen, Möbel freistellen. fal.ai trainiert nicht mit diesen Daten, speichert Eingaben und Ergebnisse nicht dauerhaft und löscht Dateien nach spätestens 1 Stunde.</td>
+<td>USA</td>
+</tr>
+<tr>
+<td>Anthropic Ireland, Limited (KI-Modell Claude)</td>
+<td>Entwurfsbilder, Wunschtext</td>
+<td>Anweisungen für die Bild-KI schreiben, Konstruktion lesen und prüfen. Anthropic trainiert nicht mit diesen Daten und löscht sie nach spätestens 30 Tagen.</td>
+<td>Irland, Verarbeitung auch in den USA</td>
+</tr>
+<tr>
+<td>Fly.io, Inc.</td>
+<td>alle Daten der App</td>
+<td>Server und Datenbank (Rechenzentrum Frankfurt)</td>
+<td>USA, Server in Deutschland</td>
+</tr>
+<tr>
+<td>Apple Inc. / Google LLC</td>
+<td>Anmeldung</td>
+<td>„Mit Apple anmelden“, „Mit Google anmelden“, In-App-Kauf</td>
+<td>USA / Irland</td>
+</tr>
+<tr>
+<td>[E-Mail-Dienst]</td>
+<td>E-Mail-Adresse, Kaufbestätigung</td>
+<td>Kaufbestätigung versenden</td>
+<td>[…]</td>
+</tr>
+</tbody>
+</table>
+<p>Bei der Anmeldung mit Apple oder Google und beim In-App-Kauf sind Apple und Google selbst verantwortlich. Es gelten zusätzlich deren Datenschutzerklärungen.</p>
+<h2>9. Übermittlung in die USA</h2>
+<p>Mehrere Dienste sitzen in den USA. Für diese Übermittlung gibt es eine rechtliche Absicherung.</p>
+<ul>
+<li><strong>Standardvertragsklauseln:</strong> Mit fal.ai, Anthropic und Fly.io gelten die EU-Standardvertragsklauseln (Art. 46 Abs. 2 lit. c DSGVO). Das sind von der EU-Kommission vorgegebene Musterverträge.</li>
+<li><strong>Data Privacy Framework:</strong> Fly.io ist zusätzlich nach dem EU-US Data Privacy Framework zertifiziert. Dafür stützen wir uns auch auf den Angemessenheitsbeschluss der EU-Kommission (Art. 45 DSGVO).</li>
+</ul>
+<p>Eine Kopie der Klauseln bekommen Sie auf Anfrage an die E-Mail-Adresse in Abschnitt 1.</p>
+<h2>10. Wie lange wir Daten speichern</h2>
+<table>
+<thead>
+<tr>
+<th>Daten</th>
+<th>Speicherdauer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fotos, Markierungen, Entwürfe ohne Projekt</td>
+<td>7 Tage</td>
+</tr>
+<tr>
+<td>Projekte mit Fotos</td>
+<td>bis Sie das Projekt oder Ihr Konto löschen</td>
+</tr>
+<tr>
+<td>Konto</td>
+<td>bis Sie es löschen</td>
+</tr>
+<tr>
+<td>Anmelde-Sitzung</td>
+<td>höchstens 1 Jahr</td>
+</tr>
+<tr>
+<td>IP-Adresse in der Verbrauchszählung</td>
+<td>30 Tage</td>
+</tr>
+<tr>
+<td>Kaufdaten</td>
+<td>7 Jahre (§ 132 BAO)</td>
+</tr>
+<tr>
+<td>Anonyme Daten zur Verbesserung</td>
+<td>unbegrenzt (kein Personenbezug)</td>
+</tr>
+<tr>
+<td>Sicherung bei Fly.io (mit Fotos)</td>
+<td>30 Tage</td>
+</tr>
+</tbody>
+</table>
+<p>Nach dem Löschen können Daten noch bis zu 30 Tage in den Sicherungskopien liegen. Danach werden sie automatisch überschrieben. Auf die Sicherungen greifen wir nur zu, um nach einem Fehler Daten wiederherzustellen.</p>
+<h2>11. Cookies auf der Website</h2>
+<p>Wir setzen nur Cookies, die für die Website nötig sind. Werbe- oder Analyse-Cookies nutzen wir nicht.</p>
+<table>
+<thead>
+<tr>
+<th>Cookie</th>
+<th>Zweck</th>
+<th>Dauer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Geräte-ID</td>
+<td>Gratis-Runden zählen, Projekte vor der Anmeldung zuordnen</td>
+<td>1 Jahr</td>
+</tr>
+<tr>
+<td>Sitzung</td>
+<td>angemeldet bleiben</td>
+<td>1 Jahr</td>
+</tr>
+</tbody>
+</table>
+<p>Diese Cookies sind technisch notwendig. Dafür brauchen wir keine Einwilligung (§ 165 Abs. 3 TKG 2021). Schriften und alle anderen Dateien der Website kommen von unserem eigenen Server. Nur wenn Sie „Mit Google anmelden“ oder „Mit Apple anmelden“ nutzen, lädt die Website ein Skript von Google bzw. Apple. Dabei können diese Ihre IP-Adresse erhalten.</p>
+<h2>12. Ihre Rechte</h2>
+<p>Sie haben jederzeit diese Rechte. Schreiben Sie dazu an die E-Mail-Adresse in Abschnitt 1.</p>
+<ul>
+<li><strong>Auskunft</strong> über Ihre gespeicherten Daten (Art. 15 DSGVO)</li>
+<li><strong>Berichtigung</strong> falscher Daten (Art. 16)</li>
+<li><strong>Löschung</strong> (Art. 17). Projekte und Konto können Sie direkt in der App löschen. Ohne Konto löschen Sie alle Daten Ihres Geräts mit „Meine Daten löschen“ (in der App unten auf der Startseite unter „Datenschutz“, auf der Website unten auf der Seite).</li>
+<li><strong>Einschränkung</strong> der Verarbeitung (Art. 18)</li>
+<li><strong>Datenübertragbarkeit:</strong> Ihre Daten in einem gängigen Format (Art. 20). Mit „Meine Daten herunterladen“ bekommen Sie sie sofort als JSON-Datei, an derselben Stelle wie „Meine Daten löschen“.</li>
+<li><strong>Widerspruch</strong> gegen Verarbeitungen aus berechtigtem Interesse (Art. 21)</li>
+</ul>
+<p><strong>Beschwerde:</strong> Sie können sich bei der österreichischen Datenschutzbehörde beschweren: Barichgasse 40–42, 1030 Wien, <a href="https://www.dsb.gv.at">dsb.gv.at</a>.</p>
+</div>
+{% endblock %}

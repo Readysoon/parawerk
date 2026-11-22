@@ -221,6 +221,8 @@ Website: während des Ziehens schnelle Vorschau (`?schnell=true`, nur 3D und Tei
 Löschen auf Wunsch:
 - `DELETE /api/v1/konto`: Konto mit Sitzungen, Projekten, Fotos, Bildern, Aufträgen, Freischaltungen und Codes.
 - `DELETE /api/v1/geraet`: dasselbe für die Geräte-ID ohne Konto („Meine Daten löschen“).
+- `GET /api/v1/meine-daten`: „Meine Daten herunterladen“ (DSGVO Art. 15/20) als JSON mit Konto, Projekten samt Fotos, Bildern der letzten 7 Tage, Freischaltungen, Codes und Nutzung (`app/models/auskunft.py`).
+- Website und App: unten auf der Startseite unter „Datenschutz“ (App: Paket `share_plus` zum Teilen der Datei).
 - Der Verbrauch wird in beiden Fällen nicht gelöscht, sondern getrennt (`geraet = "geloescht"`), damit Tagesbudget und IP-Grenze weiter stimmen. Die Lerndaten bleiben, ohne Spur zurück.
 
 ## Anonyme Analyse

@@ -111,6 +111,18 @@ $('konto-knopf').addEventListener('click', async () => {
   anmeldenZeigen();
 });
 
+// ---------- Datenschutz: Meine Daten löschen (Herunterladen ist ein normaler Link) ----------
+$('daten-loeschen').addEventListener('click', async () => {
+  if (!confirm(tx(konto.email ? 'daten_loeschen_frage_konto' : 'daten_loeschen_frage'))) return;
+  try {
+    if (konto.email) await api('/konto', null, { methode: 'DELETE' });
+    await api('/geraet', null, { methode: 'DELETE' });
+    try { localStorage.clear(); } catch {}
+    alert(tx('daten_geloescht'));
+    location.reload();
+  } catch (e) { fehler(e.message); }
+});
+
 // ---------- Gratis-Kontingent ----------
 async function kontingentLaden() {
   try {

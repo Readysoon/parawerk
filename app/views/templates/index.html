@@ -150,7 +150,12 @@
       </div>
     </div>
   </section>
-  <footer class="credit">{{ t("ui.foto_credit") | safe }}</footer>
+  <footer class="credit">
+    <p class="datenschutz"><a href="/datenschutz">{{ t("ui.datenschutzerklaerung") }}</a> ·
+      <a href="/api/v1/meine-daten" download>{{ t("ui.daten_herunterladen") }}</a> ·
+      <button class="link" type="button" id="daten-loeschen">{{ t("ui.daten_loeschen") }}</button></p>
+    <p>{{ t("ui.foto_credit") | safe }}</p>
+  </footer>
 </div>
 {% endblock %}
 {% block skripte %}

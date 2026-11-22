@@ -174,6 +174,20 @@ class Api {
     await _sitzungSpeichern(null);
   }
 
+  /// „Meine Daten herunterladen“ (DSGVO Art. 15/20): alles zu Konto bzw. Gerät als JSON-Datei.
+  Future<Uint8List> meineDaten() async {
+    final r = await http.get(Uri.parse('$apiBasis/api/v1/meine-daten'), headers: _kopf).timeout(const Duration(seconds: 60));
+    if (r.statusCode >= 400) _auswerten(r);
+    return r.bodyBytes;
+  }
+
+  /// „Meine Daten löschen“: mit Konto das Konto, dazu immer alles an dieser Geräte-ID.
+  Future<void> meineDatenLoeschen() async {
+    if (angemeldet) await kontoLoeschen();
+    final r = await http.delete(Uri.parse('$apiBasis/api/v1/geraet'), headers: _kopf).timeout(const Duration(seconds: 30));
+    _auswerten(r);
+  }
+
   /// Bauplan mit einem Code freischalten (gilt für diesen Entwurf, inklusive späterer Änderungen).
   Future<void> freischalten(String code, Map<String, dynamic> graph, {String? entwurfId}) =>
       _post('/api/v1/freischalten', {'code': code, 'graph': graph, if (entwurfId != null) 'entwurf_id': entwurfId});

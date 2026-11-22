@@ -3,7 +3,7 @@
 - ``alles_zu(c, wer)``: alles, was an einem Gerät (Geräte-ID) bzw. Konto (``k-<id>``) hängt. Genutzt beim Löschen des
   Kontos und bei „Meine Daten löschen“ ohne Konto.
 - ``aufraeumen(db)``: Fristen aus der Datenschutzerklärung durchsetzen (Bilder 7 Tage, IP-Adressen 30 Tage, abgelaufene
-  Sitzungen). Läuft beim Start des Servers und bei jedem Foto-Upload.
+  Sitzungen) und früher gespeicherte E-Mail-Adressen leeren. Läuft beim Start des Servers und bei jedem Foto-Upload.
 
 Der Verbrauch wird beim Löschen nicht gelöscht, sondern vom Gerät getrennt (``geraet = "geloescht"``): Das Tagesbudget
 und die Grenze je IP-Adresse rechnen weiter richtig, und die IP verschwindet ohnehin nach 30 Tagen.
@@ -15,7 +15,7 @@ from datetime import timedelta
 from sqlalchemy import Engine, delete, or_, select, update
 
 from . import speicher
-from .konten import SITZUNG_GUELTIG, freischaltungen, sitzungen
+from .konten import SITZUNG_GUELTIG, freischaltungen, konten, sitzungen
 from .projekte import alle_loeschen as projekte_alle_loeschen, projekt_fotos, projekte
 from .verbrauch import einloesungen, jetzt, verbrauch
 
@@ -53,3 +53,4 @@ def aufraeumen(db: Engine) -> None:
         c.execute(update(verbrauch).where(verbrauch.c.zeit < jetzt() - IP_FRIST, verbrauch.c.ip != "")
                   .values(ip=""))
         c.execute(delete(sitzungen).where(sitzungen.c.erstellt < jetzt() - SITZUNG_GUELTIG))
+        c.execute(update(konten).where(konten.c.email.isnot(None)).values(email=None))  # alte E-Mails (bis 22.11.2026)

@@ -27,7 +27,7 @@ konten = Table(
     Column("id", Integer, primary_key=True, autoincrement=True),
     Column("anbieter", String(16), nullable=False),
     Column("sub", String(255), nullable=False),  # feste Nutzer-ID beim Anbieter
-    Column("email", String(254)),  # Apple schickt sie nur beim ersten Mal, evtl. als Weiterleitungsadresse
+    Column("email", String(254)),  # wird seit 22.11.2026 nicht mehr gespeichert (Datenminimierung), Spalte bleibt leer
     Column("erstellt", DateTime(timezone=True), nullable=False),
     UniqueConstraint("anbieter", "sub", name="uq_konto_anbieter"),
 )
@@ -54,8 +54,12 @@ def _hash(text: str) -> str:
     return hashlib.sha256(text.encode()).hexdigest()
 
 
-def anmelden(db: Engine, anbieter: str, sub: str, email: str | None) -> str:
-    """Konto zu (Anbieter, Nutzer-ID) holen oder anlegen und eine Sitzung starten. Gibt das Sitzungs-Token zurück."""
+def anmelden(db: Engine, anbieter: str, sub: str, email: str | None = None) -> str:
+    """Konto zu (Anbieter, Nutzer-ID) holen oder anlegen und eine Sitzung starten. Gibt das Sitzungs-Token zurück.
+
+    Die E-Mail-Adresse wird nicht gespeichert (Datenminimierung: Kaufbestätigungen schicken Apple bzw. Paddle).
+    Der Parameter bleibt nur, damit Aufrufer nichts ändern müssen."""
+    email = None
     with db.begin() as c:
         z = c.execute(select(konten.c.id, konten.c.email).where(konten.c.anbieter == anbieter,
                                                                 konten.c.sub == sub)).first()

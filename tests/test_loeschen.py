@@ -133,3 +133,14 @@ def test_meine_daten_herunterladen(tmp_path):
     assert len(d["freischaltungen"]) == 1 and d["eingeloeste_codes"][0]["code"] == "TEST"
     assert d["nutzung"][0]["ip"] == "1.2.3.4"
     assert "geraet-fremd-1" not in r.text  # nur die eigenen Daten
+
+
+def test_keine_email_gespeichert_und_alte_geleert(tmp_path):
+    db = _db(tmp_path)
+    konten.anmelden(db, "apple", "nutzer-neu", "neu@example.com")
+    with db.begin() as c:  # so wie vor dem 22.11.2026 gespeichert
+        c.execute(konten.konten.insert().values(anbieter="google", sub="nutzer-alt", email="alt@example.com",
+                                                erstellt=jetzt()))
+    assert _anzahl(db, konten.konten, konten.konten.c.email.isnot(None)) == 1
+    loeschen.aufraeumen(db)
+    assert _anzahl(db, konten.konten, konten.konten.c.email.isnot(None)) == 0

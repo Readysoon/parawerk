@@ -50,7 +50,7 @@ def test_apple_und_google_mit_geprueftem_token(stufen):
         with TestClient(app) as c:
             assert c.post("/api/v1/konto/anmelden/apple", json={"id_token": "boese" * 5}).status_code == 401
             r = c.post("/api/v1/konto/anmelden/apple", json={"id_token": "gut" * 10})
-            assert r.status_code == 200 and r.json()["email"] == "a@privaterelay.appleid.com"
+            assert r.status_code == 200 and r.json()["email"] == "Apple"  # E-Mail wird nicht gespeichert, nur der Anbieter
             assert c.post("/api/v1/konto/anmelden/facebook", json={"id_token": "gut" * 10}).status_code == 404
             assert c.delete("/api/v1/konto").json() == {"email": None}  # Konto löschen (App-Store-Pflicht)
     finally:
